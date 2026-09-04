@@ -11,8 +11,9 @@ export async function GET(req: NextRequest) {
   const bookingId = req.nextUrl.searchParams.get('bookingId')
   if (!bookingId) return NextResponse.json({ error: '缺少 bookingId' }, { status: 400 })
 
-  // 廠商只能看自己單據上的簡訊紀錄
-  if (session.user.role === 'vendor') {
+  // 沒有管理員/客服身份的人，只能看自己單據上的簡訊紀錄
+  const seesAll = session.user.roles.includes('admin') || session.user.roles.includes('customer_service')
+  if (!seesAll) {
     const [booking] = await db.select().from(bookings).where(and(eq(bookings.id, bookingId), eq(bookings.vendorId, session.user.id)))
     if (!booking) return NextResponse.json([], { status: 200 })
   }
@@ -30,7 +31,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '缺少簡訊類型或內容' }, { status: 400 })
   }
 
-  if (body.bookingId && session.user.role === 'vendor') {
+  const seesAll = session.user.roles.includes('admin') || session.user.roles.includes('customer_service')
+  if (body.bookingId && !seesAll) {
     const [booking] = await db.select().from(bookings).where(and(eq(bookings.id, body.bookingId), eq(bookings.vendorId, session.user.id)))
     if (!booking) return NextResponse.json({ error: '找不到這筆單據' }, { status: 404 })
   }

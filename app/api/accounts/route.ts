@@ -16,13 +16,13 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
   const body = await req.json()
-  if (!body.email || !body.role) {
-    return NextResponse.json({ error: '缺少 email 或角色' }, { status: 400 })
+  if (!body.email || !Array.isArray(body.roles) || body.roles.length === 0) {
+    return NextResponse.json({ error: '缺少 email 或至少一個角色' }, { status: 400 })
   }
 
   const [row] = await db
     .insert(users)
-    .values({ email: body.email, name: body.name || null, role: body.role })
+    .values({ email: body.email, name: body.name || null, roles: body.roles })
     .returning()
 
   return NextResponse.json(row, { status: 201 })

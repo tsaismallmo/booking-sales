@@ -14,6 +14,11 @@ type SmsLog = {
   createdAt: string;
 };
 
+type BookingRequest = {
+  id: string;
+  status: "pending" | "resolved";
+};
+
 const statusLabel: Record<string, string> = { unsold: "未售出", reserved: "訂", sold: "售", refunded: "退" };
 const smsTypeLabel: Record<SmsLog["type"], string> = { booking_notice: "付款通知簡訊", payment_completion: "付款完成簡訊" };
 
@@ -32,6 +37,18 @@ export default function BookingDetailPage() {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [smsLogs, setSmsLogs] = useState<SmsLog[]>([]);
+  const [pendingRequest, setPendingRequest] = useState<BookingRequest | null>(null);
+  const [canCreateRequest, setCanCreateRequest] = useState(false);
+  const [roles, setRoles] = useState<string[]>([]);
+  const [showRequestForm, setShowRequestForm] = useState(false);
+  const [requestForm, setRequestForm] = useState({ note: "", proposedBranch: "", proposedBookingDate: "", proposedTimeSlot: "", proposedPartySize: "" });
+  const [submittingRequest, setSubmittingRequest] = useState(false);
+
+  const loadPendingRequest = () => {
+    fetch(`/api/booking-requests?bookingId=${params.id}&status=pending`)
+      .then((res) => res.json())
+      .then((data) => setPendingRequest(Array.isArray(data) && data.length > 0 ? data[0] : null));
+  };
 
   useEffect(() => {
     fetch(`/api/bookings/${params.id}`)
@@ -43,12 +60,40 @@ export default function BookingDetailPage() {
     fetch(`/api/sms-logs?bookingId=${params.id}`)
       .then((res) => res.json())
       .then((data) => setSmsLogs(Array.isArray(data) ? data : []));
+    fetch(`/api/booking-requests?bookingId=${params.id}&status=pending`)
+      .then((res) => res.json())
+      .then((data) => setPendingRequest(Array.isArray(data) && data.length > 0 ? data[0] : null));
+    fetch("/api/me")
+      .then((res) => res.json())
+      .then((me) => {
+        const r: string[] = me.roles ?? [];
+        setRoles(r);
+        setCanCreateRequest(r.includes("customer_service") || r.includes("admin"));
+      });
   }, [params.id]);
+
+  const pureCustomerService = roles.includes("customer_service") && !roles.includes("vendor") && !roles.includes("admin");
+  const canDelete = !(pureCustomerService && booking?.category === "現貨單");
+
+  const handleSubmitRequest = async () => {
+    setSubmittingRequest(true);
+    const res = await fetch("/api/booking-requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bookingIds: [params.id], ...requestForm }),
+    });
+    setSubmittingRequest(false);
+    if (res.ok) {
+      setShowRequestForm(false);
+      setRequestForm({ note: "", proposedBranch: "", proposedBookingDate: "", proposedTimeSlot: "", proposedPartySize: "" });
+      loadPendingRequest();
+    }
+  };
 
   const handleDelete = async () => {
     if (!confirm("確定要刪除這筆單據嗎？")) return;
     const res = await fetch(`/api/bookings/${params.id}`, { method: "DELETE" });
-    if (res.ok) router.push("/bookings");
+    if (res.ok) router.back();
   };
 
   if (loading) return <div className="erp-page">載入中...</div>;
@@ -59,14 +104,44 @@ export default function BookingDetailPage() {
       <div className="erp-page-header">
         <div>
           <h1 className="erp-page-title">單據詳細資料</h1>
-          <p className="erp-page-subtitle">{statusLabel[String(booking.status)]} · {booking.bookingDate}</p>
+          <p className="erp-page-subtitle">
+            {statusLabel[String(booking.status)]} · {booking.bookingDate}
+            {pendingRequest && <span className="badge badge-warning" style={{ marginLeft: 8 }}>需求處理中</span>}
+          </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          {canCreateRequest && !pendingRequest && (
+            <button onClick={() => setShowRequestForm((s) => !s)} className="btn btn-secondary">轉需求</button>
+          )}
           <Link href={`/bookings/${params.id}/edit`} className="btn btn-primary">編輯</Link>
-          <button onClick={handleDelete} className="btn btn-danger">刪除</button>
-          <button onClick={() => router.push("/bookings")} className="btn btn-secondary">返回</button>
+          {canDelete && <button onClick={handleDelete} className="btn btn-danger">刪除</button>}
+          <button onClick={() => router.back()} className="btn btn-secondary">返回</button>
         </div>
       </div>
+
+      {showRequestForm && (
+        <div className="erp-card" style={{ marginBottom: 20 }}>
+          <div className="erp-card-header"><span className="erp-card-title">轉需求：填寫要修改的內容</span></div>
+          <div className="erp-card-body">
+            <div className="erp-form-grid">
+              <div className="erp-form-group">
+                <label className="erp-label">改成人數</label>
+                <input type="number" className="erp-input" placeholder="不改就留空" value={requestForm.proposedPartySize} onChange={(e) => setRequestForm({ ...requestForm, proposedPartySize: e.target.value })} />
+              </div>
+              <div className="erp-form-group full">
+                <label className="erp-label">說明</label>
+                <textarea className="erp-textarea" rows={2} placeholder="給後勤人員的說明" value={requestForm.note} onChange={(e) => setRequestForm({ ...requestForm, note: e.target.value })} />
+              </div>
+            </div>
+            <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+              <button onClick={handleSubmitRequest} disabled={submittingRequest} className="btn btn-primary">
+                {submittingRequest ? "送出中..." : "送出需求"}
+              </button>
+              <button onClick={() => setShowRequestForm(false)} className="btn btn-secondary">取消</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="erp-card" style={{ marginBottom: 20 }}>
         <div className="erp-card-header"><span className="erp-card-title">基本資訊</span></div>
@@ -91,7 +166,7 @@ export default function BookingDetailPage() {
       </div>
 
       <div className="erp-card" style={{ marginBottom: 20 }}>
-        <div className="erp-card-header"><span className="erp-card-title">客戶資訊</span></div>
+        <div className="erp-card-header"><span className="erp-card-title">訂位資訊</span></div>
         <div className="erp-card-body erp-sysinfo">
           <Row label="姓名" value={booking.customerName} />
           <Row label="電話" value={booking.customerPhone} />

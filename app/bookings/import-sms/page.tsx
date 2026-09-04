@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { parseSms, type ParsedSms } from "@/lib/sms-parser";
 import { formatCurrency } from "@/lib/utils";
+import { VendorSelect } from "@/components/VendorSelect";
 
 type ExistingBooking = {
   id: string;
@@ -21,11 +22,12 @@ export default function ImportSmsPage() {
   const [parsed, setParsed] = useState<ParsedSms | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [vendorId, setVendorId] = useState("");
 
   // 付款通知 → 建單據 用的可編輯欄位
   const [form, setForm] = useState({
     branch: "",
-    category: "預購單",
+    category: "現貨單",
     bookingDate: "",
     timeSlot: "",
     partySize: "",
@@ -33,36 +35,79 @@ export default function ImportSmsPage() {
     paymentDeadline: "",
     depositAmount: "",
     depositPayer: "",
+    customerName: "",
+    customerPhone: "",
   });
 
   // 付款完成 → 比對到的既有單據
   const [matched, setMatched] = useState<ExistingBooking | null | undefined>(undefined);
+  const [ambiguous, setAmbiguous] = useState(false);
   const [checkingMatch, setCheckingMatch] = useState(false);
+  const [rawBranch, setRawBranch] = useState(""); // 簡訊裡原始的分店文字，跟最終確認的分店不同時拿來記對應
+  const [matchBranch, setMatchBranch] = useState(""); // 付款完成比對用的分店，可手動修正
+
+  // 之前有沒有人設定過「這段簡訊分店文字」該對應到系統裡哪個分店名稱
+  const resolveBranchAlias = async (raw: string) => {
+    const res = await fetch(`/api/branch-aliases?rawText=${encodeURIComponent(raw)}`);
+    const data = await res.json();
+    return data?.canonicalBranch ?? raw;
+  };
+
+  const saveBranchAliasIfChanged = async (raw: string, final: string) => {
+    if (raw && final && raw !== final) {
+      await fetch("/api/branch-aliases", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rawText: raw, canonicalBranch: final }),
+      });
+    }
+  };
+
+  const runLookup = async (branch: string, p: ParsedSms) => {
+    if (p.type !== "payment_completion" || !p.bookingCode) return;
+    setCheckingMatch(true);
+    setError("");
+    const qs = new URLSearchParams({ code: p.bookingCode });
+    if (branch) qs.set("branch", branch);
+    if (p.bookingDate) qs.set("bookingDate", p.bookingDate);
+    if (p.timeSlot) qs.set("timeSlot", p.timeSlot);
+    if (p.partySize != null) qs.set("partySize", String(p.partySize));
+    if (p.amount != null) qs.set("amount", String(p.amount));
+
+    const res = await fetch(`/api/bookings/lookup?${qs.toString()}`);
+    const data = await res.json();
+    setMatched(data.match ?? null);
+    setAmbiguous(Boolean(data.ambiguous));
+    if (data.error) setError(data.error);
+    setCheckingMatch(false);
+  };
 
   const handleParse = async () => {
     setError("");
     setMatched(undefined);
+    setAmbiguous(false);
     const result = parseSms(text);
     setParsed(result);
 
     if (result.type === "booking_notice") {
+      const branch = result.branch ? await resolveBranchAlias(result.branch) : "";
       setForm((f) => ({
         ...f,
-        branch: result.branch ?? "",
+        branch,
         bookingDate: result.bookingDate ?? "",
         timeSlot: result.timeSlot ?? "",
         partySize: result.partySize?.toString() ?? "",
         bookingCode: result.bookingCode ?? "",
         paymentDeadline: result.paymentDeadline ?? "",
       }));
+      setRawBranch(result.branch ?? "");
     }
 
     if (result.type === "payment_completion" && result.bookingCode) {
-      setCheckingMatch(true);
-      const res = await fetch(`/api/bookings/lookup?code=${encodeURIComponent(result.bookingCode)}`);
-      const data = await res.json();
-      setMatched(data);
-      setCheckingMatch(false);
+      const branch = result.branch ? await resolveBranchAlias(result.branch) : "";
+      setRawBranch(result.branch ?? "");
+      setMatchBranch(branch);
+      await runLookup(branch, result);
     }
   };
 
@@ -74,13 +119,17 @@ export default function ImportSmsPage() {
       setError("請確認日期與類別");
       return;
     }
+    if (!form.customerName || !form.customerPhone) {
+      setError("現貨單要填訂位姓名與電話");
+      return;
+    }
     setSaving(true);
     setError("");
 
     const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({ ...form, vendorId }),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -89,6 +138,7 @@ export default function ImportSmsPage() {
       return;
     }
     const booking = await res.json();
+    await saveBranchAliasIfChanged(rawBranch, form.branch);
 
     await fetch("/api/sms-logs", {
       method: "POST",
@@ -119,6 +169,7 @@ export default function ImportSmsPage() {
       return;
     }
     if (matched) {
+      await saveBranchAliasIfChanged(rawBranch, matchBranch);
       router.push(`/bookings/${matched.id}`);
     } else {
       setText("");
@@ -133,7 +184,7 @@ export default function ImportSmsPage() {
           <h1 className="erp-page-title">解析簡訊</h1>
           <p className="erp-page-subtitle">貼上付款通知或付款完成簡訊，自動解析並建立/留存紀錄</p>
         </div>
-        <button onClick={() => router.push("/bookings")} className="btn btn-secondary">返回單據看板</button>
+        <button onClick={() => router.push("/bookings")} className="btn btn-secondary">返回單據管理</button>
       </div>
 
       {error && <div className="erp-alert danger">{error}</div>}
@@ -163,17 +214,14 @@ export default function ImportSmsPage() {
           <div className="erp-card-header"><span className="erp-card-title">解析結果 · 建立單據</span></div>
           <div className="erp-card-body">
             <div className="erp-form-grid">
+              <VendorSelect value={vendorId} onChange={setVendorId} />
               <div className="erp-form-group">
                 <label className="erp-label">分店</label>
                 <input className="erp-input" value={form.branch} onChange={set("branch")} />
               </div>
               <div className="erp-form-group">
                 <label className="erp-label">類別</label>
-                <select className="erp-select" value={form.category} onChange={set("category")}>
-                  <option value="預購單">預購單</option>
-                  <option value="臨時單">臨時單</option>
-                  <option value="現貨單">現貨單</option>
-                </select>
+                <input className="erp-input" value={form.category} disabled />
               </div>
               <div className="erp-form-group">
                 <label className="erp-label">日期</label>
@@ -203,6 +251,14 @@ export default function ImportSmsPage() {
                 <label className="erp-label">付款人員</label>
                 <input className="erp-input" value={form.depositPayer} onChange={set("depositPayer")} />
               </div>
+              <div className="erp-form-group">
+                <label className="erp-label">訂位姓名 <span className="required">*</span></label>
+                <input className="erp-input" value={form.customerName} onChange={set("customerName")} />
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">訂位電話 <span className="required">*</span></label>
+                <input className="erp-input" value={form.customerPhone} onChange={set("customerPhone")} />
+              </div>
             </div>
             <div style={{ marginTop: 16 }}>
               <button onClick={handleCreateBooking} disabled={saving} className="btn btn-primary">
@@ -222,23 +278,44 @@ export default function ImportSmsPage() {
             <div className="erp-sysinfo-row"><span className="erp-sysinfo-key">交易金額</span><span className="erp-sysinfo-val">{formatCurrency(parsed.amount)}</span></div>
             <div className="erp-sysinfo-row"><span className="erp-sysinfo-key">訂金單號</span><span className="erp-sysinfo-val">{parsed.transactionNo ?? "—"}</span></div>
 
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 8, marginTop: 8 }}>
+              <div className="erp-form-group" style={{ maxWidth: 280 }}>
+                <label className="erp-label">
+                  比對用分店{rawBranch && matchBranch !== rawBranch ? `（簡訊原文：${rawBranch}）` : ""}
+                </label>
+                <input className="erp-input" value={matchBranch} onChange={(e) => setMatchBranch(e.target.value)} />
+              </div>
+              <button
+                onClick={() => runLookup(matchBranch, parsed)}
+                disabled={checkingMatch}
+                className="btn btn-secondary"
+              >
+                重新比對
+              </button>
+            </div>
+            <p style={{ fontSize: 12, color: "var(--gray-400)", marginTop: 4 }}>
+              如果分店名稱跟系統裡不一樣，改成正確的名稱再按重新比對；比對成功並儲存後，這個對應關係會被記住，下次同樣的簡訊寫法會自動代換。
+            </p>
+
             <hr className="erp-divider" />
 
             {checkingMatch && <p>比對單據中...</p>}
             {!checkingMatch && matched && (
               <div className="erp-alert info">
-                已比對到單據：{matched.branch} {matched.bookingDate} {matched.timeSlot}，目前登記訂金 {formatCurrency(matched.depositAmount)}
-                {parsed.amount != null && matched.depositAmount != null && Number(matched.depositAmount) !== parsed.amount && (
-                  <> — <strong>金額不一致，請留意</strong></>
-                )}
+                已比對到唯一一筆單據：{matched.branch} {matched.bookingDate} {matched.timeSlot}，訂金 {formatCurrency(matched.depositAmount)}
               </div>
             )}
-            {!checkingMatch && matched === null && (
+            {!checkingMatch && matched === null && ambiguous && (
+              <div className="erp-alert danger">
+                訂位代號 {parsed.bookingCode} 用分店/日期/時段/人數/金額還是對到不只一筆或無法確定，請到單據管理手動確認後再處理，避免關聯錯筆。
+              </div>
+            )}
+            {!checkingMatch && matched === null && !ambiguous && (
               <div className="erp-alert danger">找不到訂位代號 {parsed.bookingCode} 對應的單據，仍可先留存簡訊內容，之後再手動核對。</div>
             )}
 
             <div style={{ marginTop: 8 }}>
-              <button onClick={handleAttachPaymentLog} disabled={saving || checkingMatch} className="btn btn-primary">
+              <button onClick={handleAttachPaymentLog} disabled={saving || checkingMatch || ambiguous} className="btn btn-primary">
                 {saving ? "儲存中..." : matched ? "留存並關聯到這筆單據" : "僅留存簡訊內容"}
               </button>
             </div>

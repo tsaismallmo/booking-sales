@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "db:push": "drizzle-kit push",
-    "seed": "tsx scripts/seed.ts"
+    "seed": "tsx scripts/seed.ts",
+    "seed:fake": "tsx scripts/seed-fake-bookings.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",

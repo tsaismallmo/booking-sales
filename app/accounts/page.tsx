@@ -2,19 +2,45 @@
 
 import { useEffect, useState } from "react";
 
+type Role = "admin" | "vendor" | "customer_service" | "logistics";
+
 type Account = {
   id: string;
   email: string;
   name: string | null;
-  role: "admin" | "vendor" | "customer_service";
+  roles: Role[];
 };
+
+const ROLE_OPTIONS: { value: Role; label: string }[] = [
+  { value: "vendor", label: "廠商" },
+  { value: "customer_service", label: "客服" },
+  { value: "logistics", label: "後勤人員" },
+  { value: "admin", label: "管理員" },
+];
+
+function RoleCheckboxes({ value, onChange }: { value: Role[]; onChange: (roles: Role[]) => void }) {
+  const toggle = (role: Role) => {
+    onChange(value.includes(role) ? value.filter((r) => r !== role) : [...value, role]);
+  };
+  return (
+    <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+      {ROLE_OPTIONS.map((opt) => (
+        <label key={opt.value} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13 }}>
+          <input type="checkbox" checked={value.includes(opt.value)} onChange={() => toggle(opt.value)} />
+          {opt.label}
+        </label>
+      ))}
+    </div>
+  );
+}
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [form, setForm] = useState({ email: "", name: "", role: "vendor" as Account["role"] });
+  const [form, setForm] = useState<{ email: string; name: string; roles: Role[] }>({ email: "", name: "", roles: ["vendor"] });
   const [saving, setSaving] = useState(false);
+  const [editingRoles, setEditingRoles] = useState<Record<string, Role[]>>({});
 
   const load = () => {
     fetch("/api/accounts")
@@ -29,6 +55,7 @@ export default function AccountsPage() {
 
   const handleAdd = async () => {
     if (!form.email) { setError("請輸入 email"); return; }
+    if (form.roles.length === 0) { setError("請至少選一個角色"); return; }
     setSaving(true);
     setError("");
     const res = await fetch("/api/accounts", {
@@ -42,15 +69,27 @@ export default function AccountsPage() {
       setError(data.error || "新增失敗");
       return;
     }
-    setForm({ email: "", name: "", role: "vendor" });
+    setForm({ email: "", name: "", roles: ["vendor"] });
     load();
   };
 
-  const handleRoleChange = async (id: string, role: Account["role"]) => {
-    await fetch(`/api/accounts/${id}`, {
+  const handleSaveRoles = async (id: string) => {
+    const roles = editingRoles[id];
+    if (!roles || roles.length === 0) return;
+    const res = await fetch(`/api/accounts/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role }),
+      body: JSON.stringify({ roles }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || "更新失敗");
+      return;
+    }
+    setEditingRoles((e) => {
+      const next = { ...e };
+      delete next[id];
+      return next;
     });
     load();
   };
@@ -66,7 +105,7 @@ export default function AccountsPage() {
       <div className="erp-page-header">
         <div>
           <h1 className="erp-page-title">帳號管理</h1>
-          <p className="erp-page-subtitle">管理誰可以登入系統，以及各自的角色</p>
+          <p className="erp-page-subtitle">管理誰可以登入系統，以及各自的角色（一個帳號可以同時有多個角色）</p>
         </div>
       </div>
 
@@ -85,12 +124,8 @@ export default function AccountsPage() {
               <input className="erp-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div className="erp-form-group">
-              <label className="erp-label">角色</label>
-              <select className="erp-select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as Account["role"] })}>
-                <option value="vendor">廠商</option>
-                <option value="customer_service">客服</option>
-                <option value="admin">管理員</option>
-              </select>
+              <label className="erp-label">角色 <span className="required">*</span></label>
+              <RoleCheckboxes value={form.roles} onChange={(roles) => setForm({ ...form, roles })} />
             </div>
           </div>
           <div style={{ marginTop: 12 }}>
@@ -112,22 +147,30 @@ export default function AccountsPage() {
             </thead>
             <tbody>
               {loading && <tr><td colSpan={4} style={{ textAlign: "center", color: "var(--gray-400)" }}>載入中...</td></tr>}
-              {!loading && accounts.map((a) => (
-                <tr key={a.id}>
-                  <td>{a.email}</td>
-                  <td>{a.name ?? "—"}</td>
-                  <td>
-                    <select className="erp-select" style={{ minWidth: 110 }} value={a.role} onChange={(e) => handleRoleChange(a.id, e.target.value as Account["role"])}>
-                      <option value="vendor">廠商</option>
-                      <option value="customer_service">客服</option>
-                      <option value="admin">管理員</option>
-                    </select>
-                  </td>
-                  <td>
-                    <button onClick={() => handleDelete(a.id)} className="btn btn-ghost" style={{ color: "var(--color-danger)", padding: "4px 10px", fontSize: 13 }}>移除</button>
-                  </td>
-                </tr>
-              ))}
+              {!loading && accounts.map((a) => {
+                const current = editingRoles[a.id] ?? a.roles;
+                const dirty = editingRoles[a.id] !== undefined;
+                return (
+                  <tr key={a.id}>
+                    <td>{a.email}</td>
+                    <td>{a.name ?? "—"}</td>
+                    <td>
+                      <RoleCheckboxes value={current} onChange={(roles) => setEditingRoles((e) => ({ ...e, [a.id]: roles }))} />
+                    </td>
+                    <td style={{ display: "flex", gap: 8 }}>
+                      <button
+                        onClick={() => handleSaveRoles(a.id)}
+                        disabled={!dirty}
+                        className="btn btn-primary"
+                        style={{ padding: "4px 10px", fontSize: 13 }}
+                      >
+                        儲存
+                      </button>
+                      <button onClick={() => handleDelete(a.id)} className="btn btn-ghost" style={{ color: "var(--color-danger)", padding: "4px 10px", fontSize: 13 }}>移除</button>
+                    </td>
+                  </tr>
+                );
+              })}
               {!loading && accounts.length === 0 && (
                 <tr><td colSpan={4} style={{ textAlign: "center", color: "var(--gray-400)" }}>尚無帳號</td></tr>
               )}

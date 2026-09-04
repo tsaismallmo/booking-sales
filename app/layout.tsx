@@ -16,7 +16,7 @@ export default async function RootLayout({
 }) {
   const h = await headers();
   const pathname = h.get("x-pathname") ?? "";
-  const isPublic = pathname.startsWith("/login");
+  const isPublic = pathname.startsWith("/login") || pathname.startsWith("/dev");
   const session = isPublic ? null : await auth();
 
   return (
@@ -26,7 +26,7 @@ export default async function RootLayout({
           children
         ) : (
           <div className="erp-layout">
-            <Sidebar role={session.user.role} />
+            <Sidebar roles={session.user.roles} />
             <main className="erp-main">{children}</main>
           </div>
         )}

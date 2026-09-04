@@ -44,7 +44,9 @@ export default function BookingsPage() {
     fetch("/api/bookings")
       .then((res) => res.json())
       .then((data) => {
-        setBookings(Array.isArray(data) ? data : []);
+        // 單據管理只處理現貨單，臨時單/預定單在各自的看板管理
+        const rows = (Array.isArray(data) ? data : []).filter((b: Booking) => b.category === "現貨單");
+        setBookings(rows);
         setLoading(false);
       });
   }, []);
@@ -65,12 +67,12 @@ export default function BookingsPage() {
     <div className="erp-page">
       <div className="erp-page-header">
         <div>
-          <h1 className="erp-page-title">單據看板</h1>
-          <p className="erp-page-subtitle">顯示 {filtered.length} / {bookings.length} 筆</p>
+          <h1 className="erp-page-title">單據管理</h1>
+          <p className="erp-page-subtitle">現貨單，顯示 {filtered.length} / {bookings.length} 筆</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <Link href="/bookings/import-sms" className="btn btn-secondary">📩 解析簡訊</Link>
-          <Link href="/bookings/new" className="btn btn-primary">＋ 新增單據</Link>
+          <Link href="/bookings/new?category=現貨單" className="btn btn-primary">＋ 新增單據</Link>
         </div>
       </div>
 

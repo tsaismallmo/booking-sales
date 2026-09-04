@@ -10,6 +10,17 @@ export default function EditBookingPage() {
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState("");
   const [form, setForm] = useState<Record<string, string>>({});
+  // 純客服（沒有廠商/管理員身份）只能編輯銷售/收款，訂位資訊、分店/日期/金流都要走「轉需求」
+  const [pureCustomerService, setPureCustomerService] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/me")
+      .then((res) => res.json())
+      .then((me) => {
+        const roles: string[] = me.roles ?? [];
+        setPureCustomerService(roles.includes("customer_service") && !roles.includes("vendor") && !roles.includes("admin"));
+      });
+  }, []);
 
   useEffect(() => {
     fetch(`/api/bookings/${params.id}`)
@@ -58,7 +69,7 @@ export default function EditBookingPage() {
       setError(data.error || "儲存失敗");
       return;
     }
-    router.push(`/bookings/${params.id}`);
+    router.replace(`/bookings/${params.id}`);
   };
 
   if (fetching) return <div className="erp-page">載入中...</div>;
@@ -67,27 +78,97 @@ export default function EditBookingPage() {
     <div className="erp-page">
       <div className="erp-page-header">
         <h1 className="erp-page-title">編輯單據</h1>
-        <button onClick={() => router.push(`/bookings/${params.id}`)} className="btn btn-secondary">取消</button>
+        <button onClick={() => router.replace(`/bookings/${params.id}`)} className="btn btn-secondary">取消</button>
       </div>
 
       {error && <div className="erp-alert danger">{error}</div>}
 
-      <div className="erp-card">
-        <div className="erp-card-header"><span className="erp-card-title">基本資訊</span></div>
+      {!pureCustomerService && (
+        <div className="erp-card">
+          <div className="erp-card-header"><span className="erp-card-title">基本資訊</span></div>
+          <div className="erp-card-body">
+            <div className="erp-form-grid">
+              <div className="erp-form-group">
+                <label className="erp-label">分店</label>
+                <input className="erp-input" value={form.branch} onChange={set("branch")} />
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">類別</label>
+                <input className="erp-input" value={form.category} disabled />
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">日期</label>
+                <input type="date" className="erp-input" value={form.bookingDate} onChange={set("bookingDate")} />
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">時段</label>
+                <input className="erp-input" value={form.timeSlot} onChange={set("timeSlot")} />
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">人數</label>
+                <input type="number" className="erp-input" value={form.partySize} onChange={set("partySize")} />
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">訂位代號</label>
+                <input className="erp-input" value={form.bookingCode} onChange={set("bookingCode")} />
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">退訂期限</label>
+                <input type="date" className="erp-input" value={form.cancelDeadline} onChange={set("cancelDeadline")} />
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">付款期限</label>
+                <input type="date" className="erp-input" value={form.paymentDeadline} onChange={set("paymentDeadline")} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!pureCustomerService && (
+        <div className="erp-card" style={{ marginTop: 24 }}>
+          <div className="erp-card-header"><span className="erp-card-title">餐廳端金流</span></div>
+          <div className="erp-card-body">
+            <div className="erp-form-grid">
+              <div className="erp-form-group">
+                <label className="erp-label">訂金</label>
+                <input type="number" step="0.01" className="erp-input" value={form.depositAmount} onChange={set("depositAmount")} />
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">付款人員</label>
+                <input className="erp-input" value={form.depositPayer} onChange={set("depositPayer")} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!pureCustomerService && (
+        <div className="erp-card" style={{ marginTop: 24 }}>
+          <div className="erp-card-header"><span className="erp-card-title">訂位資訊</span></div>
+          <div className="erp-card-body">
+            <div className="erp-form-grid">
+              <div className="erp-form-group">
+                <label className="erp-label">姓名</label>
+                <input className="erp-input" value={form.customerName} onChange={set("customerName")} />
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">電話</label>
+                <input className="erp-input" value={form.customerPhone} onChange={set("customerPhone")} />
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">來源</label>
+                <input className="erp-input" value={form.source} onChange={set("source")} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="erp-card" style={{ marginTop: 24 }}>
+        <div className="erp-card-header"><span className="erp-card-title">銷售/收款</span></div>
         <div className="erp-card-body">
           <div className="erp-form-grid">
-            <div className="erp-form-group">
-              <label className="erp-label">分店</label>
-              <input className="erp-input" value={form.branch} onChange={set("branch")} />
-            </div>
-            <div className="erp-form-group">
-              <label className="erp-label">類別</label>
-              <select className="erp-select" value={form.category} onChange={set("category")}>
-                <option value="預購單">預購單</option>
-                <option value="臨時單">臨時單</option>
-                <option value="現貨單">現貨單</option>
-              </select>
-            </div>
             <div className="erp-form-group">
               <label className="erp-label">狀態</label>
               <select className="erp-select" value={form.status} onChange={set("status")}>
@@ -97,74 +178,6 @@ export default function EditBookingPage() {
                 <option value="refunded">退</option>
               </select>
             </div>
-            <div className="erp-form-group">
-              <label className="erp-label">日期</label>
-              <input type="date" className="erp-input" value={form.bookingDate} onChange={set("bookingDate")} />
-            </div>
-            <div className="erp-form-group">
-              <label className="erp-label">時段</label>
-              <input className="erp-input" value={form.timeSlot} onChange={set("timeSlot")} />
-            </div>
-            <div className="erp-form-group">
-              <label className="erp-label">人數</label>
-              <input type="number" className="erp-input" value={form.partySize} onChange={set("partySize")} />
-            </div>
-            <div className="erp-form-group">
-              <label className="erp-label">訂位代號</label>
-              <input className="erp-input" value={form.bookingCode} onChange={set("bookingCode")} />
-            </div>
-            <div className="erp-form-group">
-              <label className="erp-label">退訂期限</label>
-              <input type="date" className="erp-input" value={form.cancelDeadline} onChange={set("cancelDeadline")} />
-            </div>
-            <div className="erp-form-group">
-              <label className="erp-label">付款期限</label>
-              <input type="date" className="erp-input" value={form.paymentDeadline} onChange={set("paymentDeadline")} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="erp-card" style={{ marginTop: 24 }}>
-        <div className="erp-card-header"><span className="erp-card-title">餐廳端金流</span></div>
-        <div className="erp-card-body">
-          <div className="erp-form-grid">
-            <div className="erp-form-group">
-              <label className="erp-label">訂金</label>
-              <input type="number" step="0.01" className="erp-input" value={form.depositAmount} onChange={set("depositAmount")} />
-            </div>
-            <div className="erp-form-group">
-              <label className="erp-label">付款人員</label>
-              <input className="erp-input" value={form.depositPayer} onChange={set("depositPayer")} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="erp-card" style={{ marginTop: 24 }}>
-        <div className="erp-card-header"><span className="erp-card-title">客戶資訊</span></div>
-        <div className="erp-card-body">
-          <div className="erp-form-grid">
-            <div className="erp-form-group">
-              <label className="erp-label">姓名</label>
-              <input className="erp-input" value={form.customerName} onChange={set("customerName")} />
-            </div>
-            <div className="erp-form-group">
-              <label className="erp-label">電話</label>
-              <input className="erp-input" value={form.customerPhone} onChange={set("customerPhone")} />
-            </div>
-            <div className="erp-form-group">
-              <label className="erp-label">來源</label>
-              <input className="erp-input" value={form.source} onChange={set("source")} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="erp-card" style={{ marginTop: 24 }}>
-        <div className="erp-card-header"><span className="erp-card-title">銷售/收款</span></div>
-        <div className="erp-card-body">
-          <div className="erp-form-grid">
             <div className="erp-form-group">
               <label className="erp-label">售出日期</label>
               <input type="date" className="erp-input" value={form.soldDate} onChange={set("soldDate")} />

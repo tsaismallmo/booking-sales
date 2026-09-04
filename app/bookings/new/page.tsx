@@ -1,15 +1,21 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { VendorSelect } from "@/components/VendorSelect";
 
-export default function NewBookingPage() {
+function NewBookingForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const presetCategory = searchParams.get("category");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [vendorId, setVendorId] = useState("");
+  // 純客服（沒有廠商/管理員身份）只能建臨時單／預定單，不用綁廠商
+  const [pureCustomerService, setPureCustomerService] = useState(false);
   const [form, setForm] = useState({
     branch: "",
-    category: "現貨單",
+    category: presetCategory || "現貨單",
     bookingDate: new Date().toISOString().split("T")[0],
     timeSlot: "",
     partySize: "",
@@ -24,6 +30,17 @@ export default function NewBookingPage() {
     note: "",
   });
 
+  useEffect(() => {
+    fetch("/api/me")
+      .then((res) => res.json())
+      .then((me) => {
+        const roles: string[] = me.roles ?? [];
+        const isPureCS = roles.includes("customer_service") && !roles.includes("vendor") && !roles.includes("admin");
+        setPureCustomerService(isPureCS);
+        if (isPureCS && !presetCategory) setForm((f) => ({ ...f, category: "臨時單" }));
+      });
+  }, [presetCategory]);
+
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [field]: e.target.value }));
 
@@ -32,12 +49,16 @@ export default function NewBookingPage() {
       setError("請填寫日期與類別");
       return;
     }
+    if (form.category === "現貨單" && (!form.customerName || !form.customerPhone)) {
+      setError("現貨單要填訂位姓名與電話");
+      return;
+    }
     setLoading(true);
     setError("");
     const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({ ...form, vendorId }),
     });
     setLoading(false);
     if (!res.ok) {
@@ -61,17 +82,22 @@ export default function NewBookingPage() {
         <div className="erp-card-header"><span className="erp-card-title">基本資訊</span></div>
         <div className="erp-card-body">
           <div className="erp-form-grid">
+            <VendorSelect value={vendorId} onChange={setVendorId} />
             <div className="erp-form-group">
               <label className="erp-label">分店</label>
               <input className="erp-input" value={form.branch} onChange={set("branch")} />
             </div>
             <div className="erp-form-group">
               <label className="erp-label">類別 <span className="required">*</span></label>
-              <select className="erp-select" value={form.category} onChange={set("category")}>
-                <option value="預購單">預購單</option>
-                <option value="臨時單">臨時單</option>
-                <option value="現貨單">現貨單</option>
-              </select>
+              {presetCategory ? (
+                <input className="erp-input" value={form.category} disabled />
+              ) : (
+                <select className="erp-select" value={form.category} onChange={set("category")}>
+                  <option value="預定單">預定單</option>
+                  <option value="臨時單">臨時單</option>
+                  {!pureCustomerService && <option value="現貨單">現貨單</option>}
+                </select>
+              )}
             </div>
             <div className="erp-form-group">
               <label className="erp-label">日期 <span className="required">*</span></label>
@@ -114,15 +140,17 @@ export default function NewBookingPage() {
       </div>
 
       <div className="erp-card" style={{ marginTop: 24 }}>
-        <div className="erp-card-header"><span className="erp-card-title">客戶資訊（選填）</span></div>
+        <div className="erp-card-header">
+          <span className="erp-card-title">訂位資訊{form.category !== "現貨單" && "（選填）"}</span>
+        </div>
         <div className="erp-card-body">
           <div className="erp-form-grid">
             <div className="erp-form-group">
-              <label className="erp-label">姓名</label>
+              <label className="erp-label">姓名{form.category === "現貨單" && <span className="required">*</span>}</label>
               <input className="erp-input" value={form.customerName} onChange={set("customerName")} />
             </div>
             <div className="erp-form-group">
-              <label className="erp-label">電話</label>
+              <label className="erp-label">電話{form.category === "現貨單" && <span className="required">*</span>}</label>
               <input className="erp-input" value={form.customerPhone} onChange={set("customerPhone")} />
             </div>
             <div className="erp-form-group">
@@ -148,5 +176,13 @@ export default function NewBookingPage() {
         <button onClick={() => router.push("/bookings")} className="btn btn-secondary">取消</button>
       </div>
     </div>
+  );
+}
+
+export default function NewBookingPage() {
+  return (
+    <Suspense>
+      <NewBookingForm />
+    </Suspense>
   );
 }

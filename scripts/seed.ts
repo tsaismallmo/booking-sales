@@ -7,7 +7,7 @@ async function main() {
   await db.insert(users).values({
     email: 'tsaismallmo@gmail.com',
     name: 'Aaron',
-    role: 'admin',
+    roles: ['admin'],
   }).onConflictDoNothing()
   console.log('已建立初始管理員帳號：tsaismallmo@gmail.com')
 }

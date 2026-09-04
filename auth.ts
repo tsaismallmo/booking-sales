@@ -15,21 +15,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const [account] = await db.select().from(users).where(eq(users.email, user.email))
       return !!account
     },
-    // 登入當下把角色寫進 token，之後每個 request 直接讀 token，不用再查資料庫
+    // 每次都用 email 重新查一次角色（不是只在登入當下查），
+    // 這樣管理員改了角色會立刻生效，也不會因為 schema 改過、舊 token 沒有 roles 欄位而壞掉。
     async jwt({ token, user }) {
-      if (user?.email) {
-        const [account] = await db.select().from(users).where(eq(users.email, user.email))
+      const email = user?.email ?? token.email
+      if (email) {
+        const [account] = await db.select().from(users).where(eq(users.email, email))
         if (account) {
           token.userId = account.id
-          token.role = account.role
+          token.roles = account.roles
         }
       }
       return token
     },
     async session({ session, token }) {
-      if (session.user && token.userId && token.role) {
+      if (session.user && token.userId && token.roles) {
         session.user.id = token.userId
-        session.user.role = token.role
+        session.user.roles = token.roles
       }
       return session
     },
