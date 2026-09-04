@@ -34,7 +34,16 @@ type MyBooking = {
   depositAmount: string | null;
   note: string | null;
   status: "unsold" | "reserved" | "sold" | "refunded";
-  hasPendingRequest: boolean;
+};
+
+// 需求只會發生在臨時單／預定單，不歸屬特定廠商，所以是全平台當天的資料
+type DemandBooking = {
+  id: string;
+  branch: string | null;
+  category: string;
+  timeSlot: string | null;
+  partySize: number | null;
+  customerName: string | null;
 };
 
 function pad2(n: number) {
@@ -120,6 +129,7 @@ function CalendarTab() {
 
   const [roster, setRoster] = useState<RosterEntry[]>([]);
   const [myBookings, setMyBookings] = useState<MyBooking[]>([]);
+  const [dayDemands, setDayDemands] = useState<DemandBooking[]>([]);
   const [excludedRosterIds, setExcludedRosterIds] = useState<Set<string>>(new Set());
 
   const [branchFilter, setBranchFilter] = useState("");
@@ -142,6 +152,13 @@ function CalendarTab() {
       .then((res) => res.json())
       .then((data) => setMyBookings(Array.isArray(data) ? data : []));
   }, []);
+
+  useEffect(() => {
+    if (!selectedDate) return;
+    fetch(`/api/booking-board/day-demands?date=${selectedDate}`)
+      .then((res) => res.json())
+      .then((data) => setDayDemands(Array.isArray(data) ? data : []));
+  }, [selectedDate]);
 
   const goPrevMonth = () => {
     if (viewMonth === 1) { setViewYear((y) => y - 1); setViewMonth(12); } else { setViewMonth((m) => m - 1); }
@@ -188,7 +205,6 @@ function CalendarTab() {
     () => (selectedDate ? myBookings.filter((b) => b.bookingDate === selectedDate) : []),
     [myBookings, selectedDate]
   );
-  const dayDemands = useMemo(() => dayBookings.filter((b) => b.hasPendingRequest), [dayBookings]);
 
   const { available, excluded } = useMemo(
     () => (selectedDate ? computeAvailability(selectedDate, exclDays, branchFilter, includedRoster, myBookings) : { available: [], excluded: [] }),
