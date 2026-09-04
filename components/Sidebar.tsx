@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { ClipboardList, Users, LogOut, MapPinned, Wrench, Package, Clock3, CalendarClock, BookUser } from "lucide-react";
+import { ClipboardList, Users, LogOut, MapPinned, Wrench, Package, Clock3, CalendarClock, BookUser, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/types/next-auth";
 
@@ -84,6 +84,17 @@ export function Sidebar({ roles }: { roles: Role[] }) {
           >
             <BookUser size={15} />
             廠商名單
+          </Link>
+        )}
+
+        {/* 訂位看板（月曆/Inline/EZTABLE）：廠商本人跟廠商員工都看得到 */}
+        {(isVendor || isVendorStaff) && (
+          <Link
+            href="/booking-board"
+            className={cn("erp-sidebar-item", pathname.startsWith("/booking-board") && "active")}
+          >
+            <CalendarDays size={15} />
+            訂位看板
           </Link>
         )}
 

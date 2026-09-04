@@ -53,6 +53,11 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
+  // 訂位看板（月曆/Inline/EZTABLE）：廠商本人跟廠商員工都能看
+  if (pathname.startsWith('/booking-board') && !roles.includes('vendor') && !roles.includes('vendor_staff')) {
+    return NextResponse.redirect(new URL(fallback, req.url))
+  }
+
   return response
 })
 
