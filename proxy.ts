@@ -58,6 +58,11 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
+  // 平台分潤：只有廠商本人跟管理員能看，廠商員工不行
+  if (pathname.startsWith('/platform-share') && !roles.includes('vendor') && !isAdmin) {
+    return NextResponse.redirect(new URL(fallback, req.url))
+  }
+
   return response
 })
 

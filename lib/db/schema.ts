@@ -112,6 +112,16 @@ export const vendorRosterEntries = pgTable('vendor_roster_entries', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
+// 廠商代訂費率設定：平台分潤計算用的「正常代訂費」基準（平日/假日），
+// 以及平台每人抽成金額。只有廠商本人跟管理員看得到、改得到。
+export const vendorRateSettings = pgTable('vendor_rate_settings', {
+  vendorId: uuid('vendor_id').primaryKey().references(() => users.id),
+  weekdayRate: integer('weekday_rate').notNull().default(300),
+  weekendRate: integer('weekend_rate').notNull().default(300),
+  platformFeePerPerson: integer('platform_fee_per_person').notNull().default(100),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
 // 簡訊留存：付款通知／付款完成簡訊原文，留存並可連結到對應單據
 export const smsLogs = pgTable('sms_logs', {
   id: uuid('id').defaultRandom().primaryKey(),

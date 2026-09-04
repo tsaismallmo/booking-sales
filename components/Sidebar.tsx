@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { ClipboardList, Users, LogOut, MapPinned, Wrench, Package, Clock3, CalendarClock, BookUser, CalendarDays } from "lucide-react";
+import { ClipboardList, Users, LogOut, MapPinned, Wrench, Package, Clock3, CalendarClock, BookUser, CalendarDays, PieChart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/types/next-auth";
 
@@ -95,6 +95,17 @@ export function Sidebar({ roles }: { roles: Role[] }) {
           >
             <CalendarDays size={15} />
             訂位看板
+          </Link>
+        )}
+
+        {/* 平台分潤：只有廠商本人跟管理員能看，廠商員工不行 */}
+        {(isVendor || isAdmin) && (
+          <Link
+            href="/platform-share"
+            className={cn("erp-sidebar-item", pathname.startsWith("/platform-share") && "active")}
+          >
+            <PieChart size={15} />
+            平台分潤
           </Link>
         )}
 
