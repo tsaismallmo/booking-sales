@@ -494,6 +494,28 @@ button { font-family: var(--font-ui); cursor: pointer; }
 }
 .erp-excl-item:last-child { border-bottom: none; }
 
+/* ---------- 廠商名單維護（多份清單） ---------- */
+.erp-roster-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  background: var(--gray-50);
+  padding: 10px 12px;
+}
+.erp-roster-card-remove {
+  border: none;
+  background: none;
+  color: var(--gray-400);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 2px 4px;
+}
+.erp-roster-card-remove:hover { color: var(--color-danger); }
+
 /* ---------- Table ---------- */
 .erp-table-wrap {
   overflow-x: auto;

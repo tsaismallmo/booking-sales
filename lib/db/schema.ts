@@ -88,11 +88,24 @@ export const bookingRequests = pgTable('booking_requests', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
+// 廠商名單清單：一個廠商可以建立多份命名清單（例如依用途分開管理），可排序。
+// ownerEmail 只是標記這份清單算誰的（廠商本人或其員工），不影響誰看得到——
+// 同一個廠商底下（廠商本人＋所有廠商員工）看得到彼此全部的清單。
+export const vendorRosterLists = pgTable('vendor_roster_lists', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  vendorId: uuid('vendor_id').notNull().references(() => users.id),
+  name: text('name').notNull(),
+  ownerEmail: text('owner_email'),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
 // 廠商名單：廠商自己手上用來訂位的一批客戶身份（姓名/電話），拿去 Inline/EZTABLE 等平台訂位用。
-// 只屬於建立它的廠商，其他廠商看不到彼此的名單。
+// 只屬於建立它的廠商，其他廠商看不到彼此的名單；每筆一定歸屬某一份清單（vendorRosterLists）。
 export const vendorRosterEntries = pgTable('vendor_roster_entries', {
   id: uuid('id').defaultRandom().primaryKey(),
   vendorId: uuid('vendor_id').notNull().references(() => users.id),
+  listId: uuid('list_id').notNull().references(() => vendorRosterLists.id),
   name: text('name').notNull(),
   phone: text('phone'),
   note: text('note'),
