@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { ClipboardList, Users, LogOut, MapPinned, Wrench, Package, Clock3, CalendarClock } from "lucide-react";
+import { ClipboardList, Users, LogOut, MapPinned, Wrench, Package, Clock3, CalendarClock, BookUser } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/types/next-auth";
 
@@ -71,6 +71,17 @@ export function Sidebar({ roles }: { roles: Role[] }) {
           >
             <ClipboardList size={15} />
             {seesAllBookings ? "單據管理" : "我的單據"}
+          </Link>
+        )}
+
+        {/* 廠商名單：只有廠商本人能建立/管理自己的訂位身份名單 */}
+        {isVendor && (
+          <Link
+            href="/roster"
+            className={cn("erp-sidebar-item", pathname.startsWith("/roster") && "active")}
+          >
+            <BookUser size={15} />
+            廠商名單
           </Link>
         )}
 

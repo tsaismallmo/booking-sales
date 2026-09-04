@@ -86,6 +86,17 @@ export const bookingRequests = pgTable('booking_requests', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
+// 廠商名單：廠商自己手上用來訂位的一批客戶身份（姓名/電話），拿去 Inline/EZTABLE 等平台訂位用。
+// 只屬於建立它的廠商，其他廠商看不到彼此的名單。
+export const vendorRosterEntries = pgTable('vendor_roster_entries', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  vendorId: uuid('vendor_id').notNull().references(() => users.id),
+  name: text('name').notNull(),
+  phone: text('phone'),
+  note: text('note'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
 // 簡訊留存：付款通知／付款完成簡訊原文，留存並可連結到對應單據
 export const smsLogs = pgTable('sms_logs', {
   id: uuid('id').defaultRandom().primaryKey(),

@@ -48,6 +48,11 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
+  // 廠商名單只有廠商本人能用
+  if (pathname.startsWith('/roster') && !roles.includes('vendor')) {
+    return NextResponse.redirect(new URL(fallback, req.url))
+  }
+
   return response
 })
 
