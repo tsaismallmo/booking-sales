@@ -1,0 +1,152 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+export default function NewBookingPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState({
+    branch: "",
+    category: "現貨單",
+    bookingDate: new Date().toISOString().split("T")[0],
+    timeSlot: "",
+    partySize: "",
+    bookingCode: "",
+    cancelDeadline: "",
+    depositAmount: "",
+    depositPayer: "",
+    customerName: "",
+    customerPhone: "",
+    source: "",
+    info: "",
+    note: "",
+  });
+
+  const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    setForm((f) => ({ ...f, [field]: e.target.value }));
+
+  const handleSubmit = async () => {
+    if (!form.bookingDate || !form.category) {
+      setError("請填寫日期與類別");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    const res = await fetch("/api/bookings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
+    setLoading(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || "儲存失敗");
+      return;
+    }
+    router.push("/bookings");
+  };
+
+  return (
+    <div className="erp-page">
+      <div className="erp-page-header">
+        <h1 className="erp-page-title">新增單據</h1>
+        <button onClick={() => router.push("/bookings")} className="btn btn-secondary">取消</button>
+      </div>
+
+      {error && <div className="erp-alert danger">{error}</div>}
+
+      <div className="erp-card">
+        <div className="erp-card-header"><span className="erp-card-title">基本資訊</span></div>
+        <div className="erp-card-body">
+          <div className="erp-form-grid">
+            <div className="erp-form-group">
+              <label className="erp-label">分店</label>
+              <input className="erp-input" value={form.branch} onChange={set("branch")} />
+            </div>
+            <div className="erp-form-group">
+              <label className="erp-label">類別 <span className="required">*</span></label>
+              <select className="erp-select" value={form.category} onChange={set("category")}>
+                <option value="預購單">預購單</option>
+                <option value="臨時單">臨時單</option>
+                <option value="現貨單">現貨單</option>
+              </select>
+            </div>
+            <div className="erp-form-group">
+              <label className="erp-label">日期 <span className="required">*</span></label>
+              <input type="date" className="erp-input" value={form.bookingDate} onChange={set("bookingDate")} />
+            </div>
+            <div className="erp-form-group">
+              <label className="erp-label">時段</label>
+              <input className="erp-input" placeholder="例如 11:30" value={form.timeSlot} onChange={set("timeSlot")} />
+            </div>
+            <div className="erp-form-group">
+              <label className="erp-label">人數</label>
+              <input type="number" className="erp-input" value={form.partySize} onChange={set("partySize")} />
+            </div>
+            <div className="erp-form-group">
+              <label className="erp-label">訂位代號</label>
+              <input className="erp-input" value={form.bookingCode} onChange={set("bookingCode")} />
+            </div>
+            <div className="erp-form-group">
+              <label className="erp-label">退訂期限</label>
+              <input type="date" className="erp-input" value={form.cancelDeadline} onChange={set("cancelDeadline")} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="erp-card" style={{ marginTop: 24 }}>
+        <div className="erp-card-header"><span className="erp-card-title">餐廳端金流</span></div>
+        <div className="erp-card-body">
+          <div className="erp-form-grid">
+            <div className="erp-form-group">
+              <label className="erp-label">訂金</label>
+              <input type="number" step="0.01" className="erp-input" value={form.depositAmount} onChange={set("depositAmount")} />
+            </div>
+            <div className="erp-form-group">
+              <label className="erp-label">付款人員</label>
+              <input className="erp-input" value={form.depositPayer} onChange={set("depositPayer")} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="erp-card" style={{ marginTop: 24 }}>
+        <div className="erp-card-header"><span className="erp-card-title">客戶資訊（選填）</span></div>
+        <div className="erp-card-body">
+          <div className="erp-form-grid">
+            <div className="erp-form-group">
+              <label className="erp-label">姓名</label>
+              <input className="erp-input" value={form.customerName} onChange={set("customerName")} />
+            </div>
+            <div className="erp-form-group">
+              <label className="erp-label">電話</label>
+              <input className="erp-input" value={form.customerPhone} onChange={set("customerPhone")} />
+            </div>
+            <div className="erp-form-group">
+              <label className="erp-label">來源</label>
+              <input className="erp-input" value={form.source} onChange={set("source")} />
+            </div>
+            <div className="erp-form-group full">
+              <label className="erp-label">資訊</label>
+              <input className="erp-input" placeholder="快速註記" value={form.info} onChange={set("info")} />
+            </div>
+            <div className="erp-form-group full">
+              <label className="erp-label">備註</label>
+              <textarea className="erp-textarea" rows={2} value={form.note} onChange={set("note")} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
+        <button onClick={handleSubmit} disabled={loading} className="btn btn-primary">
+          {loading ? "儲存中..." : "儲存單據"}
+        </button>
+        <button onClick={() => router.push("/bookings")} className="btn btn-secondary">取消</button>
+      </div>
+    </div>
+  );
+}

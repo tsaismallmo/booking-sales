@@ -1,0 +1,29 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@/lib/db'
+import { users } from '@/lib/db/schema'
+import { requireRole } from '@/lib/auth-guard'
+
+export async function GET() {
+  const session = await requireRole('admin')
+  if (!session) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+
+  const rows = await db.select().from(users)
+  return NextResponse.json(rows)
+}
+
+export async function POST(req: NextRequest) {
+  const session = await requireRole('admin')
+  if (!session) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+
+  const body = await req.json()
+  if (!body.email || !body.role) {
+    return NextResponse.json({ error: '缺少 email 或角色' }, { status: 400 })
+  }
+
+  const [row] = await db
+    .insert(users)
+    .values({ email: body.email, name: body.name || null, role: body.role })
+    .returning()
+
+  return NextResponse.json(row, { status: 201 })
+}

@@ -1,8 +1,9 @@
-import { pgTable, pgEnum, uuid, text, integer, numeric, date, timestamp } from 'drizzle-orm/pg-core'
+import { pgTable, pgEnum, uuid, text, integer, numeric, date, timestamp, jsonb } from 'drizzle-orm/pg-core'
 
 export const roleEnum = pgEnum('role', ['admin', 'vendor', 'customer_service'])
 export const bookingStatusEnum = pgEnum('booking_status', ['unsold', 'reserved', 'sold', 'refunded'])
 export const bookingCategoryEnum = pgEnum('booking_category', ['預購單', '臨時單', '現貨單'])
+export const smsTypeEnum = pgEnum('sms_type', ['booking_notice', 'payment_completion'])
 
 // 帳號：管理員可以在後台新增/刪除、指定角色
 export const users = pgTable('users', {
@@ -29,6 +30,7 @@ export const bookings = pgTable('bookings', {
   // 訂位/退訂
   status: bookingStatusEnum('status').notNull().default('unsold'), // 狀態：未售出/訂/售/退
   cancelDeadline: date('cancel_deadline'), // 退訂期限
+  paymentDeadline: date('payment_deadline'), // 付款期限（訂金簡訊裡的付款截止日）
 
   // 餐廳端金流
   depositAmount: numeric('deposit_amount'), // 訂金（廠商付給餐廳）
@@ -52,4 +54,15 @@ export const bookings = pgTable('bookings', {
 
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+// 簡訊留存：付款通知／付款完成簡訊原文，留存並可連結到對應單據
+export const smsLogs = pgTable('sms_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  type: smsTypeEnum('type').notNull(),
+  rawText: text('raw_text').notNull(),
+  bookingId: uuid('booking_id').references(() => bookings.id),
+  parsedData: jsonb('parsed_data'),
+  createdById: uuid('created_by_id').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 })
