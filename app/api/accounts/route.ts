@@ -22,7 +22,12 @@ export async function POST(req: NextRequest) {
 
   const [row] = await db
     .insert(users)
-    .values({ email: body.email, name: body.name || null, roles: body.roles })
+    .values({
+      email: body.email,
+      name: body.name || null,
+      roles: body.roles,
+      employerVendorId: body.roles.includes('vendor_staff') ? body.employerVendorId || null : null,
+    })
     .returning()
 
   return NextResponse.json(row, { status: 201 })

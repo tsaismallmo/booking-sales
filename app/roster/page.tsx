@@ -17,6 +17,7 @@ export default function RosterPage() {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: "", phone: "", note: "" });
+  const [canEdit, setCanEdit] = useState(false);
 
   const load = () => {
     fetch("/api/roster")
@@ -26,6 +27,15 @@ export default function RosterPage() {
         setLoading(false);
       });
   };
+
+  useEffect(() => {
+    fetch("/api/me")
+      .then((res) => res.json())
+      .then((me) => {
+        const roles: string[] = me.roles ?? [];
+        setCanEdit(roles.includes("vendor"));
+      });
+  }, []);
 
   useEffect(load, []);
 
@@ -74,34 +84,38 @@ export default function RosterPage() {
       <div className="erp-page-header">
         <div>
           <h1 className="erp-page-title">廠商名單</h1>
-          <p className="erp-page-subtitle">自己手上用來訂位的客戶身份資料，只有你看得到</p>
+          <p className="erp-page-subtitle">
+            {canEdit ? "自己手上用來訂位的客戶身份資料，只有你跟你的員工看得到" : "所屬廠商的訂位身份名單（唯讀）"}
+          </p>
         </div>
       </div>
 
       {error && <div className="erp-alert danger">{error}</div>}
 
-      <div className="erp-card" style={{ marginBottom: 20 }}>
-        <div className="erp-card-header"><span className="erp-card-title">新增名單</span></div>
-        <div className="erp-card-body">
-          <div className="erp-form-grid">
-            <div className="erp-form-group">
-              <label className="erp-label">姓名 <span className="required">*</span></label>
-              <input className="erp-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+      {canEdit && (
+        <div className="erp-card" style={{ marginBottom: 20 }}>
+          <div className="erp-card-header"><span className="erp-card-title">新增名單</span></div>
+          <div className="erp-card-body">
+            <div className="erp-form-grid">
+              <div className="erp-form-group">
+                <label className="erp-label">姓名 <span className="required">*</span></label>
+                <input className="erp-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">電話</label>
+                <input className="erp-input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+              </div>
+              <div className="erp-form-group full">
+                <label className="erp-label">備註</label>
+                <input className="erp-input" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
+              </div>
             </div>
-            <div className="erp-form-group">
-              <label className="erp-label">電話</label>
-              <input className="erp-input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            <div style={{ marginTop: 12 }}>
+              <button onClick={handleAdd} disabled={saving} className="btn btn-primary">{saving ? "新增中..." : "新增"}</button>
             </div>
-            <div className="erp-form-group full">
-              <label className="erp-label">備註</label>
-              <input className="erp-input" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
-            </div>
-          </div>
-          <div style={{ marginTop: 12 }}>
-            <button onClick={handleAdd} disabled={saving} className="btn btn-primary">{saving ? "新增中..." : "新增"}</button>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="erp-card">
         <div className="erp-table-wrap">
@@ -111,14 +125,14 @@ export default function RosterPage() {
                 <th>姓名</th>
                 <th>電話</th>
                 <th>備註</th>
-                <th>操作</th>
+                {canEdit && <th>操作</th>}
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={4} style={{ textAlign: "center", color: "var(--gray-400)" }}>載入中...</td></tr>}
+              {loading && <tr><td colSpan={canEdit ? 4 : 3} style={{ textAlign: "center", color: "var(--gray-400)" }}>載入中...</td></tr>}
               {!loading && entries.map((e) => (
                 <tr key={e.id}>
-                  {editingId === e.id ? (
+                  {canEdit && editingId === e.id ? (
                     <>
                       <td><input className="erp-input" value={editForm.name} onChange={(ev) => setEditForm({ ...editForm, name: ev.target.value })} /></td>
                       <td><input className="erp-input" value={editForm.phone} onChange={(ev) => setEditForm({ ...editForm, phone: ev.target.value })} /></td>
@@ -133,16 +147,18 @@ export default function RosterPage() {
                       <td>{e.name}</td>
                       <td>{e.phone ?? "—"}</td>
                       <td>{e.note ?? "—"}</td>
-                      <td style={{ display: "flex", gap: 8 }}>
-                        <button onClick={() => startEdit(e)} className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: 13 }}>編輯</button>
-                        <button onClick={() => handleDelete(e.id)} className="btn btn-ghost" style={{ color: "var(--color-danger)", padding: "4px 10px", fontSize: 13 }}>刪除</button>
-                      </td>
+                      {canEdit && (
+                        <td style={{ display: "flex", gap: 8 }}>
+                          <button onClick={() => startEdit(e)} className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: 13 }}>編輯</button>
+                          <button onClick={() => handleDelete(e.id)} className="btn btn-ghost" style={{ color: "var(--color-danger)", padding: "4px 10px", fontSize: 13 }}>刪除</button>
+                        </td>
+                      )}
                     </>
                   )}
                 </tr>
               ))}
               {!loading && entries.length === 0 && (
-                <tr><td colSpan={4} style={{ textAlign: "center", color: "var(--gray-400)" }}>目前沒有任何名單資料</td></tr>
+                <tr><td colSpan={canEdit ? 4 : 3} style={{ textAlign: "center", color: "var(--gray-400)" }}>目前沒有任何名單資料</td></tr>
               )}
             </tbody>
           </table>

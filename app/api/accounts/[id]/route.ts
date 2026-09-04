@@ -20,7 +20,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const [row] = await db
     .update(users)
-    .set({ name: body.name, roles: body.roles })
+    .set({
+      name: body.name,
+      roles: body.roles,
+      employerVendorId: body.roles.includes('vendor_staff') ? body.employerVendorId || null : null,
+    })
     .where(eq(users.id, id))
     .returning()
 

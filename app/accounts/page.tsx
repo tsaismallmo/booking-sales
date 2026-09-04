@@ -2,17 +2,19 @@
 
 import { useEffect, useState } from "react";
 
-type Role = "admin" | "vendor" | "customer_service" | "logistics";
+type Role = "admin" | "vendor" | "customer_service" | "logistics" | "vendor_staff";
 
 type Account = {
   id: string;
   email: string;
   name: string | null;
   roles: Role[];
+  employerVendorId: string | null;
 };
 
 const ROLE_OPTIONS: { value: Role; label: string }[] = [
   { value: "vendor", label: "廠商" },
+  { value: "vendor_staff", label: "廠商員工" },
   { value: "customer_service", label: "客服" },
   { value: "logistics", label: "後勤人員" },
   { value: "admin", label: "管理員" },
@@ -34,13 +36,33 @@ function RoleCheckboxes({ value, onChange }: { value: Role[]; onChange: (roles: 
   );
 }
 
+function EmployerSelect({ vendors, value, onChange }: { vendors: Account[]; value: string; onChange: (id: string) => void }) {
+  return (
+    <div className="erp-form-group">
+      <label className="erp-label">所屬廠商 <span className="required">*</span></label>
+      <select className="erp-select" value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">請選擇廠商</option>
+        {vendors.map((v) => (
+          <option key={v.id} value={v.id}>{v.name || v.email}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [form, setForm] = useState<{ email: string; name: string; roles: Role[] }>({ email: "", name: "", roles: ["vendor"] });
+  const [form, setForm] = useState<{ email: string; name: string; roles: Role[]; employerVendorId: string }>({
+    email: "",
+    name: "",
+    roles: ["vendor"],
+    employerVendorId: "",
+  });
   const [saving, setSaving] = useState(false);
   const [editingRoles, setEditingRoles] = useState<Record<string, Role[]>>({});
+  const [editingEmployer, setEditingEmployer] = useState<Record<string, string>>({});
 
   const load = () => {
     fetch("/api/accounts")
@@ -53,9 +75,12 @@ export default function AccountsPage() {
 
   useEffect(load, []);
 
+  const vendors = accounts.filter((a) => a.roles.includes("vendor"));
+
   const handleAdd = async () => {
     if (!form.email) { setError("請輸入 email"); return; }
     if (form.roles.length === 0) { setError("請至少選一個角色"); return; }
+    if (form.roles.includes("vendor_staff") && !form.employerVendorId) { setError("廠商員工要選所屬廠商"); return; }
     setSaving(true);
     setError("");
     const res = await fetch("/api/accounts", {
@@ -69,17 +94,19 @@ export default function AccountsPage() {
       setError(data.error || "新增失敗");
       return;
     }
-    setForm({ email: "", name: "", roles: ["vendor"] });
+    setForm({ email: "", name: "", roles: ["vendor"], employerVendorId: "" });
     load();
   };
 
   const handleSaveRoles = async (id: string) => {
     const roles = editingRoles[id];
     if (!roles || roles.length === 0) return;
+    const employerVendorId = editingEmployer[id] ?? accounts.find((a) => a.id === id)?.employerVendorId ?? "";
+    if (roles.includes("vendor_staff") && !employerVendorId) { setError("廠商員工要選所屬廠商"); return; }
     const res = await fetch(`/api/accounts/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ roles }),
+      body: JSON.stringify({ roles, employerVendorId }),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -87,6 +114,11 @@ export default function AccountsPage() {
       return;
     }
     setEditingRoles((e) => {
+      const next = { ...e };
+      delete next[id];
+      return next;
+    });
+    setEditingEmployer((e) => {
       const next = { ...e };
       delete next[id];
       return next;
@@ -127,6 +159,9 @@ export default function AccountsPage() {
               <label className="erp-label">角色 <span className="required">*</span></label>
               <RoleCheckboxes value={form.roles} onChange={(roles) => setForm({ ...form, roles })} />
             </div>
+            {form.roles.includes("vendor_staff") && (
+              <EmployerSelect vendors={vendors} value={form.employerVendorId} onChange={(id) => setForm({ ...form, employerVendorId: id })} />
+            )}
           </div>
           <div style={{ marginTop: 12 }}>
             <button onClick={handleAdd} disabled={saving} className="btn btn-primary">{saving ? "新增中..." : "新增帳號"}</button>
@@ -142,20 +177,37 @@ export default function AccountsPage() {
                 <th>Email</th>
                 <th>名稱</th>
                 <th>角色</th>
+                <th>所屬廠商</th>
                 <th>操作</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={4} style={{ textAlign: "center", color: "var(--gray-400)" }}>載入中...</td></tr>}
+              {loading && <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--gray-400)" }}>載入中...</td></tr>}
               {!loading && accounts.map((a) => {
                 const current = editingRoles[a.id] ?? a.roles;
-                const dirty = editingRoles[a.id] !== undefined;
+                const currentEmployer = editingEmployer[a.id] ?? a.employerVendorId ?? "";
+                const dirty = editingRoles[a.id] !== undefined || editingEmployer[a.id] !== undefined;
                 return (
                   <tr key={a.id}>
                     <td>{a.email}</td>
                     <td>{a.name ?? "—"}</td>
                     <td>
                       <RoleCheckboxes value={current} onChange={(roles) => setEditingRoles((e) => ({ ...e, [a.id]: roles }))} />
+                    </td>
+                    <td>
+                      {current.includes("vendor_staff") ? (
+                        <select
+                          className="erp-select"
+                          style={{ minWidth: 140 }}
+                          value={currentEmployer}
+                          onChange={(e) => setEditingEmployer((ev) => ({ ...ev, [a.id]: e.target.value }))}
+                        >
+                          <option value="">請選擇廠商</option>
+                          {vendors.map((v) => (
+                            <option key={v.id} value={v.id}>{v.name || v.email}</option>
+                          ))}
+                        </select>
+                      ) : "—"}
                     </td>
                     <td style={{ display: "flex", gap: 8 }}>
                       <button
@@ -172,7 +224,7 @@ export default function AccountsPage() {
                 );
               })}
               {!loading && accounts.length === 0 && (
-                <tr><td colSpan={4} style={{ textAlign: "center", color: "var(--gray-400)" }}>尚無帳號</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--gray-400)" }}>尚無帳號</td></tr>
               )}
             </tbody>
           </table>

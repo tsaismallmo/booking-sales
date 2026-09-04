@@ -12,6 +12,7 @@ const roleLabel: Record<Role, string> = {
   vendor: "廠商",
   customer_service: "客服",
   logistics: "後勤人員",
+  vendor_staff: "廠商員工",
 };
 
 export function Sidebar({ roles }: { roles: Role[] }) {
@@ -20,6 +21,7 @@ export function Sidebar({ roles }: { roles: Role[] }) {
   const isVendor = roles.includes("vendor");
   const isCustomerService = roles.includes("customer_service");
   const isLogistics = roles.includes("logistics");
+  const isVendorStaff = roles.includes("vendor_staff");
   // 純客服（沒有廠商/管理員身份）看不到「單據管理」，只給看單據看板；
   // 有廠商或管理員身份的人看到的是全部單據（或自己的），稱為「單據管理」
   const canManageBookings = isVendor || isAdmin;
@@ -74,8 +76,8 @@ export function Sidebar({ roles }: { roles: Role[] }) {
           </Link>
         )}
 
-        {/* 廠商名單：只有廠商本人能建立/管理自己的訂位身份名單 */}
-        {isVendor && (
+        {/* 廠商名單：廠商本人能建立/管理，廠商員工只能唯讀查看所屬廠商的名單 */}
+        {(isVendor || isVendorStaff) && (
           <Link
             href="/roster"
             className={cn("erp-sidebar-item", pathname.startsWith("/roster") && "active")}

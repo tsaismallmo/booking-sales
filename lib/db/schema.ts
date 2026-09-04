@@ -1,17 +1,19 @@
-import { pgTable, pgEnum, uuid, text, integer, numeric, date, timestamp, jsonb } from 'drizzle-orm/pg-core'
+import { pgTable, pgEnum, uuid, text, integer, numeric, date, timestamp, jsonb, type AnyPgColumn } from 'drizzle-orm/pg-core'
 
-export const roleEnum = pgEnum('role', ['admin', 'vendor', 'customer_service', 'logistics'])
+export const roleEnum = pgEnum('role', ['admin', 'vendor', 'customer_service', 'logistics', 'vendor_staff'])
 export const bookingStatusEnum = pgEnum('booking_status', ['unsold', 'reserved', 'sold', 'refunded'])
 export const bookingCategoryEnum = pgEnum('booking_category', ['預購單', '臨時單', '現貨單', '預定單'])
 export const smsTypeEnum = pgEnum('sms_type', ['booking_notice', 'payment_completion'])
 export const requestStatusEnum = pgEnum('request_status', ['pending', 'resolved'])
 
 // 帳號：管理員可以在後台新增/刪除、指定角色。一個帳號可以同時擁有多個角色。
+// employerVendorId 只有「廠商員工」角色會用到，記錄這個員工是哪個廠商底下的，只能看那個廠商的資料。
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
   email: text('email').notNull().unique(),
   name: text('name'),
   roles: roleEnum('roles').array().notNull(),
+  employerVendorId: uuid('employer_vendor_id').references((): AnyPgColumn => users.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 

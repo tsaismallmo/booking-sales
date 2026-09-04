@@ -4,12 +4,15 @@ import { db } from '@/lib/db'
 import { vendorRosterEntries } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
 
-// 廠商名單只有廠商自己能用，只看得到自己的名單
+// 廠商看自己的名單；廠商員工只能看（不能改）自己所屬廠商的名單
 export async function GET() {
-  const session = await requireRole('vendor')
+  const session = await requireRole('vendor', 'vendor_staff')
   if (!session) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
-  const rows = await db.select().from(vendorRosterEntries).where(eq(vendorRosterEntries.vendorId, session.user.id))
+  const ownerId = session.user.roles.includes('vendor') ? session.user.id : session.user.employerVendorId
+  if (!ownerId) return NextResponse.json([])
+
+  const rows = await db.select().from(vendorRosterEntries).where(eq(vendorRosterEntries.vendorId, ownerId))
   return NextResponse.json(rows)
 }
 
