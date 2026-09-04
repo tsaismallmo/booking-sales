@@ -416,6 +416,45 @@ button { font-family: var(--font-ui); cursor: pointer; }
   background: var(--brand-700);
 }
 
+/* ---------- Calendar（訂位看板的月曆分頁） ---------- */
+.erp-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.erp-calendar-weekday {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gray-400);
+  padding: 4px 0 8px;
+}
+
+.erp-calendar-cell {
+  border: 1px solid var(--gray-100);
+  border-radius: var(--radius-md);
+  background: #fff;
+  padding: 8px 6px;
+  min-height: 64px;
+  text-align: left;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: var(--font-ui);
+}
+
+.erp-calendar-cell:hover { border-color: var(--brand-300); background: var(--brand-50); }
+.erp-calendar-cell.today { border-color: var(--brand-400); }
+.erp-calendar-cell.selected { border-color: var(--brand-700); background: var(--brand-50); box-shadow: 0 0 0 1px var(--brand-700) inset; }
+.erp-calendar-cell.dimmed { opacity: .35; }
+.erp-calendar-cell.empty { visibility: hidden; cursor: default; }
+
+.erp-calendar-date { font-size: 15px; font-weight: 600; color: var(--gray-700); }
+.erp-calendar-count { font-size: 11px; color: var(--gray-400); }
+
 /* ---------- Table ---------- */
 .erp-table-wrap {
   overflow-x: auto;
