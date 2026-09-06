@@ -10,13 +10,20 @@ export async function GET() {
   if (!session?.user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
   const roles = session.user.roles
-  const seesAll = roles.includes('admin') || roles.includes('customer_service')
+  const isVendor = roles.includes('vendor')
+  const isCS = roles.includes('customer_service')
+  const isLogistics = roles.includes('logistics')
 
-  const rows = seesAll
-    ? await db.select().from(bookings).orderBy(desc(bookings.bookingDate))
-    : roles.includes('logistics')
+  // /api/bookings 只回傳「自己的」單據：
+  //   vendor（含 admin+vendor）→ 只看 vendorId = 自己
+  //   純客服（無 vendor）→ 看全部
+  //   純後勤（無 vendor）→ 看後勤類別
+  //   純管理員（無 vendor）→ 看全部（管理員通常會走 /api/admin/bookings）
+  const rows = isVendor
+    ? await db.select().from(bookings).where(eq(bookings.vendorId, session.user.id)).orderBy(desc(bookings.bookingDate))
+    : isLogistics
       ? await db.select().from(bookings).where(inArray(bookings.category, [...LOGISTICS_CATEGORIES])).orderBy(desc(bookings.bookingDate))
-      : await db.select().from(bookings).where(eq(bookings.vendorId, session.user.id)).orderBy(desc(bookings.bookingDate))
+      : await db.select().from(bookings).orderBy(desc(bookings.bookingDate))
 
   return NextResponse.json(rows)
 }

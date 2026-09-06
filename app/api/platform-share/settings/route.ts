@@ -42,13 +42,17 @@ export async function PATCH(req: NextRequest) {
   if ([weekdayRate, weekendRate, platformFeePerPerson].some((n) => Number.isNaN(n) || n < 0)) {
     return NextResponse.json({ error: '金額格式錯誤' }, { status: 400 })
   }
+  const platformFeeRate = body.platformFeeRate != null ? Number(body.platformFeeRate) : null
+  if (platformFeeRate !== null && (Number.isNaN(platformFeeRate) || platformFeeRate < 0 || platformFeeRate > 100)) {
+    return NextResponse.json({ error: '平台費率須在 0–100 之間' }, { status: 400 })
+  }
 
   const [row] = await db
     .insert(vendorRateSettings)
-    .values({ vendorId, weekdayRate, weekendRate, platformFeePerPerson })
+    .values({ vendorId, weekdayRate, weekendRate, platformFeePerPerson, platformFeeRate })
     .onConflictDoUpdate({
       target: vendorRateSettings.vendorId,
-      set: { weekdayRate, weekendRate, platformFeePerPerson, updatedAt: new Date() },
+      set: { weekdayRate, weekendRate, platformFeePerPerson, platformFeeRate, updatedAt: new Date() },
     })
     .returning()
 

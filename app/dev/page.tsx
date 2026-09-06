@@ -6,6 +6,8 @@ const roleLabel: Record<string, string> = {
   admin: "管理員",
   vendor: "廠商",
   customer_service: "客服",
+  logistics: "後勤人員",
+  vendor_staff: "廠商員工",
 };
 
 export default async function DevSwitchPage() {

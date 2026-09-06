@@ -1,24 +1,41 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 
 export default function EditBookingPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromParam = searchParams.get("from");
+  const fromSuffix = fromParam ? `?from=${fromParam}` : "";
   const [loading, setLoading] = useState(false);
-  const [fetching, setFetching] = useState(true);
+  const [bookingReady, setBookingReady] = useState(false);
+  const [rolesReady, setRolesReady] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState<Record<string, string>>({});
-  // 純客服（沒有廠商/管理員身份）只能編輯銷售/收款，訂位資訊、分店/日期/金流都要走「轉需求」
   const [pureCustomerService, setPureCustomerService] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isVendor, setIsVendor] = useState(false);
+  const [csStaff, setCsStaff] = useState<{ id: string; name: string | null }[]>([]);
 
   useEffect(() => {
     fetch("/api/me")
       .then((res) => res.json())
       .then((me) => {
         const roles: string[] = me.roles ?? [];
-        setPureCustomerService(roles.includes("customer_service") && !roles.includes("vendor") && !roles.includes("admin"));
+        const admin = roles.includes("admin");
+        const isCS = roles.includes("customer_service");
+        setIsAdmin(admin);
+        setIsVendor(roles.includes("vendor"));
+        setPureCustomerService(isCS && !roles.includes("vendor") && !admin);
+        setRolesReady(true);
+      });
+    fetch("/api/accounts")
+      .then((r) => r.json())
+      .then((data) => {
+        const cs = (Array.isArray(data) ? data : []).filter((u: { roles: string[] }) => u.roles.includes("customer_service"));
+        setCsStaff(cs);
       });
   }, []);
 
@@ -45,10 +62,11 @@ export default function EditBookingPage() {
           collectedAmount: data.collectedAmount ?? "",
           account: data.account ?? "",
           agencyFee: data.agencyFee ?? "",
+          salespersonId: data.salespersonId ?? "",
           info: data.info ?? "",
           note: data.note ?? "",
         });
-        setFetching(false);
+        setBookingReady(true);
       });
   }, [params.id]);
 
@@ -69,21 +87,21 @@ export default function EditBookingPage() {
       setError(data.error || "儲存失敗");
       return;
     }
-    router.replace(`/bookings/${params.id}`);
+    router.replace(`/bookings/${params.id}${fromSuffix}`);
   };
 
-  if (fetching) return <div className="erp-page">載入中...</div>;
+  if (!bookingReady || !rolesReady) return <div className="erp-page">載入中...</div>;
 
   return (
     <div className="erp-page">
       <div className="erp-page-header">
         <h1 className="erp-page-title">編輯單據</h1>
-        <button onClick={() => router.replace(`/bookings/${params.id}`)} className="btn btn-secondary">取消</button>
+        <button onClick={() => router.replace(`/bookings/${params.id}${fromSuffix}`)} className="btn btn-secondary">取消</button>
       </div>
 
       {error && <div className="erp-alert danger">{error}</div>}
 
-      {!pureCustomerService && (
+      {!pureCustomerService && form.status !== "refunded" && form.status !== "sold" && (
         <div className="erp-card">
           <div className="erp-card-header"><span className="erp-card-title">基本資訊</span></div>
           <div className="erp-card-body">
@@ -125,7 +143,7 @@ export default function EditBookingPage() {
         </div>
       )}
 
-      {!pureCustomerService && (
+      {!pureCustomerService && form.status !== "refunded" && form.status !== "sold" && (
         <div className="erp-card" style={{ marginTop: 24 }}>
           <div className="erp-card-header"><span className="erp-card-title">餐廳端金流</span></div>
           <div className="erp-card-body">
@@ -143,7 +161,7 @@ export default function EditBookingPage() {
         </div>
       )}
 
-      {!pureCustomerService && (
+      {!pureCustomerService && form.status !== "refunded" && form.status !== "sold" && (
         <div className="erp-card" style={{ marginTop: 24 }}>
           <div className="erp-card-header"><span className="erp-card-title">訂位資訊</span></div>
           <div className="erp-card-body">
@@ -165,60 +183,91 @@ export default function EditBookingPage() {
         </div>
       )}
 
-      <div className="erp-card" style={{ marginTop: 24 }}>
-        <div className="erp-card-header"><span className="erp-card-title">銷售/收款</span></div>
-        <div className="erp-card-body">
-          <div className="erp-form-grid">
-            <div className="erp-form-group">
+
+      {form.status === "refunded" && (
+        <div className="erp-card" style={{ marginTop: 24 }}>
+          <div className="erp-card-header"><span className="erp-card-title">訂單狀態</span></div>
+          <div className="erp-card-body">
+            <div className="erp-form-group" style={{ maxWidth: 200 }}>
               <label className="erp-label">狀態</label>
               <select className="erp-select" value={form.status} onChange={set("status")}>
-                <option value="unsold">未售出</option>
-                <option value="reserved">訂</option>
-                <option value="sold">售</option>
                 <option value="refunded">退</option>
+                <option value="unsold">未售出</option>
               </select>
             </div>
-            <div className="erp-form-group">
-              <label className="erp-label">售出日期</label>
-              <input type="date" className="erp-input" value={form.soldDate} onChange={set("soldDate")} />
-            </div>
-            <div className="erp-form-group">
-              <label className="erp-label">收款金額</label>
-              <input type="number" step="0.01" className="erp-input" value={form.collectedAmount} onChange={set("collectedAmount")} />
-            </div>
-            <div className="erp-form-group">
-              <label className="erp-label">帳戶</label>
-              <input className="erp-input" value={form.account} onChange={set("account")} />
-            </div>
-            <div className="erp-form-group">
-              <label className="erp-label">代訂費</label>
-              <input type="number" step="0.01" className="erp-input" value={form.agencyFee} onChange={set("agencyFee")} />
-            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="erp-card" style={{ marginTop: 24 }}>
-        <div className="erp-card-header"><span className="erp-card-title">其他</span></div>
-        <div className="erp-card-body">
-          <div className="erp-form-grid">
-            <div className="erp-form-group full">
-              <label className="erp-label">資訊</label>
-              <input className="erp-input" value={form.info} onChange={set("info")} />
-            </div>
-            <div className="erp-form-group full">
-              <label className="erp-label">備註</label>
-              <textarea className="erp-textarea" rows={2} value={form.note} onChange={set("note")} />
+      {isAdmin && form.status !== "refunded" && (
+        <div className="erp-card" style={{ marginTop: 24 }}>
+          <div className="erp-card-header"><span className="erp-card-title">銷售/收款</span></div>
+          <div className="erp-card-body">
+            <div className="erp-form-grid">
+              {form.status !== "sold" && (
+                <div className="erp-form-group">
+                  <label className="erp-label">狀態</label>
+                  <select className="erp-select" value={form.status} onChange={set("status")}>
+                    <option value="unsold">未售出</option>
+                    <option value="reserved">訂</option>
+                    <option value="sold">售</option>
+                    <option value="refunded">退</option>
+                  </select>
+                </div>
+              )}
+              <div className="erp-form-group">
+                <label className="erp-label">售出日期</label>
+                <input type="date" className="erp-input" value={form.soldDate} onChange={set("soldDate")} />
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">收款金額</label>
+                <input type="number" step="0.01" className="erp-input" value={form.collectedAmount} onChange={set("collectedAmount")} />
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">帳戶</label>
+                <input className="erp-input" value={form.account} onChange={set("account")} />
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">代訂費</label>
+                <input type="number" step="0.01" className="erp-input" value={form.agencyFee} onChange={set("agencyFee")} />
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">銷售人員</label>
+                <select className="erp-select" value={form.salespersonId ?? ""} onChange={set("salespersonId")}>
+                  <option value="">— 未指定 —</option>
+                  {csStaff.map((u) => (
+                    <option key={u.id} value={u.id}>{u.name ?? u.id}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {form.status !== "refunded" && form.status !== "sold" && (
+        <div className="erp-card" style={{ marginTop: 24 }}>
+          <div className="erp-card-header"><span className="erp-card-title">其他</span></div>
+          <div className="erp-card-body">
+            <div className="erp-form-grid">
+              <div className="erp-form-group full">
+                <label className="erp-label">資訊</label>
+                <input className="erp-input" value={form.info} onChange={set("info")} />
+              </div>
+              <div className="erp-form-group full">
+                <label className="erp-label">備註</label>
+                <textarea className="erp-textarea" rows={2} value={form.note} onChange={set("note")} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
         <button onClick={handleSubmit} disabled={loading} className="btn btn-primary">
           {loading ? "儲存中..." : "儲存變更"}
         </button>
-        <button onClick={() => router.push(`/bookings/${params.id}`)} className="btn btn-secondary">取消</button>
+        <button onClick={() => router.push(`/bookings/${params.id}${fromSuffix}`)} className="btn btn-secondary">取消</button>
       </div>
     </div>
   );

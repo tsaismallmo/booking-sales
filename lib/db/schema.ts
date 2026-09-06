@@ -49,7 +49,8 @@ export const bookings = pgTable('bookings', {
   collectedAmount: numeric('collected_amount'), // 收款金額
   account: text('account'), // 帳戶
   salespersonId: uuid('salesperson_id').references(() => users.id), // 銷售（客服）
-  agencyFee: numeric('agency_fee'), // 代訂費
+  agencyFee: numeric('agency_fee'), // 代訂費（全座正常費用）
+  soldCount: integer('sold_count'), // 實賣人數（若只賣出部分人數時填入，用於計算廠商利潤）
 
   // 其他
   info: text('info'), // 資訊（快速註記）
@@ -119,6 +120,7 @@ export const vendorRateSettings = pgTable('vendor_rate_settings', {
   weekdayRate: integer('weekday_rate').notNull().default(300),
   weekendRate: integer('weekend_rate').notNull().default(300),
   platformFeePerPerson: integer('platform_fee_per_person').notNull().default(100),
+  platformFeeRate: integer('platform_fee_rate'), // 平台費率（%），設定後改用百分比計算取代 platformFeePerPerson
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 

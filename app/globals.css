@@ -190,6 +190,22 @@ button { font-family: var(--font-ui); cursor: pointer; }
   flex-shrink: 0;
 }
 
+.erp-sidebar-section {
+  padding: 14px 18px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.28);
+  user-select: none;
+}
+
+.erp-sidebar-divider {
+  height: 1px;
+  background: rgba(255,255,255,.07);
+  margin: 6px 18px;
+}
+
 .erp-sidebar-logout {
   display: flex;
   align-items: center;

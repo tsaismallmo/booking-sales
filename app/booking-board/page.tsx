@@ -16,9 +16,16 @@ type DayCounts = { total: number; need: number };
 
 type RosterEntry = {
   id: string;
+  listId: string;
   name: string;
   phone: string | null;
   note: string | null;
+};
+
+type RosterList = {
+  id: string;
+  name: string;
+  entryCount: number;
 };
 
 type MyBooking = {
@@ -32,6 +39,7 @@ type MyBooking = {
   customerName: string | null;
   customerPhone: string | null;
   depositAmount: string | null;
+  source: string | null;
   note: string | null;
   status: "unsold" | "reserved" | "sold" | "refunded";
 };
@@ -105,6 +113,412 @@ function computeAvailability(
   return { available, excluded };
 }
 
+// ── Inline / EZTABLE helpers ─────────────────────────────────────────────────
+
+function isInlineBooking(b: MyBooking) {
+  return (b.source ?? "").toLowerCase().includes("inline");
+}
+
+function isEztableBooking(b: MyBooking) {
+  return (b.bookingCode ?? "").trim().length === 8;
+}
+
+function splitChineseName(name: string) {
+  const n = name.trim();
+  return { familyName: n.slice(0, 1), givenName: n.slice(1) };
+}
+
+function formatPhoneIntl(phone: string) {
+  return phone.startsWith("0") ? "+886" + phone.slice(1) : phone;
+}
+
+const INLINE_TIMES = ["11:30", "11:45", "14:30", "17:30", "17:45", "18:00", "18:15"];
+
+// ── InlineTab ─────────────────────────────────────────────────────────────────
+
+type InlineAvail = RosterEntry & { futureCount: number; monthCount: number };
+type InlineExcl = RosterEntry & { futureBookings: MyBooking[] };
+
+function InlineTab() {
+  const [branchFilter, setBranchFilter] = useState("");
+  const [limit, setLimit] = useState(2);
+  const [roster, setRoster] = useState<RosterEntry[]>([]);
+  const [myBookings, setMyBookings] = useState<MyBooking[]>([]);
+  const [excludedRosterIds, setExcludedRosterIds] = useState<Set<string>>(new Set());
+  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
+  const [date, setDate] = useState(todayStr());
+  const [timeSlot, setTimeSlot] = useState("");
+  const [partySize, setPartySize] = useState("");
+  const [showModal, setShowModal] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/roster").then((r) => r.json()).then((d) => setRoster(Array.isArray(d) ? d : []));
+    fetch("/api/booking-board/mine").then((r) => r.json()).then((d) => setMyBookings(Array.isArray(d) ? d : []));
+  }, []);
+
+  const toggleExcluded = (id: string) =>
+    setExcludedRosterIds((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const includedRoster = useMemo(() => roster.filter((r) => !excludedRosterIds.has(r.id)), [roster, excludedRosterIds]);
+  const branches = useMemo(
+    () => Array.from(new Set(myBookings.map((b) => b.branch).filter((b): b is string => !!b))).sort(),
+    [myBookings]
+  );
+  const inlineBookings = useMemo(() => myBookings.filter(isInlineBooking), [myBookings]);
+
+  const { available, excluded } = useMemo<{ available: InlineAvail[]; excluded: InlineExcl[] }>(() => {
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const perPhone = new Map<string, MyBooking[]>();
+    inlineBookings.forEach((b) => {
+      if (!b.customerPhone) return;
+      if (parseDateOnly(b.bookingDate) < todayStart) return;
+      if (branchFilter && b.branch !== branchFilter) return;
+      const list = perPhone.get(b.customerPhone) ?? [];
+      list.push(b);
+      perPhone.set(b.customerPhone, list);
+    });
+    const now = new Date();
+    const avail: InlineAvail[] = [];
+    const excl: InlineExcl[] = [];
+    includedRoster.forEach((r) => {
+      const bks = r.phone ? (perPhone.get(r.phone) ?? []) : [];
+      if (bks.length >= limit) {
+        excl.push({ ...r, futureBookings: bks });
+      } else {
+        const monthCount = bks.filter((b) => {
+          const d = parseDateOnly(b.bookingDate);
+          return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+        }).length;
+        avail.push({ ...r, futureCount: bks.length, monthCount });
+      }
+    });
+    return { available: avail, excluded: excl };
+  }, [includedRoster, inlineBookings, limit, branchFilter]);
+
+  const selectedPerson = available.find((p) => p.id === selectedPersonId) ?? null;
+  const canGenerate = !!selectedPerson && !!date && !!timeSlot && !!partySize;
+
+  const buildJSON = () => {
+    if (!selectedPerson) return "";
+    const { familyName, givenName } = splitChineseName(selectedPerson.name || "");
+    return JSON.stringify({
+      enabled: false,
+      family_name: familyName,
+      given_name: givenName,
+      phone: formatPhoneIntl(selectedPerson.phone ?? ""),
+      email: "",
+      gender: 1,
+      date,
+      time: timeSlot,
+      party_size: parseInt(partySize) || 0,
+      kids: 0,
+      "table-field": "一般",
+      notes: "",
+    }, null, 2);
+  };
+
+  const handleCopy = async () => {
+    try { await navigator.clipboard.writeText(buildJSON()); }
+    catch { /* ignore */ }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {/* Controls */}
+      <div className="erp-card">
+        <div className="erp-card-body" style={{ padding: "12px 16px", display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <select className="erp-select" style={{ maxWidth: 130 }} value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)}>
+            <option value="">全部分店</option>
+            {branches.map((b) => <option key={b} value={b}>{b}</option>)}
+          </select>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+            上限
+            <input type="number" min={1} className="erp-input" style={{ width: 60, padding: "4px 6px" }}
+              value={limit} onChange={(e) => { setLimit(Math.max(1, Number(e.target.value) || 1)); setSelectedPersonId(null); }} />
+            筆
+          </div>
+        </div>
+      </div>
+
+      {/* Roster toggle */}
+      <div className="erp-card">
+        <div className="erp-card-body" style={{ padding: "10px 16px" }}>
+          <CollapseSection title={`名單（${includedRoster.length}/${roster.length} 位）`}>
+            {roster.length === 0 && <div style={{ fontSize: 12, color: "var(--gray-400)" }}>廠商名單目前是空的</div>}
+            {roster.map((r) => (
+              <label key={r.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, padding: "3px 0" }}>
+                <input type="checkbox" checked={!excludedRosterIds.has(r.id)} onChange={() => toggleExcluded(r.id)} />
+                {r.name}　{r.phone ?? "—"}
+              </label>
+            ))}
+          </CollapseSection>
+        </div>
+      </div>
+
+      {/* Date / time / partySize / generate */}
+      <div className="erp-card">
+        <div className="erp-card-body" style={{ padding: "12px 16px", display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <span style={{ fontSize: 13, color: "var(--gray-500)" }}>日期</span>
+          <input type="date" className="erp-input" style={{ maxWidth: 160 }} value={date}
+            onChange={(e) => { setDate(e.target.value); setSelectedPersonId(null); }} />
+          <span style={{ fontSize: 13, color: "var(--gray-500)" }}>時間</span>
+          <select className="erp-select" style={{ maxWidth: 110 }} value={timeSlot} onChange={(e) => setTimeSlot(e.target.value)}>
+            <option value="">請選擇</option>
+            {INLINE_TIMES.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <span style={{ fontSize: 13, color: "var(--gray-500)" }}>人數</span>
+          <input type="number" min={1} className="erp-input" style={{ maxWidth: 80 }} placeholder="人數"
+            value={partySize} onChange={(e) => setPartySize(e.target.value)} />
+          <button className="btn btn-primary" disabled={!canGenerate} onClick={() => setShowModal(true)}>
+            產生訂位資料
+          </button>
+        </div>
+        {selectedPerson && (
+          <div style={{ padding: "0 16px 10px", fontSize: 12, color: "var(--gray-500)" }}>
+            已選擇：{selectedPerson.name || "（無姓名）"}
+            已訂位日期：{inlineBookings
+              .filter((b) => b.customerPhone === selectedPerson.phone && parseDateOnly(b.bookingDate) >= (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })())
+              .sort((a, b) => a.bookingDate.localeCompare(b.bookingDate))
+              .map((b) => { const d = parseDateOnly(b.bookingDate); return `${d.getMonth()+1}/${d.getDate()}`; })
+              .join("、") || "無"}
+          </div>
+        )}
+      </div>
+
+      {/* Available / excluded */}
+      <div className="erp-card">
+        <div className="erp-card-body" style={{ padding: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--gray-500)", marginBottom: 8 }}>
+            可訂位（{available.length} 位）
+          </div>
+          {available.length === 0
+            ? <div style={{ fontSize: 13, color: "var(--gray-400)", marginBottom: 16 }}>名單中所有客人皆已達上限</div>
+            : (
+              <div className="erp-person-grid" style={{ marginBottom: 16 }}>
+                {available.map((p) => (
+                  <div key={p.id} className="erp-person-card avail"
+                    style={{ cursor: "pointer", outline: selectedPersonId === p.id ? "2px solid var(--brand-700)" : undefined }}
+                    onClick={() => setSelectedPersonId(selectedPersonId === p.id ? null : p.id)}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--gray-800)" }}>{p.name || "（無姓名）"}</div>
+                      <input type="radio" name="inline-person" checked={selectedPersonId === p.id} readOnly style={{ cursor: "pointer" }} />
+                    </div>
+                    <div style={{ fontSize: 12, color: "var(--gray-500)" }}>{p.phone ?? "—"}</div>
+                    {p.futureCount > 0 && (
+                      <div style={{ fontSize: 11, color: "var(--accent-500)", marginTop: 3 }}>
+                        共 {p.futureCount} 筆　當月 {p.monthCount} 筆
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )
+          }
+          <CollapseSection title={`不可訂位（${excluded.length} 位）— 點選展開`}>
+            {excluded.length === 0 && <div style={{ fontSize: 12, color: "var(--gray-400)" }}>目前沒有達到上限的名單成員</div>}
+            {excluded.map((p) => {
+              const dates = p.futureBookings
+                .sort((a, b) => a.bookingDate.localeCompare(b.bookingDate))
+                .map((b) => { const d = parseDateOnly(b.bookingDate); return `${d.getMonth()+1}/${d.getDate()}`; })
+                .join("、");
+              return (
+                <div key={p.id} className="erp-excl-item">
+                  <div>
+                    <div style={{ fontWeight: 600, color: "var(--gray-700)" }}>{p.name || "（無姓名）"}</div>
+                    <div style={{ color: "var(--gray-400)" }}>{p.phone ?? "—"}</div>
+                  </div>
+                  <div style={{ color: "var(--color-danger)", textAlign: "right" }}>
+                    已達上限（{p.futureBookings.length}/{limit} 筆）：{dates}
+                  </div>
+                </div>
+              );
+            })}
+          </CollapseSection>
+        </div>
+      </div>
+
+      {/* JSON modal */}
+      {showModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}>
+          <div style={{ background: "var(--surface)", borderRadius: 12, padding: "18px 20px", maxWidth: 420, width: "100%", boxShadow: "0 8px 32px rgba(0,0,0,0.2)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, fontSize: 15, fontWeight: 700 }}>
+              <span>產生訂位資料</span>
+              <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--gray-400)" }} onClick={() => setShowModal(false)}>✕</button>
+            </div>
+            <textarea readOnly style={{ width: "100%", minHeight: 260, fontSize: 13, lineHeight: 1.6, border: "1px solid var(--gray-200)", borderRadius: 8, padding: 10, resize: "vertical", background: "var(--gray-50)", fontFamily: "monospace", boxSizing: "border-box" }}
+              value={buildJSON()} />
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
+              <button className="btn btn-primary" onClick={handleCopy}>複製</button>
+              {copied && <span style={{ fontSize: 13, color: "var(--color-success)", fontWeight: 600 }}>已複製！</span>}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── EztableTab ────────────────────────────────────────────────────────────────
+
+type EztableAvail = RosterEntry & { bookedBranches: string[]; openBranches: string[] };
+type EztableExcl = RosterEntry & { bookedBranches: string[] };
+
+function EztableTab() {
+  const now = new Date();
+  const [month, setMonth] = useState(`${now.getFullYear()}-${pad2(now.getMonth() + 1)}`);
+  const [branchFilter, setBranchFilter] = useState("");
+  const [roster, setRoster] = useState<RosterEntry[]>([]);
+  const [myBookings, setMyBookings] = useState<MyBooking[]>([]);
+  const [excludedRosterIds, setExcludedRosterIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    fetch("/api/roster").then((r) => r.json()).then((d) => setRoster(Array.isArray(d) ? d : []));
+    fetch("/api/booking-board/mine").then((r) => r.json()).then((d) => setMyBookings(Array.isArray(d) ? d : []));
+  }, []);
+
+  const toggleExcluded = (id: string) =>
+    setExcludedRosterIds((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const includedRoster = useMemo(() => roster.filter((r) => !excludedRosterIds.has(r.id)), [roster, excludedRosterIds]);
+  const eztableBookings = useMemo(() => myBookings.filter(isEztableBooking), [myBookings]);
+
+  const [viewYear, viewMonth] = useMemo(() => {
+    const [y, m] = month.split("-").map(Number);
+    return [y, m - 1]; // month 0-indexed
+  }, [month]);
+
+  // 從 EZTABLE 訂位資料推算所有已知分店
+  const allBranches = useMemo(
+    () => Array.from(new Set(eztableBookings.map((b) => b.branch).filter((b): b is string => !!b))).sort(),
+    [eztableBookings]
+  );
+  const branches = allBranches;
+
+  const { available, excluded } = useMemo<{ available: EztableAvail[]; excluded: EztableExcl[] }>(() => {
+    // 計算每個人當月的 EZTABLE 訂位，按分店分組
+    const perPhoneBranch = new Map<string, Set<string>>(); // phone → Set(branch)
+    eztableBookings.forEach((b) => {
+      if (!b.customerPhone) return;
+      const d = parseDateOnly(b.bookingDate);
+      if (d.getFullYear() !== viewYear || d.getMonth() !== viewMonth) return;
+      if (branchFilter && b.branch !== branchFilter) return;
+      const set = perPhoneBranch.get(b.customerPhone) ?? new Set<string>();
+      set.add(b.branch ?? "");
+      perPhoneBranch.set(b.customerPhone, set);
+    });
+
+    const knownBranches = branchFilter ? [branchFilter] : allBranches;
+    const avail: EztableAvail[] = [];
+    const excl: EztableExcl[] = [];
+
+    includedRoster.forEach((r) => {
+      if (!r.phone) {
+        avail.push({ ...r, bookedBranches: [], openBranches: knownBranches });
+        return;
+      }
+      const bookedSet = perPhoneBranch.get(r.phone) ?? new Set<string>();
+      const bookedBranches = [...bookedSet].filter(Boolean).sort();
+      if (branchFilter) {
+        if (bookedSet.has(branchFilter)) excl.push({ ...r, bookedBranches });
+        else avail.push({ ...r, bookedBranches: [], openBranches: [branchFilter] });
+      } else {
+        const openBranches = knownBranches.filter((br) => !bookedSet.has(br));
+        if (openBranches.length === 0 && knownBranches.length > 0) {
+          excl.push({ ...r, bookedBranches });
+        } else {
+          avail.push({ ...r, bookedBranches, openBranches });
+        }
+      }
+    });
+
+    return { available: avail, excluded: excl };
+  }, [includedRoster, eztableBookings, viewYear, viewMonth, branchFilter, allBranches]);
+
+  const monthLabel = useMemo(() => {
+    const [y, m] = month.split("-").map(Number);
+    return `${y} 年 ${m} 月`;
+  }, [month]);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="erp-card">
+        <div className="erp-card-body" style={{ padding: "12px 16px", display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <input type="month" className="erp-input" style={{ maxWidth: 160 }} value={month} onChange={(e) => setMonth(e.target.value)} />
+          <select className="erp-select" style={{ maxWidth: 130 }} value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)}>
+            <option value="">全部分店</option>
+            {branches.map((b) => <option key={b} value={b}>{b}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div className="erp-card">
+        <div className="erp-card-body" style={{ padding: "10px 16px" }}>
+          <CollapseSection title={`名單（${includedRoster.length}/${roster.length} 位）`}>
+            {roster.length === 0 && <div style={{ fontSize: 12, color: "var(--gray-400)" }}>廠商名單目前是空的</div>}
+            {roster.map((r) => (
+              <label key={r.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, padding: "3px 0" }}>
+                <input type="checkbox" checked={!excludedRosterIds.has(r.id)} onChange={() => toggleExcluded(r.id)} />
+                {r.name}　{r.phone ?? "—"}
+              </label>
+            ))}
+          </CollapseSection>
+        </div>
+      </div>
+
+      <div className="erp-card">
+        <div className="erp-card-body" style={{ padding: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--gray-500)", marginBottom: 8 }}>
+            {monthLabel}　可訂位（{available.length} 位）
+          </div>
+          {available.length === 0
+            ? <div style={{ fontSize: 13, color: "var(--gray-400)", marginBottom: 16 }}>名單中所有客人本月都已訂過</div>
+            : (
+              <div className="erp-person-grid" style={{ marginBottom: 16 }}>
+                {available.map((p) => (
+                  <div key={p.id} className="erp-person-card avail">
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--gray-800)" }}>{p.name || "（無姓名）"}</div>
+                    <div style={{ fontSize: 12, color: "var(--gray-500)" }}>{p.phone ?? "—"}</div>
+                    {p.openBranches.length > 0 && p.openBranches.length < allBranches.length && (
+                      <div style={{ fontSize: 11, color: "var(--color-success)", marginTop: 3 }}>
+                        可訂：{p.openBranches.join("、")}
+                      </div>
+                    )}
+                    {p.bookedBranches.length > 0 && (
+                      <div style={{ fontSize: 11, color: "var(--gray-400)", marginTop: 2 }}>
+                        已訂：{p.bookedBranches.join("、")}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )
+          }
+          <CollapseSection title={`不可訂位（${excluded.length} 位）— 點選展開`}>
+            {excluded.length === 0 && <div style={{ fontSize: 12, color: "var(--gray-400)" }}>本月沒有已訂滿的名單成員</div>}
+            {excluded.map((p) => (
+              <div key={p.id} className="erp-excl-item">
+                <div>
+                  <div style={{ fontWeight: 600, color: "var(--gray-700)" }}>{p.name || "（無姓名）"}</div>
+                  <div style={{ color: "var(--gray-400)" }}>{p.phone ?? "—"}</div>
+                </div>
+                <div style={{ color: "var(--color-danger)", textAlign: "right" }}>
+                  本月已訂：{p.bookedBranches.join("、") || "—"}
+                </div>
+              </div>
+            ))}
+          </CollapseSection>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function CollapseSection({ title, children }: { title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
@@ -127,10 +541,11 @@ function CalendarTab() {
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
+  const [rosterLists, setRosterLists] = useState<RosterList[]>([]);
   const [roster, setRoster] = useState<RosterEntry[]>([]);
   const [myBookings, setMyBookings] = useState<MyBooking[]>([]);
   const [dayDemands, setDayDemands] = useState<DemandBooking[]>([]);
-  const [excludedRosterIds, setExcludedRosterIds] = useState<Set<string>>(new Set());
+  const [excludedListIds, setExcludedListIds] = useState<Set<string>>(new Set());
 
   const [branchFilter, setBranchFilter] = useState("");
   const [exclDays, setExclDays] = useState(7);
@@ -145,6 +560,9 @@ function CalendarTab() {
   }, [viewYear, viewMonth]);
 
   useEffect(() => {
+    fetch("/api/roster/lists")
+      .then((res) => res.json())
+      .then((data) => setRosterLists(Array.isArray(data) ? data : []));
     fetch("/api/roster")
       .then((res) => res.json())
       .then((data) => setRoster(Array.isArray(data) ? data : []));
@@ -189,15 +607,15 @@ function CalendarTab() {
   );
 
   const includedRoster = useMemo(
-    () => roster.filter((r) => !excludedRosterIds.has(r.id)),
-    [roster, excludedRosterIds]
+    () => roster.filter((r) => !excludedListIds.has(r.listId)),
+    [roster, excludedListIds]
   );
 
-  const toggleRosterIncluded = (id: string) =>
-    setExcludedRosterIds((s) => {
+  const toggleListIncluded = (listId: string) =>
+    setExcludedListIds((s) => {
       const next = new Set(s);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(listId)) next.delete(listId);
+      else next.add(listId);
       return next;
     });
 
@@ -283,12 +701,12 @@ function CalendarTab() {
       <div style={{ flex: 1, minWidth: 320, display: "flex", flexDirection: "column", gap: 12 }}>
         <div className="erp-card">
           <div className="erp-card-body" style={{ padding: "10px 16px" }}>
-            <CollapseSection title={`月曆顯示名單（${includedRoster.length}/${roster.length} 位）`}>
-              {roster.length === 0 && <div style={{ fontSize: 12, color: "var(--gray-400)" }}>廠商名單目前是空的</div>}
-              {roster.map((r) => (
-                <label key={r.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, padding: "3px 0" }}>
-                  <input type="checkbox" checked={!excludedRosterIds.has(r.id)} onChange={() => toggleRosterIncluded(r.id)} />
-                  {r.name}　{r.phone ?? "—"}
+            <CollapseSection title={`月曆顯示名單（${rosterLists.filter((l) => !excludedListIds.has(l.id)).length}/${rosterLists.length} 個名單）`}>
+              {rosterLists.length === 0 && <div style={{ fontSize: 12, color: "var(--gray-400)" }}>廠商名單目前是空的</div>}
+              {rosterLists.map((l) => (
+                <label key={l.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, padding: "3px 0" }}>
+                  <input type="checkbox" checked={!excludedListIds.has(l.id)} onChange={() => toggleListIncluded(l.id)} />
+                  {l.name}（{l.entryCount} 位）
                 </label>
               ))}
             </CollapseSection>
@@ -431,14 +849,8 @@ export default function BookingBoardPage() {
       </div>
 
       {tab === "calendar" && <CalendarTab />}
-
-      {tab !== "calendar" && (
-        <div className="erp-card">
-          <div className="erp-card-body" style={{ padding: 40, textAlign: "center", color: "var(--gray-400)" }}>
-            {tab === "inline" ? "Inline 功能開發中" : "EZTABLE 功能開發中"}
-          </div>
-        </div>
-      )}
+      {tab === "inline" && <InlineTab />}
+      {tab === "eztable" && <EztableTab />}
     </div>
   );
 }

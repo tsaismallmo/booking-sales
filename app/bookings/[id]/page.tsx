@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
 
@@ -34,6 +34,10 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 export default function BookingDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromParam = searchParams.get("from");
+  const fromSuffix = fromParam ? `?from=${fromParam}` : "";
+  const editHref = `/bookings/${params.id}/edit${fromSuffix}`;
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [smsLogs, setSmsLogs] = useState<SmsLog[]>([]);
@@ -68,12 +72,16 @@ export default function BookingDetailPage() {
       .then((me) => {
         const r: string[] = me.roles ?? [];
         setRoles(r);
-        setCanCreateRequest(r.includes("customer_service") || r.includes("admin"));
+        // 轉需求只給純客服或管理員，廠商不顯示
+        setCanCreateRequest((r.includes("customer_service") || r.includes("admin")) && !r.includes("vendor"));
       });
   }, [params.id]);
 
   const pureCustomerService = roles.includes("customer_service") && !roles.includes("vendor") && !roles.includes("admin");
-  const canDelete = !(pureCustomerService && booking?.category === "現貨單");
+  const isRefunded = booking?.status === "refunded";
+  const isSold = booking?.status === "sold";
+  const canEdit = !isRefunded;
+  const canDelete = !(pureCustomerService && booking?.category === "現貨單") && !isSold && !isRefunded;
 
   const handleSubmitRequest = async () => {
     setSubmittingRequest(true);
@@ -96,6 +104,31 @@ export default function BookingDetailPage() {
     if (res.ok) router.back();
   };
 
+  const handleUndoRefund = async () => {
+    const res = await fetch(`/api/bookings/${params.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "unsold" }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setBooking(data);
+    }
+  };
+
+  const handleUndoSold = async () => {
+    if (!confirm("確定要退回售出，將狀態改為未售出？")) return;
+    const res = await fetch(`/api/bookings/${params.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "unsold" }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setBooking(data);
+    }
+  };
+
   if (loading) return <div className="erp-page">載入中...</div>;
   if (!booking) return <div className="erp-page">找不到這筆單據</div>;
 
@@ -113,7 +146,13 @@ export default function BookingDetailPage() {
           {canCreateRequest && !pendingRequest && (
             <button onClick={() => setShowRequestForm((s) => !s)} className="btn btn-secondary">轉需求</button>
           )}
-          <Link href={`/bookings/${params.id}/edit`} className="btn btn-primary">編輯</Link>
+          {isRefunded && (
+            <button onClick={handleUndoRefund} className="btn btn-secondary">撤銷退訂</button>
+          )}
+          {isSold && (
+            <button onClick={handleUndoSold} className="btn btn-secondary">退回售出</button>
+          )}
+          {canEdit && <Link href={editHref} className="btn btn-primary">編輯</Link>}
           {canDelete && <button onClick={handleDelete} className="btn btn-danger">刪除</button>}
           <button onClick={() => router.back()} className="btn btn-secondary">返回</button>
         </div>

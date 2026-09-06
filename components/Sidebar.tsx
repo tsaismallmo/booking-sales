@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { ClipboardList, Users, LogOut, MapPinned, Wrench, Package, Clock3, CalendarClock, BookUser, CalendarDays, PieChart } from "lucide-react";
+import { ClipboardList, Users, LogOut, MapPinned, Wrench, Package, Clock3, CalendarClock, BookUser, CalendarDays, PieChart, BellRing, BadgeCheck, TableProperties } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/types/next-auth";
 
@@ -17,6 +17,10 @@ const roleLabel: Record<Role, string> = {
 
 export function Sidebar({ roles }: { roles: Role[] }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const fromParam = searchParams.get("from");
+  const fromAdmin = fromParam === "admin";
+  const fromSold = fromParam === "sold";
   const isAdmin = roles.includes("admin");
   const isVendor = roles.includes("vendor");
   const isCustomerService = roles.includes("customer_service");
@@ -24,8 +28,7 @@ export function Sidebar({ roles }: { roles: Role[] }) {
   const isVendorStaff = roles.includes("vendor_staff");
   // 純客服（沒有廠商/管理員身份）看不到「單據管理」，只給看單據看板；
   // 有廠商或管理員身份的人看到的是全部單據（或自己的），稱為「單據管理」
-  const canManageBookings = isVendor || isAdmin;
-  const seesAllBookings = isAdmin || isCustomerService;
+  const canManageBookings = isVendor || isAdmin || isCustomerService;
 
   return (
     <aside className="erp-sidebar">
@@ -35,109 +38,113 @@ export function Sidebar({ roles }: { roles: Role[] }) {
       </div>
 
       <nav className="erp-sidebar-nav">
-        {/* 現貨單看板：客服/管理員專用（後勤人員不處理現貨單） */}
+
+        {/* ── 看板 ── 客服 / 管理員 / 後勤 */}
+        {(isCustomerService || isAdmin || isLogistics) && (
+          <div className="erp-sidebar-section">看板</div>
+        )}
         {(isCustomerService || isAdmin) && (
-          <Link
-            href="/dashboard"
-            className={cn("erp-sidebar-item", pathname === "/dashboard" && "active")}
-          >
+          <Link href="/dashboard" className={cn("erp-sidebar-item", pathname === "/dashboard" && "active")}>
             <Package size={15} />
             現貨單看板
           </Link>
         )}
-
-        {/* 臨時單／預定單看板：客服/管理員/後勤人員都看得到，後勤人員專門處理這兩種 */}
         {(isCustomerService || isAdmin || isLogistics) && (
           <>
-            <Link
-              href="/dashboard/temp"
-              className={cn("erp-sidebar-item", pathname.startsWith("/dashboard/temp") && "active")}
-            >
+            <Link href="/dashboard/temp" className={cn("erp-sidebar-item", pathname.startsWith("/dashboard/temp") && "active")}>
               <Clock3 size={15} />
               臨時單看板
             </Link>
-            <Link
-              href="/dashboard/reserved"
-              className={cn("erp-sidebar-item", pathname.startsWith("/dashboard/reserved") && "active")}
-            >
+            <Link href="/dashboard/reserved" className={cn("erp-sidebar-item", pathname.startsWith("/dashboard/reserved") && "active")}>
               <CalendarClock size={15} />
               預定單看板
             </Link>
           </>
         )}
-
-        {canManageBookings && (
-          <Link
-            href="/bookings"
-            className={cn("erp-sidebar-item", pathname.startsWith("/bookings") && "active")}
-          >
-            <ClipboardList size={15} />
-            {seesAllBookings ? "單據管理" : "我的單據"}
+        {(isCustomerService || isAdmin) && (
+          <Link href="/dashboard/sold" className={cn("erp-sidebar-item", (pathname.startsWith("/dashboard/sold") || (pathname.startsWith("/bookings") && fromSold)) && "active")}>
+            <BadgeCheck size={15} />
+            已售看板
           </Link>
         )}
-
-        {/* 廠商名單：廠商本人能建立/管理，廠商員工只能唯讀查看所屬廠商的名單 */}
-        {(isVendor || isVendorStaff) && (
-          <Link
-            href="/roster"
-            className={cn("erp-sidebar-item", pathname.startsWith("/roster") && "active")}
-          >
-            <BookUser size={15} />
-            廠商名單
-          </Link>
-        )}
-
-        {/* 訂位看板（月曆/Inline/EZTABLE）：廠商本人跟廠商員工都看得到 */}
-        {(isVendor || isVendorStaff) && (
-          <Link
-            href="/booking-board"
-            className={cn("erp-sidebar-item", pathname.startsWith("/booking-board") && "active")}
-          >
-            <CalendarDays size={15} />
-            訂位看板
-          </Link>
-        )}
-
-        {/* 平台分潤：只有廠商本人跟管理員能看，廠商員工不行 */}
-        {(isVendor || isAdmin) && (
-          <Link
-            href="/platform-share"
-            className={cn("erp-sidebar-item", pathname.startsWith("/platform-share") && "active")}
-          >
-            <PieChart size={15} />
-            平台分潤
-          </Link>
-        )}
-
-        {/* 需求看板：後勤人員/管理員處理需求，客服可以看到自己發起的需求進度 */}
         {(isLogistics || isAdmin || isCustomerService) && (
-          <Link
-            href="/requests"
-            className={cn("erp-sidebar-item", pathname.startsWith("/requests") && "active")}
-          >
+          <Link href="/requests" className={cn("erp-sidebar-item", pathname.startsWith("/requests") && "active")}>
             <Wrench size={15} />
             需求看板
           </Link>
         )}
 
+        {/* ── 單據 ── 廠商 / 管理員 */}
+        {(canManageBookings || isAdmin) && (
+          <>
+            <div className="erp-sidebar-divider" />
+            <div className="erp-sidebar-section">單據</div>
+          </>
+        )}
+        {canManageBookings && (
+          <Link href="/bookings" className={cn("erp-sidebar-item", pathname.startsWith("/bookings") && !fromAdmin && "active")}>
+            <ClipboardList size={15} />
+            單據管理
+          </Link>
+        )}
+
+        {/* ── 廠商 ── 廠商本人 / 廠商員工 / 管理員(平台分潤) */}
+        {(isVendor || isVendorStaff || isAdmin) && (
+          <>
+            <div className="erp-sidebar-divider" />
+            <div className="erp-sidebar-section">廠商</div>
+          </>
+        )}
+        {(isVendor || isVendorStaff) && (
+          <>
+            <Link href="/roster" className={cn("erp-sidebar-item", pathname.startsWith("/roster") && "active")}>
+              <BookUser size={15} />
+              廠商名單
+            </Link>
+            <Link href="/booking-board" className={cn("erp-sidebar-item", pathname.startsWith("/booking-board") && "active")}>
+              <CalendarDays size={15} />
+              訂位看板
+            </Link>
+          </>
+        )}
+        {(isVendor || isVendorStaff) && (
+          <Link href="/reminder" className={cn("erp-sidebar-item", pathname.startsWith("/reminder") && "active")}>
+            <BellRing size={15} />
+            退訂提醒
+          </Link>
+        )}
+        {(isVendor || isAdmin) && (
+          <Link href="/platform-share" className={cn("erp-sidebar-item", pathname.startsWith("/platform-share") && "active")}>
+            <PieChart size={15} />
+            平台分潤
+          </Link>
+        )}
+
+
+        {/* ── 系統 ── 管理員 */}
         {isAdmin && (
           <>
-            <Link
-              href="/accounts"
-              className={cn("erp-sidebar-item", pathname.startsWith("/accounts") && "active")}
-            >
+            <div className="erp-sidebar-divider" />
+            <div className="erp-sidebar-section">系統</div>
+            <Link href="/admin/bookings" className={cn("erp-sidebar-item", (pathname.startsWith("/admin/bookings") || (pathname.startsWith("/bookings") && fromAdmin && !fromSold)) && "active")}>
+              <ClipboardList size={15} />
+              所有單據
+            </Link>
+            <Link href="/admin/bulk-update" className={cn("erp-sidebar-item", pathname.startsWith("/admin/bulk-update") && "active")}>
+              <TableProperties size={15} />
+              批次更新
+            </Link>
+            <Link href="/accounts" className={cn("erp-sidebar-item", pathname.startsWith("/accounts") && "active")}>
               <Users size={15} />
               帳號管理
             </Link>
-            <Link
-              href="/branch-aliases"
-              className={cn("erp-sidebar-item", pathname.startsWith("/branch-aliases") && "active")}
-            >
+            <Link href="/branch-aliases" className={cn("erp-sidebar-item", pathname.startsWith("/branch-aliases") && "active")}>
               <MapPinned size={15} />
               分店對應表
             </Link>
           </>
         )}
+
       </nav>
 
       <div style={{ padding: "0 18px 8px", fontSize: 12, color: "rgba(255,255,255,.4)" }}>
