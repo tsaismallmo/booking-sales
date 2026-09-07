@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
       const names = [...new Set(rows.map((r) => r.vendorName).filter(Boolean))]
       if (names.length > 0) {
         const vendorRows = await db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.name, names))
-        vendorMap = new Map(vendorRows.map((v) => [v.name, v.id]))
+        vendorMap = new Map(vendorRows.filter((v): v is { id: string; name: string } => v.name !== null).map((v) => [v.name, v.id]))
       }
     }
 
