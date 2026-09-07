@@ -9,12 +9,10 @@ function pad2(n: number) {
   return String(n).padStart(2, '0')
 }
 
-// 預設抓「上個月」（依伺服器目前日期往前推一個月）
+// 預設抓「這個月」（要設定費率的月份），已售筆數的參考月份會再往前推一個月
 function defaultMonth() {
   const now = new Date()
-  const y = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear()
-  const m = now.getMonth() === 0 ? 12 : now.getMonth() // getMonth() 是 0-based，這樣算出來就是上個月
-  return `${y}-${pad2(m)}`
+  return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`
 }
 
 function monthRange(monthStr: string) {
@@ -25,14 +23,24 @@ function monthRange(monthStr: string) {
   return { from, to }
 }
 
-// 全部廠商 + 各自的平台費率（沒設定過的用預設值）+ 指定月份的已售筆數（依售出日期，不是訂位日期，
-// 因為這個月賣的可能是下個月甚至下下個月才要用餐的訂位）
+// 選定月份的前一個月：設定某個月的費率時，參考的是「前一個月」已經確定的銷售量，
+// 不是選定月份自己的（選定月份可能都還沒過完）
+function prevMonth(monthStr: string) {
+  const [y, m] = monthStr.split('-').map(Number)
+  const y2 = m === 1 ? y - 1 : y
+  const m2 = m === 1 ? 12 : m - 1
+  return `${y2}-${pad2(m2)}`
+}
+
+// 全部廠商 + 各自的平台費率（沒設定過的用預設值）+ 前一個月的已售筆數（依售出日期，不是訂位日期，
+// 因為那個月賣的可能是之後才要用餐的訂位；參考前一個月是因為要設定的月份本身可能還沒過完）
 export async function GET(req: NextRequest) {
   const session = await requireRole('admin')
   if (!session) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
   const month = req.nextUrl.searchParams.get('month') || defaultMonth()
-  const { from, to } = monthRange(month)
+  const referenceMonth = prevMonth(month)
+  const { from, to } = monthRange(referenceMonth)
 
   const vendors = (await db.select().from(users)).filter((u) => u.roles.includes('vendor'))
   const rateRows = await db.select().from(vendorPlatformRates).where(eq(vendorPlatformRates.month, month))
@@ -59,5 +67,5 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  return NextResponse.json({ month, vendors: result })
+  return NextResponse.json({ month, referenceMonth, vendors: result })
 }

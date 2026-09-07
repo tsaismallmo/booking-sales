@@ -16,8 +16,7 @@ function pad2(n: number) {
 
 function defaultMonth() {
   const now = new Date();
-  const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+  return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`;
 }
 
 export default function AdminRatesPage() {
@@ -27,6 +26,7 @@ export default function AdminRatesPage() {
   const [globalSaveMsg, setGlobalSaveMsg] = useState("");
 
   const [month, setMonth] = useState(defaultMonth());
+  const [referenceMonth, setReferenceMonth] = useState("");
   const [vendors, setVendors] = useState<VendorRate[]>([]);
   const [editing, setEditing] = useState<Record<string, string>>({});
   const [savingVendor, setSavingVendor] = useState<string | null>(null);
@@ -38,6 +38,7 @@ export default function AdminRatesPage() {
       .then((res) => res.json())
       .then((data) => {
         setVendors(Array.isArray(data.vendors) ? data.vendors : []);
+        setReferenceMonth(data.referenceMonth ?? "");
         setLoadingVendors(false);
       });
   };
@@ -136,7 +137,7 @@ export default function AdminRatesPage() {
         <div className="erp-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span className="erp-card-title">各廠商平台費率</span>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 12, color: "var(--gray-500)" }}>已售筆數依售出日期算，不是訂位日期</span>
+            <span style={{ fontSize: 12, color: "var(--gray-500)" }}>設定「{month}」的費率，參考{referenceMonth}的已售筆數（依售出日期算，不是訂位日期）</span>
             <input type="month" className="erp-input" style={{ maxWidth: 150 }} value={month} onChange={(e) => setMonth(e.target.value)} />
           </div>
         </div>
@@ -144,7 +145,7 @@ export default function AdminRatesPage() {
           <table className="erp-table">
             <thead>
               <tr>
-                <th>廠商</th><th>{month} 已售筆數</th><th>平台費率（%）</th><th>廠商利潤（%）</th><th>操作</th>
+                <th>廠商</th><th>{referenceMonth} 已售筆數</th><th>{month} 平台費率（%）</th><th>廠商利潤（%）</th><th>操作</th>
               </tr>
             </thead>
             <tbody>
