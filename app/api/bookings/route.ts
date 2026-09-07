@@ -11,7 +11,6 @@ export async function GET() {
 
   const roles = session.user.roles
   const isVendor = roles.includes('vendor')
-  const isCS = roles.includes('customer_service')
   const isLogistics = roles.includes('logistics')
 
   // /api/bookings 只回傳「自己的」單據：

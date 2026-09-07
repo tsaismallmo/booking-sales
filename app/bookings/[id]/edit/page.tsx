@@ -16,7 +16,6 @@ export default function EditBookingPage() {
   const [form, setForm] = useState<Record<string, string>>({});
   const [pureCustomerService, setPureCustomerService] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isVendor, setIsVendor] = useState(false);
   const [csStaff, setCsStaff] = useState<{ id: string; name: string | null }[]>([]);
 
   useEffect(() => {
@@ -27,7 +26,6 @@ export default function EditBookingPage() {
         const admin = roles.includes("admin");
         const isCS = roles.includes("customer_service");
         setIsAdmin(admin);
-        setIsVendor(roles.includes("vendor"));
         setPureCustomerService(isCS && !roles.includes("vendor") && !admin);
         setRolesReady(true);
       });

@@ -158,7 +158,11 @@ function InlineTab() {
   }, []);
 
   const toggleExcluded = (id: string) =>
-    setExcludedRosterIds((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    setExcludedRosterIds((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
 
   const includedRoster = useMemo(() => roster.filter((r) => !excludedRosterIds.has(r.id)), [roster, excludedRosterIds]);
   const branches = useMemo(
@@ -381,7 +385,11 @@ function EztableTab() {
   }, []);
 
   const toggleExcluded = (id: string) =>
-    setExcludedRosterIds((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    setExcludedRosterIds((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
 
   const includedRoster = useMemo(() => roster.filter((r) => !excludedRosterIds.has(r.id)), [roster, excludedRosterIds]);
   const eztableBookings = useMemo(() => myBookings.filter(isEztableBooking), [myBookings]);

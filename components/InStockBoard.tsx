@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
 import {
   WEEKDAYS,
@@ -36,8 +35,6 @@ export function InStockBoard() {
   const [vendorMap, setVendorMap] = useState<Map<string, string>>(new Map());
   const [csStaff, setCsStaff] = useState<{ id: string; name: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
-  const [canSeeManagement, setCanSeeManagement] = useState(false);
-  const [canCreate, setCanCreate] = useState(false);
   const [pendingBookingIds, setPendingBookingIds] = useState<Set<string>>(new Set());
 
   // 篩選條件
@@ -94,8 +91,6 @@ export function InStockBoard() {
       .then((res) => res.json())
       .then((me) => {
         const roles: string[] = me.roles ?? [];
-        setCanSeeManagement(roles.includes("vendor") || roles.includes("admin"));
-        setCanCreate(roles.includes("vendor") || roles.includes("admin"));
         // 客服看全部廠商的現貨單，廠商只看自己的
         const url = roles.includes("customer_service") ? "/api/admin/bookings" : "/api/bookings";
         return fetch(url).then((res) => res.json());
