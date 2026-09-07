@@ -77,7 +77,7 @@ export function InStockBoard() {
         setPendingBookingIds(new Set(ids));
       });
 
-    fetch("/api/accounts")
+    fetch("/api/directory")
       .then((res) => res.json())
       .then((data) => {
         const all = Array.isArray(data) ? data : [];

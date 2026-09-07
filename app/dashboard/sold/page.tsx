@@ -42,7 +42,7 @@ export default function SoldDashboardPage() {
         setBookings(rows);
         setLoading(false);
       });
-    fetch("/api/accounts")
+    fetch("/api/directory")
       .then((r) => r.json())
       .then((data) => {
         const vs = (Array.isArray(data) ? data : []).filter((u: { roles: string[] }) => u.roles.includes("vendor"));

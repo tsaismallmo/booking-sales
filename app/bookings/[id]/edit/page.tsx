@@ -29,7 +29,7 @@ export default function EditBookingPage() {
         setPureCustomerService(isCS && !roles.includes("vendor") && !admin);
         setRolesReady(true);
       });
-    fetch("/api/accounts")
+    fetch("/api/directory")
       .then((r) => r.json())
       .then((data) => {
         const cs = (Array.isArray(data) ? data : []).filter((u: { roles: string[] }) => u.roles.includes("customer_service"));
