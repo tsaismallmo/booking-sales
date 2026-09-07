@@ -2,7 +2,24 @@
 
 import { useEffect, useState } from "react";
 
-type VendorRate = { vendorId: string; name: string; email: string; platformFeeRate: number };
+type VendorRate = {
+  vendorId: string;
+  name: string;
+  email: string;
+  platformFeeRate: number;
+  effectiveSoldCount: number;
+  bookingCount: number;
+};
+
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function defaultMonth() {
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+}
 
 export default function AdminRatesPage() {
   const [csShareOfPlatformRate, setCsShareOfPlatformRate] = useState(20);
@@ -10,19 +27,21 @@ export default function AdminRatesPage() {
   const [savingGlobal, setSavingGlobal] = useState(false);
   const [globalSaveMsg, setGlobalSaveMsg] = useState("");
 
+  const [month, setMonth] = useState(defaultMonth());
   const [vendors, setVendors] = useState<VendorRate[]>([]);
   const [editing, setEditing] = useState<Record<string, string>>({});
   const [savingVendor, setSavingVendor] = useState<string | null>(null);
   const [loadingVendors, setLoadingVendors] = useState(true);
   const [error, setError] = useState("");
 
-  const loadVendors = () =>
-    fetch("/api/admin/vendor-rates")
+  const loadVendors = (m: string) => {
+    fetch(`/api/admin/vendor-rates?month=${m}`)
       .then((res) => res.json())
       .then((data) => {
-        setVendors(Array.isArray(data) ? data : []);
+        setVendors(Array.isArray(data.vendors) ? data.vendors : []);
         setLoadingVendors(false);
       });
+  };
 
   useEffect(() => {
     fetch("/api/admin/platform-settings")
@@ -31,8 +50,11 @@ export default function AdminRatesPage() {
         setCsShareOfPlatformRate(data.csShareOfPlatformRate);
         setLoadingGlobal(false);
       });
-    loadVendors();
   }, []);
+
+  useEffect(() => {
+    loadVendors(month);
+  }, [month]);
 
   const handleSaveGlobal = async () => {
     setSavingGlobal(true);
@@ -72,7 +94,7 @@ export default function AdminRatesPage() {
       delete next[vendorId];
       return next;
     });
-    loadVendors();
+    loadVendors(month);
   };
 
   return (
@@ -109,17 +131,23 @@ export default function AdminRatesPage() {
       </div>
 
       <div className="erp-card">
-        <div className="erp-card-header"><span className="erp-card-title">各廠商平台費率</span></div>
+        <div className="erp-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span className="erp-card-title">各廠商平台費率</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 12, color: "var(--gray-500)" }}>有效賣出人數依售出日期算，不是訂位日期</span>
+            <input type="month" className="erp-input" style={{ maxWidth: 150 }} value={month} onChange={(e) => setMonth(e.target.value)} />
+          </div>
+        </div>
         <div className="erp-table-wrap">
           <table className="erp-table">
             <thead>
               <tr>
-                <th>廠商</th><th>平台費率（%）</th><th>廠商利潤（%）</th><th>操作</th>
+                <th>廠商</th><th>{month} 有效賣出人數</th><th>已售筆數</th><th>平台費率（%）</th><th>廠商利潤（%）</th><th>操作</th>
               </tr>
             </thead>
             <tbody>
               {loadingVendors && (
-                <tr><td colSpan={4} style={{ textAlign: "center", color: "var(--gray-400)" }}>載入中...</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--gray-400)" }}>載入中...</td></tr>
               )}
               {!loadingVendors && vendors.map((v) => {
                 const current = editing[v.vendorId] ?? String(v.platformFeeRate);
@@ -128,6 +156,8 @@ export default function AdminRatesPage() {
                 return (
                   <tr key={v.vendorId}>
                     <td>{v.name}</td>
+                    <td style={{ fontWeight: 600 }}>{v.effectiveSoldCount}</td>
+                    <td>{v.bookingCount}</td>
                     <td>
                       <input
                         type="number" min={0} max={100} className="erp-input" style={{ width: 90 }}
@@ -150,7 +180,7 @@ export default function AdminRatesPage() {
                 );
               })}
               {!loadingVendors && vendors.length === 0 && (
-                <tr><td colSpan={4} style={{ textAlign: "center", color: "var(--gray-400)" }}>目前沒有廠商帳號</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--gray-400)" }}>目前沒有廠商帳號</td></tr>
               )}
             </tbody>
           </table>
