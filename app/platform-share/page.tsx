@@ -110,7 +110,7 @@ export default function PlatformSharePage() {
         <div>
           <h1 className="erp-page-title">平台分潤</h1>
           <p className="erp-page-subtitle">
-            現貨單已售出訂單的代訂費分潤試算，平台費率依廠商每個月各別設定（只有廠商本人跟管理員看得到）
+            現貨單已售出訂單的代訂費分潤試算，依「售出日期」算月份（不是訂位日期），平台費率依廠商每個月各別設定（只有廠商本人跟管理員看得到）
           </p>
         </div>
       </div>

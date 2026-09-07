@@ -6,6 +6,8 @@ import { requireRole } from '@/lib/auth-guard'
 import { computeShare, DEFAULT_PLATFORM_RATES, type ShareBooking } from '@/lib/platform-share'
 import { getCsShareRate, getVendorPlatformFeeRatesForMonths } from '@/lib/platform-settings'
 
+// 依「售出日期」篩選期間，不是訂位日期——月份報表要看的是這個月實際賣了什麼，
+// 不是這個月有哪些訂位要用餐（訂位日期可能是任何月份）
 async function getVendorBookings(vendorId: string, from: string, to: string) {
   return db
     .select()
@@ -14,8 +16,8 @@ async function getVendorBookings(vendorId: string, from: string, to: string) {
       eq(bookings.vendorId, vendorId),
       eq(bookings.category, '現貨單'),
       eq(bookings.status, 'sold'),
-      gte(bookings.bookingDate, from),
-      lte(bookings.bookingDate, to)
+      gte(bookings.soldDate, from),
+      lte(bookings.soldDate, to)
     ))
 }
 
