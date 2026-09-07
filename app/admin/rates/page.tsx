@@ -7,7 +7,6 @@ type VendorRate = {
   name: string;
   email: string;
   platformFeeRate: number;
-  effectiveSoldCount: number;
   bookingCount: number;
 };
 
@@ -134,7 +133,7 @@ export default function AdminRatesPage() {
         <div className="erp-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span className="erp-card-title">各廠商平台費率</span>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 12, color: "var(--gray-500)" }}>有效賣出人數依售出日期算，不是訂位日期</span>
+            <span style={{ fontSize: 12, color: "var(--gray-500)" }}>已售筆數依售出日期算，不是訂位日期</span>
             <input type="month" className="erp-input" style={{ maxWidth: 150 }} value={month} onChange={(e) => setMonth(e.target.value)} />
           </div>
         </div>
@@ -142,12 +141,12 @@ export default function AdminRatesPage() {
           <table className="erp-table">
             <thead>
               <tr>
-                <th>廠商</th><th>{month} 有效賣出人數</th><th>已售筆數</th><th>平台費率（%）</th><th>廠商利潤（%）</th><th>操作</th>
+                <th>廠商</th><th>{month} 已售筆數</th><th>平台費率（%）</th><th>廠商利潤（%）</th><th>操作</th>
               </tr>
             </thead>
             <tbody>
               {loadingVendors && (
-                <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--gray-400)" }}>載入中...</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--gray-400)" }}>載入中...</td></tr>
               )}
               {!loadingVendors && vendors.map((v) => {
                 const current = editing[v.vendorId] ?? String(v.platformFeeRate);
@@ -156,8 +155,7 @@ export default function AdminRatesPage() {
                 return (
                   <tr key={v.vendorId}>
                     <td>{v.name}</td>
-                    <td style={{ fontWeight: 600 }}>{v.effectiveSoldCount}</td>
-                    <td>{v.bookingCount}</td>
+                    <td style={{ fontWeight: 600 }}>{v.bookingCount}</td>
                     <td>
                       <input
                         type="number" min={0} max={100} className="erp-input" style={{ width: 90 }}
@@ -180,7 +178,7 @@ export default function AdminRatesPage() {
                 );
               })}
               {!loadingVendors && vendors.length === 0 && (
-                <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--gray-400)" }}>目前沒有廠商帳號</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--gray-400)" }}>目前沒有廠商帳號</td></tr>
               )}
             </tbody>
           </table>

@@ -25,7 +25,7 @@ function monthRange(monthStr: string) {
   return { from, to }
 }
 
-// 全部廠商 + 各自的平台費率（沒設定過的用預設值）+ 指定月份的有效賣出人數（依售出日期，不是訂位日期，
+// 全部廠商 + 各自的平台費率（沒設定過的用預設值）+ 指定月份的已售筆數（依售出日期，不是訂位日期，
 // 因為這個月賣的可能是下個月甚至下下個月才要用餐的訂位）
 export async function GET(req: NextRequest) {
   const session = await requireRole('admin')
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
 
   const result = []
   for (const v of vendors) {
-    const rows = await db.select({ partySize: bookings.partySize, soldCount: bookings.soldCount })
+    const rows = await db.select({ id: bookings.id })
       .from(bookings)
       .where(and(
         eq(bookings.vendorId, v.id),
@@ -49,14 +49,12 @@ export async function GET(req: NextRequest) {
         gte(bookings.soldDate, from),
         lte(bookings.soldDate, to)
       ))
-    const effectiveSoldCount = rows.reduce((sum, r) => sum + (r.soldCount ?? r.partySize ?? 0), 0)
 
     result.push({
       vendorId: v.id,
       name: v.name || v.email,
       email: v.email,
       platformFeeRate: rateMap.get(v.id) ?? DEFAULT_PLATFORM_RATES.platformFeeRate,
-      effectiveSoldCount,
       bookingCount: rows.length,
     })
   }
