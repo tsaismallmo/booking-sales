@@ -6,18 +6,15 @@ import { WEEKDAYS, parseDateOnly } from "@/lib/quote";
 
 type Vendor = { id: string; name: string | null; email: string; roles: string[] };
 
-type RateSettings = { weekdayRate: number; weekendRate: number; platformFeePerPerson: number; platformFeeRate: number | null };
+type RateSettings = { platformFeeRate: number };
 
 type ShareBooking = {
   id: string;
   bookingDate: string;
   partySize: number;
-  soldCount: number;
   actualFee: number;
-  normalFee: number;
   platformFee: number;
   vendorProfit: number;
-  discounted: boolean;
   branch: string | null;
   customerName: string | null;
   bookingCode: string | null;
@@ -28,7 +25,7 @@ type DetailReport = {
   vendorId: string;
   rates: RateSettings;
   bookings: ShareBooking[];
-  totals: { platformFee: number; vendorProfit: number; count: number; discountedCount: number };
+  totals: { platformFee: number; vendorProfit: number; count: number };
 };
 
 type SummaryReport = {
@@ -66,7 +63,7 @@ export default function PlatformSharePage() {
   const [report, setReport] = useState<DetailReport | SummaryReport | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [rateForm, setRateForm] = useState<RateSettings>({ weekdayRate: 300, weekendRate: 300, platformFeePerPerson: 100, platformFeeRate: null });
+  const [rateForm, setRateForm] = useState<RateSettings>({ platformFeeRate: 20 });
   const [savingRates, setSavingRates] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
 
@@ -140,6 +137,9 @@ export default function PlatformSharePage() {
     return `${y} 年 ${Number(m)} 月`;
   }, [month]);
 
+  const platformPct = detail ? detail.rates.platformFeeRate : null;
+  const vendorPct = platformPct === null ? null : 100 - platformPct;
+
   return (
     <div className="erp-page">
       <div className="erp-page-header">
@@ -168,73 +168,21 @@ export default function PlatformSharePage() {
       {!loading && canEditRates && (
         <div className="erp-card" style={{ marginBottom: 16 }}>
           <div className="erp-card-header"><span className="erp-card-title">代訂費率設定</span></div>
-          <div className="erp-card-body">
-            <div style={{ display: "flex", gap: 16, alignItems: "flex-end", flexWrap: "wrap", marginBottom: 12 }}>
-              <label style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 4 }}>
-                正常代訂費（平日）
-                <input type="number" min={0} className="erp-input" value={rateForm.weekdayRate} onChange={(e) => setRateForm({ ...rateForm, weekdayRate: Number(e.target.value) || 0 })} />
-              </label>
-              <label style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 4 }}>
-                正常代訂費（假日）
-                <input type="number" min={0} className="erp-input" value={rateForm.weekendRate} onChange={(e) => setRateForm({ ...rateForm, weekendRate: Number(e.target.value) || 0 })} />
-              </label>
+          <div className="erp-card-body" style={{ display: "flex", gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}>
+            <label style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 4 }}>
+              平台費率（%）
+              <input
+                type="number" min={0} max={100} className="erp-input"
+                style={{ width: 100 }}
+                value={rateForm.platformFeeRate}
+                onChange={(e) => setRateForm({ platformFeeRate: Number(e.target.value) || 0 })}
+              />
+            </label>
+            <div style={{ fontSize: 12, color: "var(--gray-500)", paddingBottom: 8 }}>
+              廠商利潤 {100 - rateForm.platformFeeRate}%
             </div>
-            <div style={{ display: "flex", gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>計算方式</div>
-                <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
-                    <input
-                      type="radio"
-                      name="feeMode"
-                      checked={rateForm.platformFeeRate == null}
-                      onChange={() => setRateForm({ ...rateForm, platformFeeRate: null })}
-                    />
-                    每人固定金額
-                  </label>
-                  <label style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 2 }}>
-                    平台費（每人）
-                    <input
-                      type="number" min={0} className="erp-input"
-                      style={{ width: 100 }}
-                      value={rateForm.platformFeePerPerson}
-                      disabled={rateForm.platformFeeRate != null}
-                      onChange={(e) => setRateForm({ ...rateForm, platformFeePerPerson: Number(e.target.value) || 0 })}
-                    />
-                  </label>
-                  <span style={{ color: "var(--gray-300)", fontSize: 20 }}>|</span>
-                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
-                    <input
-                      type="radio"
-                      name="feeMode"
-                      checked={rateForm.platformFeeRate != null}
-                      onChange={() => setRateForm({ ...rateForm, platformFeeRate: 20 })}
-                    />
-                    百分比
-                  </label>
-                  <label style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 2 }}>
-                    平台費率（%）
-                    <input
-                      type="number" min={0} max={100} className="erp-input"
-                      style={{ width: 80 }}
-                      value={rateForm.platformFeeRate ?? ""}
-                      disabled={rateForm.platformFeeRate == null}
-                      placeholder="如 20"
-                      onChange={(e) => setRateForm({ ...rateForm, platformFeeRate: Number(e.target.value) || 0 })}
-                    />
-                  </label>
-                  {rateForm.platformFeeRate != null && (
-                    <div style={{ fontSize: 12, color: "var(--gray-500)", alignSelf: "flex-end", paddingBottom: 4 }}>
-                      廠商利潤 {100 - rateForm.platformFeeRate}%
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 12 }}>
-              <button className="btn btn-primary" onClick={handleSaveRates} disabled={savingRates}>{savingRates ? "儲存中..." : "儲存設定"}</button>
-              <span style={{ fontSize: 13, color: "var(--color-success)" }}>{saveMsg}</span>
-            </div>
+            <button className="btn btn-primary" onClick={handleSaveRates} disabled={savingRates}>{savingRates ? "儲存中..." : "儲存設定"}</button>
+            <span style={{ fontSize: 13, color: "var(--color-success)" }}>{saveMsg}</span>
           </div>
         </div>
       )}
@@ -280,17 +228,16 @@ export default function PlatformSharePage() {
       {!loading && detail && (
         <div className="erp-card">
           <div className="erp-card-header">
-            <span className="erp-card-title">
-              {monthLabel}　已售 {detail.totals.count} 筆
-              {detail.totals.discountedCount > 0 && `（其中 ${detail.totals.discountedCount} 筆有優惠）`}
-            </span>
+            <span className="erp-card-title">{monthLabel}　已售 {detail.totals.count} 筆</span>
           </div>
           <div className="erp-table-wrap">
             <table className="erp-table">
               <thead>
                 <tr>
-                  <th>日期</th><th>星期</th><th>分店</th><th>訂位代號</th><th>姓名</th><th>人數</th><th>實賣</th>
-                  <th>實收代訂費</th><th>正常代訂費</th><th>平台費</th><th>廠商利潤</th><th>備註</th>
+                  <th>日期</th><th>星期</th><th>分店</th><th>訂位代號</th><th>姓名</th><th>人數</th>
+                  <th>實收代訂費</th>
+                  <th>平台費{platformPct !== null && ` (${platformPct}%)`}</th>
+                  <th>廠商利潤{vendorPct !== null && ` (${vendorPct}%)`}</th>
                 </tr>
               </thead>
               <tbody>
@@ -302,25 +249,22 @@ export default function PlatformSharePage() {
                     <td className="font-mono">{b.bookingCode ?? "—"}</td>
                     <td>{b.customerName ?? "—"}</td>
                     <td>{b.partySize}</td>
-                    <td>{b.soldCount < b.partySize ? <span style={{ color: "var(--color-warning)", fontWeight: 600 }}>{b.soldCount}</span> : b.soldCount}</td>
                     <td>{formatCurrency(b.actualFee)}</td>
-                    <td>{formatCurrency(b.normalFee)}</td>
                     <td>{formatCurrency(b.platformFee)}</td>
                     <td>{formatCurrency(b.vendorProfit)}</td>
-                    <td>{b.discounted && <span className="badge badge-warning">有優惠</span>}</td>
                   </tr>
                 ))}
                 {detail.bookings.length === 0 && (
-                  <tr><td colSpan={11} style={{ textAlign: "center", color: "var(--gray-400)" }}>這個月沒有可計算的資料（要現貨單、已售出、有填代訂費）</td></tr>
+                  <tr><td colSpan={9} style={{ textAlign: "center", color: "var(--gray-400)" }}>這個月沒有可計算的資料（要現貨單、已售出、有填代訂費）</td></tr>
                 )}
               </tbody>
               {detail.bookings.length > 0 && (
                 <tfoot>
                   <tr style={{ fontWeight: 600 }}>
-                    <td colSpan={9}>總計</td>
+                    <td colSpan={6}>總計</td>
+                    <td>{formatCurrency(detail.bookings.reduce((s, b) => s + b.actualFee, 0))}</td>
                     <td>{formatCurrency(detail.totals.platformFee)}</td>
                     <td>{formatCurrency(detail.totals.vendorProfit)}</td>
-                    <td></td>
                   </tr>
                 </tfoot>
               )}

@@ -113,14 +113,10 @@ export const vendorRosterEntries = pgTable('vendor_roster_entries', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
-// 廠商代訂費率設定：平台分潤計算用的「正常代訂費」基準（平日/假日），
-// 以及平台每人抽成金額。只有廠商本人跟管理員看得到、改得到。
+// 廠商代訂費率設定：平台分潤按代訂費的百分比抽成。只有廠商本人跟管理員看得到、改得到。
 export const vendorRateSettings = pgTable('vendor_rate_settings', {
   vendorId: uuid('vendor_id').primaryKey().references(() => users.id),
-  weekdayRate: integer('weekday_rate').notNull().default(300),
-  weekendRate: integer('weekend_rate').notNull().default(300),
-  platformFeePerPerson: integer('platform_fee_per_person').notNull().default(100),
-  platformFeeRate: integer('platform_fee_rate'), // 平台費率（%），設定後改用百分比計算取代 platformFeePerPerson
+  platformFeeRate: integer('platform_fee_rate').notNull().default(20), // 平台費率（%）
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 

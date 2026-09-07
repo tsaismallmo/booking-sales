@@ -65,7 +65,7 @@ export function InStockBoard() {
 
   // 銷售 modal
   const [saleTarget, setSaleTarget] = useState<Booking | null>(null);
-  const [saleForm, setSaleForm] = useState({ soldDate: "", collectedAmount: "", account: "", agencyFee: "", soldCount: "", salespersonId: "" });
+  const [saleForm, setSaleForm] = useState({ soldDate: "", collectedAmount: "", account: "", agencyFee: "", salespersonId: "" });
   const [submittingSale, setSubmittingSale] = useState(false);
   const [saleError, setSaleError] = useState("");
 
@@ -246,7 +246,6 @@ ${QUOTE_CLOSING}${partyNote}`;
       collectedAmount: "",
       account: "",
       agencyFee: "",
-      soldCount: "",
       salespersonId: "",
     });
     setSaleError("");
@@ -458,16 +457,6 @@ ${QUOTE_CLOSING}${partyNote}`;
                 <div className="erp-form-group">
                   <label className="erp-label">代訂費（全座）</label>
                   <input type="number" step="0.01" className="erp-input" placeholder="0" value={saleForm.agencyFee} onChange={(e) => setSaleForm((f) => ({ ...f, agencyFee: e.target.value }))} />
-                </div>
-                <div className="erp-form-group">
-                  <label className="erp-label">實賣人數</label>
-                  <input
-                    type="number" min={1} max={saleTarget?.partySize ?? undefined}
-                    className="erp-input"
-                    placeholder={`最多 ${saleTarget?.partySize ?? "?"} 位，全售可不填`}
-                    value={saleForm.soldCount}
-                    onChange={(e) => setSaleForm((f) => ({ ...f, soldCount: e.target.value }))}
-                  />
                 </div>
                 <div className="erp-form-group">
                   <label className="erp-label">銷售人員</label>

@@ -5,7 +5,7 @@ import { bookings, vendorRateSettings, users } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
 import { computeShare, type RateSettings } from '@/lib/platform-share'
 
-const DEFAULTS: RateSettings = { weekdayRate: 300, weekendRate: 300, platformFeePerPerson: 100 }
+const DEFAULTS: RateSettings = { platformFeeRate: 20 }
 
 async function getRates(vendorId: string): Promise<RateSettings> {
   const [row] = await db.select().from(vendorRateSettings).where(eq(vendorRateSettings.vendorId, vendorId))
@@ -45,9 +45,8 @@ export async function GET(req: NextRequest) {
         platformFee: acc.platformFee + r.platformFee,
         vendorProfit: acc.vendorProfit + r.vendorProfit,
         count: acc.count + 1,
-        discountedCount: acc.discountedCount + (r.discounted ? 1 : 0),
       }),
-      { platformFee: 0, vendorProfit: 0, count: 0, discountedCount: 0 }
+      { platformFee: 0, vendorProfit: 0, count: 0 }
     )
     const detail = rows.map((b) => {
       const r = results.find((x) => x.id === b.id)
