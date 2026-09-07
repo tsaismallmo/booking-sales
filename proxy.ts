@@ -68,8 +68,8 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
-  // 分潤設定、批次退訂：只有管理員能看
-  if ((pathname.startsWith('/admin/rates') || pathname.startsWith('/admin/bulk-refund')) && !isAdmin) {
+  // 分潤設定、批次退訂、每月金流總覽：只有管理員能看
+  if ((pathname.startsWith('/admin/rates') || pathname.startsWith('/admin/bulk-refund') || pathname.startsWith('/admin/monthly-summary')) && !isAdmin) {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
