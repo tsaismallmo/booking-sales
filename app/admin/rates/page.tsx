@@ -198,6 +198,53 @@ export default function AdminRatesPage() {
         </div>
       </div>
 
+      <div className="erp-card" style={{ marginBottom: 16 }}>
+        <div className="erp-card-header"><span className="erp-card-title">客服銷售筆數漲幅比較（{referenceMonth}　vs　{month}）</span></div>
+        <div className="erp-table-wrap">
+          <table className="erp-table">
+            <thead>
+              <tr>
+                <th>客服</th><th>{referenceMonth} 銷售筆數</th><th>{month} 銷售筆數</th><th>漲幅</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loadingCsCompare && (
+                <tr><td colSpan={4} style={{ textAlign: "center", color: "var(--gray-400)" }}>載入中...</td></tr>
+              )}
+              {!loadingCsCompare && csComparisonRows.map((r) => {
+                const g = growthLabel(r.prevCount, r.count);
+                return (
+                  <tr key={r.salespersonId}>
+                    <td>{r.name}</td>
+                    <td>{r.prevCount}</td>
+                    <td>{r.count}</td>
+                    <td style={{ color: g.color, fontWeight: 600 }}>{g.text}</td>
+                  </tr>
+                );
+              })}
+              {!loadingCsCompare && csComparisonRows.length === 0 && (
+                <tr><td colSpan={4} style={{ textAlign: "center", color: "var(--gray-400)" }}>這兩個月都沒有可計算的資料</td></tr>
+              )}
+            </tbody>
+            {!loadingCsCompare && csComparisonRows.length > 0 && (
+              <tfoot>
+                {(() => {
+                  const g = growthLabel(csPrevTotalCount, csTotalCount);
+                  return (
+                    <tr style={{ fontWeight: 600 }}>
+                      <td>總計</td>
+                      <td>{csPrevTotalCount}</td>
+                      <td>{csTotalCount}</td>
+                      <td style={{ color: g.color }}>{g.text}</td>
+                    </tr>
+                  );
+                })()}
+              </tfoot>
+            )}
+          </table>
+        </div>
+      </div>
+
       <div className="erp-card">
         <div className="erp-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span className="erp-card-title">各廠商平台費率</span>
@@ -251,53 +298,6 @@ export default function AdminRatesPage() {
                 <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--gray-400)" }}>目前沒有廠商帳號</td></tr>
               )}
             </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="erp-card" style={{ marginTop: 16 }}>
-        <div className="erp-card-header"><span className="erp-card-title">客服銷售筆數漲幅比較（{referenceMonth}　vs　{month}）</span></div>
-        <div className="erp-table-wrap">
-          <table className="erp-table">
-            <thead>
-              <tr>
-                <th>客服</th><th>{referenceMonth} 銷售筆數</th><th>{month} 銷售筆數</th><th>漲幅</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loadingCsCompare && (
-                <tr><td colSpan={4} style={{ textAlign: "center", color: "var(--gray-400)" }}>載入中...</td></tr>
-              )}
-              {!loadingCsCompare && csComparisonRows.map((r) => {
-                const g = growthLabel(r.prevCount, r.count);
-                return (
-                  <tr key={r.salespersonId}>
-                    <td>{r.name}</td>
-                    <td>{r.prevCount}</td>
-                    <td>{r.count}</td>
-                    <td style={{ color: g.color, fontWeight: 600 }}>{g.text}</td>
-                  </tr>
-                );
-              })}
-              {!loadingCsCompare && csComparisonRows.length === 0 && (
-                <tr><td colSpan={4} style={{ textAlign: "center", color: "var(--gray-400)" }}>這兩個月都沒有可計算的資料</td></tr>
-              )}
-            </tbody>
-            {!loadingCsCompare && csComparisonRows.length > 0 && (
-              <tfoot>
-                {(() => {
-                  const g = growthLabel(csPrevTotalCount, csTotalCount);
-                  return (
-                    <tr style={{ fontWeight: 600 }}>
-                      <td>總計</td>
-                      <td>{csPrevTotalCount}</td>
-                      <td>{csTotalCount}</td>
-                      <td style={{ color: g.color }}>{g.text}</td>
-                    </tr>
-                  );
-                })()}
-              </tfoot>
-            )}
           </table>
         </div>
       </div>
