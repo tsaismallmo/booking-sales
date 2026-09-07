@@ -113,10 +113,10 @@ export const vendorRosterEntries = pgTable('vendor_roster_entries', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
-// 客服分潤全域設定：只有一筆（key='global'），全部客服共用同一個比例，只有管理員能改。
-// csShareOfPlatformRate：客服從平台費裡再抽的比例（%），不影響廠商的部分。
-export const platformSettings = pgTable('platform_settings', {
-  key: text('key').primaryKey().default('global'),
+// 客服分潤比例：全部客服共用同一個比例，但依月份各別設定（改某個月不會動到其他月份，
+// 沒設定過的月份用預設 20%）。只有管理員能改。
+export const csShareRates = pgTable('cs_share_rates', {
+  month: text('month').primaryKey(), // 'YYYY-MM'
   csShareOfPlatformRate: integer('cs_share_of_platform_rate').notNull().default(20),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })

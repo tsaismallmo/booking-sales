@@ -33,8 +33,6 @@ export async function GET(req: NextRequest) {
   const monthCount = Number.isFinite(monthsParam) && monthsParam > 0 ? Math.min(monthsParam, 24) : 12
   const months = Array.from({ length: monthCount }, (_, i) => monthBack(i)) // 最新月份在前
 
-  const csShareOfPlatformRate = await getCsShareRate()
-
   const results = []
   for (const month of months) {
     const { from, to } = monthRange(month)
@@ -58,7 +56,10 @@ export async function GET(req: NextRequest) {
     }
 
     const vendorIds = [...new Set(rows.map((b) => b.vendorId).filter((v): v is string => !!v))]
-    const rateMap = await getVendorPlatformFeeRatesForMonths(vendorIds, [month])
+    const [rateMap, csShareOfPlatformRate] = await Promise.all([
+      getVendorPlatformFeeRatesForMonths(vendorIds, [month]),
+      getCsShareRate(month),
+    ])
 
     let agencyFeeTotal = 0
     let vendorProfitTotal = 0

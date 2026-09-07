@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { bookings, users } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
 import { computeShare, DEFAULT_PLATFORM_RATES, type ShareBooking } from '@/lib/platform-share'
-import { getCsShareRate, getVendorPlatformFeeRatesForMonths } from '@/lib/platform-settings'
+import { getCsShareRatesForMonths, getVendorPlatformFeeRatesForMonths } from '@/lib/platform-settings'
 
 // 依「售出日期」篩選期間，不是訂位日期——月份報表要看的是這個月實際賣了什麼，
 // 不是這個月有哪些訂位要用餐（訂位日期可能是任何月份）
@@ -21,17 +21,18 @@ async function getVendorBookings(vendorId: string, from: string, to: string) {
     ))
 }
 
-// 平台費率是按「廠商 + 售出月份」設定的，同一份報表裡的單據可能是不同月份賣出的，
+// 平台費率、客服分潤比例都是按「售出月份」設定的，同一份報表裡的單據可能是不同月份賣出的，
 // 所以每一筆都要照自己的售出日期去查那個月的費率，不能套用單一固定值
 function computeShareByOwnSoldMonth(
   rows: (ShareBooking & { vendorId: string | null; soldDate: string | null })[],
-  rateMap: Map<string, number>,
-  csShareOfPlatformRate: number
+  vendorRateMap: Map<string, number>,
+  csRateMap: Map<string, number>
 ) {
   return rows.map((b) => {
     const month = b.soldDate ? b.soldDate.slice(0, 7) : null
-    const key = b.vendorId && month ? `${b.vendorId}|${month}` : null
-    const platformFeeRate = (key ? rateMap.get(key) : undefined) ?? DEFAULT_PLATFORM_RATES.platformFeeRate
+    const vendorKey = b.vendorId && month ? `${b.vendorId}|${month}` : null
+    const platformFeeRate = (vendorKey ? vendorRateMap.get(vendorKey) : undefined) ?? DEFAULT_PLATFORM_RATES.platformFeeRate
+    const csShareOfPlatformRate = (month ? csRateMap.get(month) : undefined) ?? DEFAULT_PLATFORM_RATES.csShareOfPlatformRate
     return computeShare(b, { platformFeeRate, csShareOfPlatformRate })
   }).filter((r) => r !== null)
 }
@@ -44,8 +45,6 @@ export async function GET(req: NextRequest) {
   const to = req.nextUrl.searchParams.get('to')
   if (!from || !to) return NextResponse.json({ error: '缺少 from/to' }, { status: 400 })
 
-  const csShareOfPlatformRate = await getCsShareRate()
-
   // 明確指定 vendorId 的話一律照指定的來；沒指定時，純廠商（沒有管理員身份）預設看自己的，
   // 管理員（就算同時也是廠商）預設看全部彙總——理由同 cs-share/report
   const isAdmin = session.user.roles.includes('admin')
@@ -56,8 +55,11 @@ export async function GET(req: NextRequest) {
   if (vendorId) {
     const rows = await getVendorBookings(vendorId, from, to)
     const months = [...new Set(rows.map((b) => b.soldDate?.slice(0, 7)).filter((m): m is string => !!m))]
-    const rateMap = await getVendorPlatformFeeRatesForMonths([vendorId], months)
-    const results = computeShareByOwnSoldMonth(rows, rateMap, csShareOfPlatformRate)
+    const [vendorRateMap, csRateMap] = await Promise.all([
+      getVendorPlatformFeeRatesForMonths([vendorId], months),
+      getCsShareRatesForMonths(months),
+    ])
+    const results = computeShareByOwnSoldMonth(rows, vendorRateMap, csRateMap)
     const totals = results.reduce(
       (acc, r) => ({
         platformFee: acc.platformFee + r.platformFee,
@@ -81,8 +83,11 @@ export async function GET(req: NextRequest) {
     const rows = await getVendorBookings(v.id, from, to)
     if (rows.length === 0) continue
     const months = [...new Set(rows.map((b) => b.soldDate?.slice(0, 7)).filter((m): m is string => !!m))]
-    const rateMap = await getVendorPlatformFeeRatesForMonths([v.id], months)
-    const results = computeShareByOwnSoldMonth(rows, rateMap, csShareOfPlatformRate)
+    const [vendorRateMap, csRateMap] = await Promise.all([
+      getVendorPlatformFeeRatesForMonths([v.id], months),
+      getCsShareRatesForMonths(months),
+    ])
+    const results = computeShareByOwnSoldMonth(rows, vendorRateMap, csRateMap)
     if (results.length === 0) continue
     const totals = results.reduce(
       (acc, r) => ({ platformFee: acc.platformFee + r.platformFee, vendorProfit: acc.vendorProfit + r.vendorProfit }),

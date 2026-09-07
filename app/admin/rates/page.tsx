@@ -72,13 +72,13 @@ export default function AdminRatesPage() {
   };
 
   useEffect(() => {
-    fetch("/api/admin/platform-settings")
+    fetch(`/api/admin/platform-settings?month=${month}`)
       .then((res) => res.json())
       .then((data) => {
         setCsShareOfPlatformRate(data.csShareOfPlatformRate);
         setLoadingGlobal(false);
       });
-  }, []);
+  }, [month]);
 
   useEffect(() => {
     loadVendors(month);
@@ -127,7 +127,7 @@ export default function AdminRatesPage() {
     const res = await fetch("/api/admin/platform-settings", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ csShareOfPlatformRate }),
+      body: JSON.stringify({ month, csShareOfPlatformRate }),
     });
     setSavingGlobal(false);
     setGlobalSaveMsg(res.ok ? "已儲存" : "儲存失敗");
@@ -170,21 +170,24 @@ export default function AdminRatesPage() {
       <div className="erp-page-header">
         <div>
           <h1 className="erp-page-title">分潤設定</h1>
-          <p className="erp-page-subtitle">平台分潤依廠商、依月份各別設定（沒設定過的月份用預設 20%，調整某個月不會動到其他月份）；客服分潤是全部客服共用的一個比例（只有管理員看得到、改得到）</p>
+          <p className="erp-page-subtitle">平台分潤跟客服分潤都是依月份各別設定（沒設定過的月份用預設 20%，調整某個月不會動到其他月份）；客服分潤是全部客服共用同一個比例（只有管理員看得到、改得到）</p>
         </div>
       </div>
 
       {error && <div className="erp-alert danger">{error}</div>}
 
       <div className="erp-card" style={{ marginBottom: 16 }}>
-        <div className="erp-card-header"><span className="erp-card-title">客服分潤比例（全部客服共用）</span></div>
+        <div className="erp-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span className="erp-card-title">客服分潤比例（全部客服共用，依月份設定）</span>
+          <input type="month" className="erp-input" style={{ maxWidth: 150 }} value={month} onChange={(e) => setMonth(e.target.value)} />
+        </div>
         <div className="erp-card-body" style={{ display: "flex", alignItems: "flex-end", gap: 12 }}>
           {loadingGlobal ? (
             <span style={{ color: "var(--gray-400)" }}>載入中...</span>
           ) : (
             <>
-              <label style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 4, maxWidth: 240 }}>
-                客服分潤比例（%）— 從各廠商的平台費裡再抽給銷售的客服
+              <label style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 4, maxWidth: 260 }}>
+                「{month}」的客服分潤比例（%）— 從各廠商的平台費裡再抽給銷售的客服
                 <input
                   type="number" min={0} max={100} className="erp-input"
                   value={csShareOfPlatformRate}
@@ -246,12 +249,9 @@ export default function AdminRatesPage() {
       </div>
 
       <div className="erp-card">
-        <div className="erp-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className="erp-card-header">
           <span className="erp-card-title">各廠商平台費率</span>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 12, color: "var(--gray-500)" }}>設定「{month}」的費率，參考{referenceMonth}的已售筆數（依售出日期算，不是訂位日期）</span>
-            <input type="month" className="erp-input" style={{ maxWidth: 150 }} value={month} onChange={(e) => setMonth(e.target.value)} />
-          </div>
+          <span style={{ fontSize: 12, color: "var(--gray-500)" }}>設定「{month}」的費率，參考{referenceMonth}的已售筆數（依售出日期算，不是訂位日期）</span>
         </div>
         <div className="erp-table-wrap">
           <table className="erp-table">
