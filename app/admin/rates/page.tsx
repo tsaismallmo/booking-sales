@@ -12,6 +12,8 @@ type VendorRate = {
 
 type CsStaffShare = { salespersonId: string; name: string; bookingCount: number };
 type CsSummaryReport = { mode: "summary"; staff: CsStaffShare[]; totals: { count: number } };
+type CsDetailReport = { mode: "detail" };
+type CsReport = CsSummaryReport | CsDetailReport;
 
 function pad2(n: number) {
   return String(n).padStart(2, "0");
@@ -55,8 +57,8 @@ export default function AdminRatesPage() {
   const [loadingVendors, setLoadingVendors] = useState(true);
   const [error, setError] = useState("");
 
-  const [csThisMonth, setCsThisMonth] = useState<CsSummaryReport | null>(null);
-  const [csPrevMonth, setCsPrevMonth] = useState<CsSummaryReport | null>(null);
+  const [csThisMonth, setCsThisMonth] = useState<CsReport | null>(null);
+  const [csPrevMonth, setCsPrevMonth] = useState<CsReport | null>(null);
   const [loadingCsCompare, setLoadingCsCompare] = useState(true);
 
   const loadVendors = (m: string) => {
@@ -99,8 +101,9 @@ export default function AdminRatesPage() {
   }, [month, referenceMonth]);
 
   const csComparisonRows = useMemo(() => {
-    if (!csThisMonth) return [];
-    const prevMap = new Map((csPrevMonth?.staff ?? []).map((s) => [s.salespersonId, s]));
+    if (!csThisMonth || csThisMonth.mode !== "summary") return [];
+    const prevStaff = csPrevMonth?.mode === "summary" ? csPrevMonth.staff : [];
+    const prevMap = new Map(prevStaff.map((s) => [s.salespersonId, s]));
     const rows = csThisMonth.staff.map((s) => ({
       salespersonId: s.salespersonId,
       name: s.name,
@@ -114,6 +117,9 @@ export default function AdminRatesPage() {
     }
     return rows;
   }, [csThisMonth, csPrevMonth]);
+
+  const csTotalCount = csThisMonth?.mode === "summary" ? csThisMonth.totals.count : 0;
+  const csPrevTotalCount = csPrevMonth?.mode === "summary" ? csPrevMonth.totals.count : 0;
 
   const handleSaveGlobal = async () => {
     setSavingGlobal(true);
@@ -280,12 +286,12 @@ export default function AdminRatesPage() {
             {!loadingCsCompare && csComparisonRows.length > 0 && (
               <tfoot>
                 {(() => {
-                  const g = growthLabel(csPrevMonth?.totals.count ?? 0, csThisMonth?.totals.count ?? 0);
+                  const g = growthLabel(csPrevTotalCount, csTotalCount);
                   return (
                     <tr style={{ fontWeight: 600 }}>
                       <td>總計</td>
-                      <td>{csPrevMonth?.totals.count ?? 0}</td>
-                      <td>{csThisMonth?.totals.count ?? 0}</td>
+                      <td>{csPrevTotalCount}</td>
+                      <td>{csTotalCount}</td>
                       <td style={{ color: g.color }}>{g.text}</td>
                     </tr>
                   );

@@ -51,8 +51,12 @@ export async function GET(req: NextRequest) {
 
   const csShareOfPlatformRate = await getCsShareRate()
 
+  // 明確指定 salespersonId 的話一律照指定的來；沒指定時，純客服（沒有管理員身份）預設看自己的，
+  // 管理員（就算同時也是客服）預設看全部彙總——不然管理員在自己也是客服的帳號上會被強制導去看自己的資料
+  const isAdmin = session.user.roles.includes('admin')
   const isCS = session.user.roles.includes('customer_service')
-  const salespersonId = isCS ? session.user.id : req.nextUrl.searchParams.get('salespersonId')
+  const queryStaffId = req.nextUrl.searchParams.get('salespersonId')
+  const salespersonId = queryStaffId || (isCS && !isAdmin ? session.user.id : null)
 
   if (salespersonId) {
     const rows = await getSalespersonBookings(salespersonId, from, to)

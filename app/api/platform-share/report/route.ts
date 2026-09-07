@@ -46,8 +46,12 @@ export async function GET(req: NextRequest) {
 
   const csShareOfPlatformRate = await getCsShareRate()
 
+  // 明確指定 vendorId 的話一律照指定的來；沒指定時，純廠商（沒有管理員身份）預設看自己的，
+  // 管理員（就算同時也是廠商）預設看全部彙總——理由同 cs-share/report
+  const isAdmin = session.user.roles.includes('admin')
   const isVendor = session.user.roles.includes('vendor')
-  const vendorId = isVendor ? session.user.id : req.nextUrl.searchParams.get('vendorId')
+  const queryVendorId = req.nextUrl.searchParams.get('vendorId')
+  const vendorId = queryVendorId || (isVendor && !isAdmin ? session.user.id : null)
 
   if (vendorId) {
     const rows = await getVendorBookings(vendorId, from, to)
