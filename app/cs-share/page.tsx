@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { WEEKDAYS, parseDateOnly } from "@/lib/quote";
-import { PLATFORM_FEE_RATE, CS_SHARE_OF_PLATFORM_RATE } from "@/lib/platform-share";
 
 type Staff = { id: string; name: string | null; email: string; roles: string[] };
 
@@ -48,8 +47,6 @@ function currentMonthStr() {
   const d = new Date();
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
 }
-
-const EFFECTIVE_PCT = Math.round((PLATFORM_FEE_RATE * CS_SHARE_OF_PLATFORM_RATE) / 100);
 
 export default function CsSharePage() {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -110,9 +107,6 @@ export default function CsSharePage() {
       <div className="erp-page-header">
         <div>
           <h1 className="erp-page-title">客服分潤</h1>
-          <p className="erp-page-subtitle">
-            現貨單已售出訂單裡，從平台費（{PLATFORM_FEE_RATE}%）再抽 {CS_SHARE_OF_PLATFORM_RATE}% 給銷售的客服（= 代訂費的 {EFFECTIVE_PCT}%）
-          </p>
         </div>
       </div>
 
