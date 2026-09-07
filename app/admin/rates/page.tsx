@@ -67,8 +67,11 @@ export default function AdminRatesPage() {
     setGlobalSaveMsg(res.ok ? "已儲存" : "儲存失敗");
   };
 
+  const editKey = (vendorId: string) => `${vendorId}|${month}`;
+
   const handleSaveVendor = async (vendorId: string) => {
-    const value = editing[vendorId];
+    const key = editKey(vendorId);
+    const value = editing[key];
     if (value === undefined) return;
     const platformFeeRate = Number(value);
     if (Number.isNaN(platformFeeRate) || platformFeeRate < 0 || platformFeeRate > 100) {
@@ -80,7 +83,7 @@ export default function AdminRatesPage() {
     const res = await fetch(`/api/admin/vendor-rates/${vendorId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ platformFeeRate }),
+      body: JSON.stringify({ month, platformFeeRate }),
     });
     setSavingVendor(null);
     if (!res.ok) {
@@ -90,7 +93,7 @@ export default function AdminRatesPage() {
     }
     setEditing((e) => {
       const next = { ...e };
-      delete next[vendorId];
+      delete next[key];
       return next;
     });
     loadVendors(month);
@@ -101,7 +104,7 @@ export default function AdminRatesPage() {
       <div className="erp-page-header">
         <div>
           <h1 className="erp-page-title">分潤設定</h1>
-          <p className="erp-page-subtitle">平台分潤依廠商個別設定；客服分潤是全部客服共用的一個比例（只有管理員看得到、改得到）</p>
+          <p className="erp-page-subtitle">平台分潤依廠商、依月份各別設定（沒設定過的月份用預設 20%，調整某個月不會動到其他月份）；客服分潤是全部客服共用的一個比例（只有管理員看得到、改得到）</p>
         </div>
       </div>
 
@@ -149,8 +152,9 @@ export default function AdminRatesPage() {
                 <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--gray-400)" }}>載入中...</td></tr>
               )}
               {!loadingVendors && vendors.map((v) => {
-                const current = editing[v.vendorId] ?? String(v.platformFeeRate);
-                const dirty = editing[v.vendorId] !== undefined;
+                const key = editKey(v.vendorId);
+                const current = editing[key] ?? String(v.platformFeeRate);
+                const dirty = editing[key] !== undefined;
                 const vendorPct = 100 - (Number(current) || 0);
                 return (
                   <tr key={v.vendorId}>
@@ -160,7 +164,7 @@ export default function AdminRatesPage() {
                       <input
                         type="number" min={0} max={100} className="erp-input" style={{ width: 90 }}
                         value={current}
-                        onChange={(e) => setEditing((ed) => ({ ...ed, [v.vendorId]: e.target.value }))}
+                        onChange={(e) => setEditing((ed) => ({ ...ed, [key]: e.target.value }))}
                       />
                     </td>
                     <td>{vendorPct}</td>

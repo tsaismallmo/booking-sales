@@ -1,4 +1,4 @@
-import { pgTable, pgEnum, uuid, text, integer, numeric, date, timestamp, jsonb, type AnyPgColumn } from 'drizzle-orm/pg-core'
+import { pgTable, pgEnum, uuid, text, integer, numeric, date, timestamp, jsonb, unique, type AnyPgColumn } from 'drizzle-orm/pg-core'
 
 export const roleEnum = pgEnum('role', ['admin', 'vendor', 'customer_service', 'logistics', 'vendor_staff'])
 export const bookingStatusEnum = pgEnum('booking_status', ['unsold', 'reserved', 'sold', 'refunded'])
@@ -121,12 +121,17 @@ export const platformSettings = pgTable('platform_settings', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
-// 各廠商的平台分潤費率：平台費率（%）依廠商各別設定，廠商拿剩下的。只有管理員能改。
+// 各廠商每個月各別的平台分潤費率：改某個月的費率不會動到其他月份，
+// 沒設定過的月份用預設 20%。只有管理員能改。
 export const vendorPlatformRates = pgTable('vendor_platform_rates', {
-  vendorId: uuid('vendor_id').primaryKey().references(() => users.id),
+  id: uuid('id').defaultRandom().primaryKey(),
+  vendorId: uuid('vendor_id').notNull().references(() => users.id),
+  month: text('month').notNull(), // 'YYYY-MM'
   platformFeeRate: integer('platform_fee_rate').notNull().default(20),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
+}, (table) => [
+  unique().on(table.vendorId, table.month),
+])
 
 // 簡訊留存：付款通知／付款完成簡訊原文，留存並可連結到對應單據
 export const smsLogs = pgTable('sms_logs', {

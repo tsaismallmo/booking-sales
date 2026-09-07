@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { bookings, users } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
 import { computeShare, DEFAULT_PLATFORM_RATES, type ShareBooking } from '@/lib/platform-share'
-import { getCsShareRate, getVendorPlatformFeeRates } from '@/lib/platform-settings'
+import { getCsShareRate, getVendorPlatformFeeRatesForMonths } from '@/lib/platform-settings'
 
 async function getSalespersonBookings(salespersonId: string, from: string, to: string) {
   return db
@@ -19,17 +19,25 @@ async function getSalespersonBookings(salespersonId: string, from: string, to: s
     ))
 }
 
-// 一個客服賣的單可能來自不同廠商，每個廠商的平台費率可能不一樣，
-// 所以要照每一筆單據自己的廠商去查費率，不能用單一固定值
-function computeShareByOwnVendorRate(
-  rows: (ShareBooking & { vendorId: string | null })[],
-  vendorRateMap: Map<string, number>,
+// 一個客服賣的單可能來自不同廠商、不同售出月份，平台費率是按「廠商 + 售出月份」設定的，
+// 所以要照每一筆單據自己的廠商跟售出日期去查那個月的費率，不能用單一固定值
+function computeShareByOwnVendorMonth(
+  rows: (ShareBooking & { vendorId: string | null; soldDate: string | null })[],
+  rateMap: Map<string, number>,
   csShareOfPlatformRate: number
 ) {
   return rows.map((b) => {
-    const platformFeeRate = (b.vendorId ? vendorRateMap.get(b.vendorId) : undefined) ?? DEFAULT_PLATFORM_RATES.platformFeeRate
+    const month = b.soldDate ? b.soldDate.slice(0, 7) : null
+    const key = b.vendorId && month ? `${b.vendorId}|${month}` : null
+    const platformFeeRate = (key ? rateMap.get(key) : undefined) ?? DEFAULT_PLATFORM_RATES.platformFeeRate
     return computeShare(b, { platformFeeRate, csShareOfPlatformRate })
   }).filter((r) => r !== null)
+}
+
+async function buildRateMap(rows: { vendorId: string | null; soldDate: string | null }[]) {
+  const vendorIds = [...new Set(rows.map((b) => b.vendorId).filter((v): v is string => !!v))]
+  const months = [...new Set(rows.map((b) => b.soldDate?.slice(0, 7)).filter((m): m is string => !!m))]
+  return getVendorPlatformFeeRatesForMonths(vendorIds, months)
 }
 
 export async function GET(req: NextRequest) {
@@ -47,9 +55,8 @@ export async function GET(req: NextRequest) {
 
   if (salespersonId) {
     const rows = await getSalespersonBookings(salespersonId, from, to)
-    const vendorIds = [...new Set(rows.map((b) => b.vendorId).filter((v): v is string => !!v))]
-    const vendorRateMap = await getVendorPlatformFeeRates(vendorIds)
-    const results = computeShareByOwnVendorRate(rows, vendorRateMap, csShareOfPlatformRate)
+    const rateMap = await buildRateMap(rows)
+    const results = computeShareByOwnVendorMonth(rows, rateMap, csShareOfPlatformRate)
     const totals = results.reduce(
       (acc, r) => ({ csShare: acc.csShare + r.csShare, count: acc.count + 1 }),
       { csShare: 0, count: 0 }
@@ -67,9 +74,9 @@ export async function GET(req: NextRequest) {
   const staffSummaries = []
   for (const s of csStaff) {
     const rows = await getSalespersonBookings(s.id, from, to)
-    const vendorIds = [...new Set(rows.map((b) => b.vendorId).filter((v): v is string => !!v))]
-    const vendorRateMap = await getVendorPlatformFeeRates(vendorIds)
-    const results = computeShareByOwnVendorRate(rows, vendorRateMap, csShareOfPlatformRate)
+    if (rows.length === 0) continue
+    const rateMap = await buildRateMap(rows)
+    const results = computeShareByOwnVendorMonth(rows, rateMap, csShareOfPlatformRate)
     if (results.length === 0) continue
     const csShare = results.reduce((sum, r) => sum + r.csShare, 0)
     staffSummaries.push({ salespersonId: s.id, name: s.name || s.email, bookingCount: results.length, csShare })

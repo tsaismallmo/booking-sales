@@ -21,6 +21,7 @@ export type ShareResult = {
   bookingDate: string
   partySize: number
   actualFee: number
+  platformFeeRate: number
   platformFee: number
   vendorProfit: number
   csShare: number
@@ -45,6 +46,7 @@ export function computeShare(booking: ShareBooking, rates: PlatformRates): Share
     bookingDate: booking.bookingDate,
     partySize: n,
     actualFee,
+    platformFeeRate: rates.platformFeeRate,
     platformFee,
     vendorProfit,
     csShare,

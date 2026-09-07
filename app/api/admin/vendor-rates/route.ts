@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   const { from, to } = monthRange(month)
 
   const vendors = (await db.select().from(users)).filter((u) => u.roles.includes('vendor'))
-  const rateRows = await db.select().from(vendorPlatformRates)
+  const rateRows = await db.select().from(vendorPlatformRates).where(eq(vendorPlatformRates.month, month))
   const rateMap = new Map(rateRows.map((r) => [r.vendorId, r.platformFeeRate]))
 
   const result = []

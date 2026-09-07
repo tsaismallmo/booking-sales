@@ -6,13 +6,12 @@ import { WEEKDAYS, parseDateOnly } from "@/lib/quote";
 
 type Vendor = { id: string; name: string | null; email: string; roles: string[] };
 
-type Rates = { platformFeeRate: number; csShareOfPlatformRate: number };
-
 type ShareBooking = {
   id: string;
   bookingDate: string;
   partySize: number;
   actualFee: number;
+  platformFeeRate: number;
   platformFee: number;
   vendorProfit: number;
   branch: string | null;
@@ -23,14 +22,13 @@ type ShareBooking = {
 type DetailReport = {
   mode: "detail";
   vendorId: string;
-  rates: Rates;
   bookings: ShareBooking[];
   totals: { platformFee: number; vendorProfit: number; count: number };
 };
 
 type SummaryReport = {
   mode: "summary";
-  vendors: { vendorId: string; vendorName: string; platformFeeRate: number; bookingCount: number; platformFee: number; vendorProfit: number }[];
+  vendors: { vendorId: string; vendorName: string; bookingCount: number; platformFee: number; vendorProfit: number }[];
   totals: { platformFee: number; vendorProfit: number; count: number };
 };
 
@@ -100,8 +98,6 @@ export default function PlatformSharePage() {
 
   const detail = report?.mode === "detail" ? report : null;
   const summary = report?.mode === "summary" ? report : null;
-  const rates = detail?.rates ?? null;
-  const vendorPct = rates ? 100 - rates.platformFeeRate : null;
 
   const monthLabel = useMemo(() => {
     const [y, m] = month.split("-");
@@ -114,7 +110,7 @@ export default function PlatformSharePage() {
         <div>
           <h1 className="erp-page-title">平台分潤</h1>
           <p className="erp-page-subtitle">
-            現貨單已售出訂單的代訂費分潤試算{rates && `（平台 ${rates.platformFeeRate}% / 廠商 ${vendorPct}%）`}（只有廠商本人跟管理員看得到）
+            現貨單已售出訂單的代訂費分潤試算，平台費率依廠商每個月各別設定（只有廠商本人跟管理員看得到）
           </p>
         </div>
       </div>
@@ -142,28 +138,26 @@ export default function PlatformSharePage() {
             <table className="erp-table">
               <thead>
                 <tr>
-                  <th>廠商</th><th>平台費率</th><th>已售筆數</th><th>平台費</th><th>廠商利潤</th>
+                  <th>廠商</th><th>已售筆數</th><th>平台費</th><th>廠商利潤</th>
                 </tr>
               </thead>
               <tbody>
                 {summary.vendors.map((v) => (
                   <tr key={v.vendorId}>
                     <td>{v.vendorName}</td>
-                    <td>{v.platformFeeRate}%</td>
                     <td>{v.bookingCount}</td>
                     <td>{formatCurrency(v.platformFee)}</td>
                     <td>{formatCurrency(v.vendorProfit)}</td>
                   </tr>
                 ))}
                 {summary.vendors.length === 0 && (
-                  <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--gray-400)" }}>這個月沒有可計算的資料</td></tr>
+                  <tr><td colSpan={4} style={{ textAlign: "center", color: "var(--gray-400)" }}>這個月沒有可計算的資料</td></tr>
                 )}
               </tbody>
               {summary.vendors.length > 0 && (
                 <tfoot>
                   <tr style={{ fontWeight: 600 }}>
                     <td>總計</td>
-                    <td></td>
                     <td>{summary.totals.count}</td>
                     <td>{formatCurrency(summary.totals.platformFee)}</td>
                     <td>{formatCurrency(summary.totals.vendorProfit)}</td>
@@ -186,8 +180,9 @@ export default function PlatformSharePage() {
                 <tr>
                   <th>日期</th><th>星期</th><th>分店</th><th>訂位代號</th><th>姓名</th><th>人數</th>
                   <th>實收代訂費</th>
-                  <th>平台費 ({rates?.platformFeeRate}%)</th>
-                  <th>廠商利潤 ({vendorPct}%)</th>
+                  <th>平台費率</th>
+                  <th>平台費</th>
+                  <th>廠商利潤</th>
                 </tr>
               </thead>
               <tbody>
@@ -200,12 +195,13 @@ export default function PlatformSharePage() {
                     <td>{b.customerName ?? "—"}</td>
                     <td>{b.partySize}</td>
                     <td>{formatCurrency(b.actualFee)}</td>
+                    <td>{b.platformFeeRate}%</td>
                     <td>{formatCurrency(b.platformFee)}</td>
                     <td>{formatCurrency(b.vendorProfit)}</td>
                   </tr>
                 ))}
                 {detail.bookings.length === 0 && (
-                  <tr><td colSpan={9} style={{ textAlign: "center", color: "var(--gray-400)" }}>這個月沒有可計算的資料（要現貨單、已售出、有填代訂費）</td></tr>
+                  <tr><td colSpan={10} style={{ textAlign: "center", color: "var(--gray-400)" }}>這個月沒有可計算的資料（要現貨單、已售出、有填代訂費）</td></tr>
                 )}
               </tbody>
               {detail.bookings.length > 0 && (
@@ -213,6 +209,7 @@ export default function PlatformSharePage() {
                   <tr style={{ fontWeight: 600 }}>
                     <td colSpan={6}>總計</td>
                     <td>{formatCurrency(detail.bookings.reduce((s, b) => s + b.actualFee, 0))}</td>
+                    <td></td>
                     <td>{formatCurrency(detail.totals.platformFee)}</td>
                     <td>{formatCurrency(detail.totals.vendorProfit)}</td>
                   </tr>

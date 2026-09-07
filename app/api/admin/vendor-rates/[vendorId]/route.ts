@@ -13,16 +13,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ve
   if (!vendor || !vendor.roles.includes('vendor')) return NextResponse.json({ error: '找不到這個廠商' }, { status: 404 })
 
   const body = await req.json()
+  const month: string = body.month
+  if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+    return NextResponse.json({ error: '缺少月份' }, { status: 400 })
+  }
   const platformFeeRate = Number(body.platformFeeRate)
   if (Number.isNaN(platformFeeRate) || platformFeeRate < 0 || platformFeeRate > 100) {
     return NextResponse.json({ error: '平台費率須在 0–100 之間' }, { status: 400 })
   }
 
+  // 只更新這個月的設定，不會動到其他月份
   const [row] = await db
     .insert(vendorPlatformRates)
-    .values({ vendorId, platformFeeRate })
+    .values({ vendorId, month, platformFeeRate })
     .onConflictDoUpdate({
-      target: vendorPlatformRates.vendorId,
+      target: [vendorPlatformRates.vendorId, vendorPlatformRates.month],
       set: { platformFeeRate, updatedAt: new Date() },
     })
     .returning()
