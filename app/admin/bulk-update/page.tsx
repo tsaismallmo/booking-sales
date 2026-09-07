@@ -32,6 +32,9 @@ type ColMap = {
   bookingDate: number;   // 日期（比對）
   branch: number;        // 分店（比對）
   timeSlot: number;      // 時段（比對）
+  partySize: number;     // 人數（比對）
+  customerRaw: number;   // 姓名+電話（比對）
+  deposit: number;       // 訂金（比對）
   vendorRaw: number;     // 訂單歸屬（更新）
   soldDate: number;      // 售出日期（更新）
   collectedAmount: number; // 收款金額（更新）
@@ -47,6 +50,9 @@ type ParsedRow = {
   bookingDate: string;
   branch: string;
   timeSlot: string;
+  partySize: string;
+  customerRaw: string;
+  deposit: string;
   vendorRaw: string;
   soldDate: string;
   collectedAmount: string;
@@ -72,6 +78,9 @@ const HEADER_ALIASES: Record<keyof ColMap, string[]> = {
   bookingDate:     ["日期", "用餐日期", "booking date"],
   branch:          ["分店", "branch"],
   timeSlot:        ["時段", "time slot", "timeslot"],
+  partySize:       ["人數", "party size"],
+  customerRaw:     ["姓名", "customer", "name"],
+  deposit:         ["訂金", "deposit"],
   vendorRaw:       ["訂單歸屬", "廠商", "vendor"],
   soldDate:        ["售出日期", "sold date"],
   collectedAmount: ["收款金額", "收款"],
@@ -104,7 +113,10 @@ const DEFAULT_MAP: ColMap = {
   branch:          1,   // B
   bookingDate:     2,   // C（含星期，解析時自動去掉）
   timeSlot:        3,   // D
+  partySize:       4,   // E
   bookingCode:     5,   // F
+  customerRaw:     6,   // G（姓名+電話）
+  deposit:         7,   // H
   soldDate:        9,   // J
   collectedAmount: 10,  // K
   account:         11,  // L
@@ -166,6 +178,9 @@ export default function BulkImportPage() {
         bookingDate: normaliseDate(get(cols, finalMap.bookingDate)),
         branch:      get(cols, finalMap.branch),
         timeSlot:    get(cols, finalMap.timeSlot),
+        partySize:   get(cols, finalMap.partySize),
+        customerRaw: get(cols, finalMap.customerRaw),
+        deposit:     get(cols, finalMap.deposit),
         vendorRaw:   get(cols, finalMap.vendorRaw),
         soldDate:    normaliseDate(get(cols, finalMap.soldDate)),
         collectedAmount: get(cols, finalMap.collectedAmount),
@@ -184,10 +199,13 @@ export default function BulkImportPage() {
 
     // Batch lookup
     const lookupItems = parsed.map((r) => ({
-      code:     r.bookingCode || undefined,
-      date:     r.bookingDate || undefined,
-      branch:   r.branch || undefined,
-      timeSlot: r.timeSlot || undefined,
+      code:        r.bookingCode || undefined,
+      date:        r.bookingDate || undefined,
+      branch:      r.branch || undefined,
+      timeSlot:    r.timeSlot || undefined,
+      partySize:   r.partySize || undefined,
+      customerRaw: r.customerRaw || undefined,
+      deposit:     r.deposit || undefined,
     }));
 
     const res = await fetch("/api/admin/bulk-lookup", {
@@ -296,9 +314,9 @@ export default function BulkImportPage() {
               </p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", marginLeft: 12, marginBottom: 8 }}>
                 {[
-                  ["比對用", "訂位代號、分店、日期、時段"],
+                  ["比對用", "訂位代號、分店、日期、時段、人數、姓名+電話、訂金"],
                   ["更新用", "訂單歸屬、售出日期、收款金額、帳戶、銷售人員、代訂費"],
-                  ["略過", "狀態、星期、人數、付款人員、來源 等其他欄位"],
+                  ["略過", "狀態、星期、付款人員、來源 等其他欄位"],
                 ].map(([label, content]) => (
                   <div key={label} style={{ fontSize: 12 }}>
                     <span style={{ color: "var(--gray-400)" }}>{label}：</span>{content}

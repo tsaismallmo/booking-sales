@@ -9,6 +9,9 @@ type Item = {
   date?: string
   branch?: string
   timeSlot?: string
+  partySize?: string
+  customerRaw?: string // 姓名+電話合併欄位，比對時看是否包含資料庫的姓名
+  deposit?: string
 }
 
 export async function POST(req: NextRequest) {
@@ -35,6 +38,7 @@ export async function POST(req: NextRequest) {
     customerName: bookings.customerName,
     customerPhone: bookings.customerPhone,
     partySize: bookings.partySize,
+    depositAmount: bookings.depositAmount,
     status: bookings.status,
   }).from(bookings).where(inArray(bookings.bookingCode, codes))
 
@@ -44,11 +48,14 @@ export async function POST(req: NextRequest) {
     // 逐步縮窄：每個欄位有值才過濾，取命中最多條件的結果
     if (item.code) pool = pool.filter((r) => r.bookingCode === item.code)
 
-    // 用 date + branch + timeSlot 一起比對；哪個欄位有提供就用哪個
+    // 用日期／分店／時段／人數／姓名／訂金一起比對；哪個欄位有提供就用哪個
     const byAll = pool.filter((r) => {
       if (item.date && r.bookingDate !== item.date) return false
       if (item.branch && r.branch !== item.branch) return false
       if (item.timeSlot && normaliseTime(r.timeSlot ?? '') !== normaliseTime(item.timeSlot)) return false
+      if (item.partySize && r.partySize !== null && Number(item.partySize) !== r.partySize) return false
+      if (item.customerRaw && r.customerName && !item.customerRaw.includes(r.customerName)) return false
+      if (item.deposit && r.depositAmount !== null && !amountsMatch(item.deposit, r.depositAmount)) return false
       return true
     })
 
@@ -71,4 +78,11 @@ export async function POST(req: NextRequest) {
 // 去掉時間格式差異：「11:30」「1130」「11：30」都視為相同
 function normaliseTime(s: string) {
   return s.replace(/[：\s]/g, ':').replace(/^(\d{2})(\d{2})$/, '$1:$2')
+}
+
+// 去掉千分位逗號後比對金額數字
+function amountsMatch(raw: string, dbValue: string) {
+  const a = Number(raw.replace(/,/g, ''))
+  const b = Number(dbValue)
+  return !Number.isNaN(a) && !Number.isNaN(b) && a === b
 }
