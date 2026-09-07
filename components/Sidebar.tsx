@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { ClipboardList, Users, LogOut, MapPinned, Wrench, Package, Clock3, CalendarClock, BookUser, CalendarDays, PieChart, BellRing, BadgeCheck, TableProperties, HandCoins } from "lucide-react";
+import { ClipboardList, Users, LogOut, MapPinned, Wrench, Package, Clock3, CalendarClock, BookUser, CalendarDays, PieChart, BellRing, BadgeCheck, TableProperties, HandCoins, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/types/next-auth";
 
@@ -139,6 +139,10 @@ export function Sidebar({ roles }: { roles: Role[] }) {
             <Link href="/admin/bulk-update" className={cn("erp-sidebar-item", pathname.startsWith("/admin/bulk-update") && "active")}>
               <TableProperties size={15} />
               批次更新
+            </Link>
+            <Link href="/admin/bulk-refund" className={cn("erp-sidebar-item", pathname.startsWith("/admin/bulk-refund") && "active")}>
+              <RotateCcw size={15} />
+              批次退訂
             </Link>
             <Link href="/admin/rates" className={cn("erp-sidebar-item", pathname.startsWith("/admin/rates") && "active")}>
               <PieChart size={15} />
