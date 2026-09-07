@@ -3,7 +3,8 @@ import { and, eq, gte, lte } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { bookings, users } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
-import { computeShare } from '@/lib/platform-share'
+import { computeShare, type PlatformRates } from '@/lib/platform-share'
+import { getPlatformRates } from '@/lib/platform-settings'
 
 async function getVendorBookings(vendorId: string, from: string, to: string) {
   return db
@@ -26,12 +27,14 @@ export async function GET(req: NextRequest) {
   const to = req.nextUrl.searchParams.get('to')
   if (!from || !to) return NextResponse.json({ error: '缺少 from/to' }, { status: 400 })
 
+  const rates: PlatformRates = await getPlatformRates()
+
   const isVendor = session.user.roles.includes('vendor')
   const vendorId = isVendor ? session.user.id : req.nextUrl.searchParams.get('vendorId')
 
   if (vendorId) {
     const rows = await getVendorBookings(vendorId, from, to)
-    const results = rows.map((b) => computeShare(b)).filter((r) => r !== null)
+    const results = rows.map((b) => computeShare(b, rates)).filter((r) => r !== null)
     const totals = results.reduce(
       (acc, r) => ({
         platformFee: acc.platformFee + r.platformFee,
@@ -45,7 +48,7 @@ export async function GET(req: NextRequest) {
       return r ? { ...r, branch: b.branch, customerName: b.customerName, bookingCode: b.bookingCode } : null
     }).filter((r) => r !== null)
 
-    return NextResponse.json({ mode: 'detail', vendorId, bookings: detail, totals })
+    return NextResponse.json({ mode: 'detail', vendorId, rates, bookings: detail, totals })
   }
 
   // 管理員沒指定廠商：回傳全部廠商的彙總
@@ -53,7 +56,7 @@ export async function GET(req: NextRequest) {
   const vendorSummaries = []
   for (const v of vendors) {
     const rows = await getVendorBookings(v.id, from, to)
-    const results = rows.map((b) => computeShare(b)).filter((r) => r !== null)
+    const results = rows.map((b) => computeShare(b, rates)).filter((r) => r !== null)
     if (results.length === 0) continue
     const totals = results.reduce(
       (acc, r) => ({ platformFee: acc.platformFee + r.platformFee, vendorProfit: acc.vendorProfit + r.vendorProfit }),
@@ -72,5 +75,5 @@ export async function GET(req: NextRequest) {
     { platformFee: 0, vendorProfit: 0, count: 0 }
   )
 
-  return NextResponse.json({ mode: 'summary', vendors: vendorSummaries, totals: grandTotals })
+  return NextResponse.json({ mode: 'summary', rates, vendors: vendorSummaries, totals: grandTotals })
 }

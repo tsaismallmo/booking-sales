@@ -1,7 +1,12 @@
-// 平台分潤固定抽 20%，廠商拿 80%
-export const PLATFORM_FEE_RATE = 20
-// 客服分潤：從平台費裡再抽 20% 給實際銷售的客服（= 代訂費的 4%），不影響廠商的 80%
-export const CS_SHARE_OF_PLATFORM_RATE = 20
+export type PlatformRates = {
+  platformFeeRate: number // 平台費率（%），廠商拿剩下的
+  csShareOfPlatformRate: number // 客服從平台費裡再抽的比例（%）
+}
+
+export const DEFAULT_PLATFORM_RATES: PlatformRates = {
+  platformFeeRate: 20,
+  csShareOfPlatformRate: 20,
+}
 
 export type ShareBooking = {
   id: string
@@ -23,16 +28,16 @@ export type ShareResult = {
   salespersonId: string | null
 }
 
-// 平台分潤：平台費 = 實收代訂費 × 20%，廠商利潤 = 實收代訂費 - 平台費
-// 客服分潤：從平台費裡再抽 20% 給銷售人員，平台實拿 = 平台費 - 客服分潤
-export function computeShare(booking: ShareBooking): ShareResult | null {
+// 平台分潤：平台費 = 實收代訂費 × 平台費率，廠商利潤 = 實收代訂費 - 平台費
+// 客服分潤：從平台費裡再抽一部分給銷售人員，平台實拿 = 平台費 - 客服分潤
+export function computeShare(booking: ShareBooking, rates: PlatformRates): ShareResult | null {
   const n = booking.partySize ?? 0
   const actualFee = booking.agencyFee === null ? null : Number(booking.agencyFee)
   if (n <= 0 || actualFee === null || Number.isNaN(actualFee)) return null
 
-  const platformFee = Math.round(actualFee * PLATFORM_FEE_RATE / 100)
+  const platformFee = Math.round(actualFee * rates.platformFeeRate / 100)
   const vendorProfit = actualFee - platformFee
-  const csShare = Math.round(platformFee * CS_SHARE_OF_PLATFORM_RATE / 100)
+  const csShare = Math.round(platformFee * rates.csShareOfPlatformRate / 100)
   const platformNet = platformFee - csShare
 
   return {

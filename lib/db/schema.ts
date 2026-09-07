@@ -113,6 +113,16 @@ export const vendorRosterEntries = pgTable('vendor_roster_entries', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
+// 平台分潤全域設定：只有一筆（key='global'），只有管理員能改。
+// platformFeeRate：平台費率（%），廠商拿剩下的。
+// csShareOfPlatformRate：客服從平台費裡再抽的比例（%），不影響廠商的部分。
+export const platformSettings = pgTable('platform_settings', {
+  key: text('key').primaryKey().default('global'),
+  platformFeeRate: integer('platform_fee_rate').notNull().default(20),
+  csShareOfPlatformRate: integer('cs_share_of_platform_rate').notNull().default(20),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
 // 簡訊留存：付款通知／付款完成簡訊原文，留存並可連結到對應單據
 export const smsLogs = pgTable('sms_logs', {
   id: uuid('id').defaultRandom().primaryKey(),

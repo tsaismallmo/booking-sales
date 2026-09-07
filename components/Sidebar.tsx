@@ -146,6 +146,10 @@ export function Sidebar({ roles }: { roles: Role[] }) {
               <TableProperties size={15} />
               批次更新
             </Link>
+            <Link href="/admin/rates" className={cn("erp-sidebar-item", pathname.startsWith("/admin/rates") && "active")}>
+              <PieChart size={15} />
+              分潤設定
+            </Link>
             <Link href="/accounts" className={cn("erp-sidebar-item", pathname.startsWith("/accounts") && "active")}>
               <Users size={15} />
               帳號管理

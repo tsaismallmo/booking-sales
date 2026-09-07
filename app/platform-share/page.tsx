@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { WEEKDAYS, parseDateOnly } from "@/lib/quote";
-import { PLATFORM_FEE_RATE } from "@/lib/platform-share";
 
 type Vendor = { id: string; name: string | null; email: string; roles: string[] };
+
+type Rates = { platformFeeRate: number; csShareOfPlatformRate: number };
 
 type ShareBooking = {
   id: string;
@@ -22,12 +23,14 @@ type ShareBooking = {
 type DetailReport = {
   mode: "detail";
   vendorId: string;
+  rates: Rates;
   bookings: ShareBooking[];
   totals: { platformFee: number; vendorProfit: number; count: number };
 };
 
 type SummaryReport = {
   mode: "summary";
+  rates: Rates;
   vendors: { vendorId: string; vendorName: string; bookingCount: number; platformFee: number; vendorProfit: number }[];
   totals: { platformFee: number; vendorProfit: number; count: number };
 };
@@ -48,8 +51,6 @@ function currentMonthStr() {
   const d = new Date();
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
 }
-
-const VENDOR_PCT = 100 - PLATFORM_FEE_RATE;
 
 export default function PlatformSharePage() {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -100,6 +101,8 @@ export default function PlatformSharePage() {
 
   const detail = report?.mode === "detail" ? report : null;
   const summary = report?.mode === "summary" ? report : null;
+  const rates = report?.rates ?? null;
+  const vendorPct = rates ? 100 - rates.platformFeeRate : null;
 
   const monthLabel = useMemo(() => {
     const [y, m] = month.split("-");
@@ -112,7 +115,7 @@ export default function PlatformSharePage() {
         <div>
           <h1 className="erp-page-title">平台分潤</h1>
           <p className="erp-page-subtitle">
-            現貨單已售出訂單的代訂費分潤試算（平台 {PLATFORM_FEE_RATE}% / 廠商 {VENDOR_PCT}%，只有廠商本人跟管理員看得到）
+            現貨單已售出訂單的代訂費分潤試算{rates && `（平台 ${rates.platformFeeRate}% / 廠商 ${vendorPct}%）`}（只有廠商本人跟管理員看得到）
           </p>
         </div>
       </div>
@@ -140,7 +143,7 @@ export default function PlatformSharePage() {
             <table className="erp-table">
               <thead>
                 <tr>
-                  <th>廠商</th><th>已售筆數</th><th>平台費 ({PLATFORM_FEE_RATE}%)</th><th>廠商利潤 ({VENDOR_PCT}%)</th>
+                  <th>廠商</th><th>已售筆數</th><th>平台費 ({rates?.platformFeeRate}%)</th><th>廠商利潤 ({vendorPct}%)</th>
                 </tr>
               </thead>
               <tbody>
@@ -182,8 +185,8 @@ export default function PlatformSharePage() {
                 <tr>
                   <th>日期</th><th>星期</th><th>分店</th><th>訂位代號</th><th>姓名</th><th>人數</th>
                   <th>實收代訂費</th>
-                  <th>平台費 ({PLATFORM_FEE_RATE}%)</th>
-                  <th>廠商利潤 ({VENDOR_PCT}%)</th>
+                  <th>平台費 ({rates?.platformFeeRate}%)</th>
+                  <th>廠商利潤 ({vendorPct}%)</th>
                 </tr>
               </thead>
               <tbody>

@@ -68,6 +68,11 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
+  // 分潤設定：只有管理員能看
+  if (pathname.startsWith('/admin/rates') && !isAdmin) {
+    return NextResponse.redirect(new URL(fallback, req.url))
+  }
+
   return response
 })
 
