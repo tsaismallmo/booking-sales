@@ -113,13 +113,18 @@ export const vendorRosterEntries = pgTable('vendor_roster_entries', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
-// 平台分潤全域設定：只有一筆（key='global'），只有管理員能改。
-// platformFeeRate：平台費率（%），廠商拿剩下的。
+// 客服分潤全域設定：只有一筆（key='global'），全部客服共用同一個比例，只有管理員能改。
 // csShareOfPlatformRate：客服從平台費裡再抽的比例（%），不影響廠商的部分。
 export const platformSettings = pgTable('platform_settings', {
   key: text('key').primaryKey().default('global'),
-  platformFeeRate: integer('platform_fee_rate').notNull().default(20),
   csShareOfPlatformRate: integer('cs_share_of_platform_rate').notNull().default(20),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+// 各廠商的平台分潤費率：平台費率（%）依廠商各別設定，廠商拿剩下的。只有管理員能改。
+export const vendorPlatformRates = pgTable('vendor_platform_rates', {
+  vendorId: uuid('vendor_id').primaryKey().references(() => users.id),
+  platformFeeRate: integer('platform_fee_rate').notNull().default(20),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 

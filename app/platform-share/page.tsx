@@ -30,8 +30,7 @@ type DetailReport = {
 
 type SummaryReport = {
   mode: "summary";
-  rates: Rates;
-  vendors: { vendorId: string; vendorName: string; bookingCount: number; platformFee: number; vendorProfit: number }[];
+  vendors: { vendorId: string; vendorName: string; platformFeeRate: number; bookingCount: number; platformFee: number; vendorProfit: number }[];
   totals: { platformFee: number; vendorProfit: number; count: number };
 };
 
@@ -101,7 +100,7 @@ export default function PlatformSharePage() {
 
   const detail = report?.mode === "detail" ? report : null;
   const summary = report?.mode === "summary" ? report : null;
-  const rates = report?.rates ?? null;
+  const rates = detail?.rates ?? null;
   const vendorPct = rates ? 100 - rates.platformFeeRate : null;
 
   const monthLabel = useMemo(() => {
@@ -143,26 +142,28 @@ export default function PlatformSharePage() {
             <table className="erp-table">
               <thead>
                 <tr>
-                  <th>廠商</th><th>已售筆數</th><th>平台費 ({rates?.platformFeeRate}%)</th><th>廠商利潤 ({vendorPct}%)</th>
+                  <th>廠商</th><th>平台費率</th><th>已售筆數</th><th>平台費</th><th>廠商利潤</th>
                 </tr>
               </thead>
               <tbody>
                 {summary.vendors.map((v) => (
                   <tr key={v.vendorId}>
                     <td>{v.vendorName}</td>
+                    <td>{v.platformFeeRate}%</td>
                     <td>{v.bookingCount}</td>
                     <td>{formatCurrency(v.platformFee)}</td>
                     <td>{formatCurrency(v.vendorProfit)}</td>
                   </tr>
                 ))}
                 {summary.vendors.length === 0 && (
-                  <tr><td colSpan={4} style={{ textAlign: "center", color: "var(--gray-400)" }}>這個月沒有可計算的資料</td></tr>
+                  <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--gray-400)" }}>這個月沒有可計算的資料</td></tr>
                 )}
               </tbody>
               {summary.vendors.length > 0 && (
                 <tfoot>
                   <tr style={{ fontWeight: 600 }}>
                     <td>總計</td>
+                    <td></td>
                     <td>{summary.totals.count}</td>
                     <td>{formatCurrency(summary.totals.platformFee)}</td>
                     <td>{formatCurrency(summary.totals.vendorProfit)}</td>

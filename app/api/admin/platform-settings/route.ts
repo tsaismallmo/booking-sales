@@ -10,7 +10,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
   const [row] = await db.select().from(platformSettings).where(eq(platformSettings.key, 'global'))
-  return NextResponse.json(row ?? { key: 'global', ...DEFAULT_PLATFORM_RATES })
+  return NextResponse.json(row ?? { key: 'global', csShareOfPlatformRate: DEFAULT_PLATFORM_RATES.csShareOfPlatformRate })
 }
 
 export async function PATCH(req: NextRequest) {
@@ -18,18 +18,17 @@ export async function PATCH(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
   const body = await req.json()
-  const platformFeeRate = Number(body.platformFeeRate)
   const csShareOfPlatformRate = Number(body.csShareOfPlatformRate)
-  if ([platformFeeRate, csShareOfPlatformRate].some((n) => Number.isNaN(n) || n < 0 || n > 100)) {
+  if (Number.isNaN(csShareOfPlatformRate) || csShareOfPlatformRate < 0 || csShareOfPlatformRate > 100) {
     return NextResponse.json({ error: '比例須在 0–100 之間' }, { status: 400 })
   }
 
   const [row] = await db
     .insert(platformSettings)
-    .values({ key: 'global', platformFeeRate, csShareOfPlatformRate })
+    .values({ key: 'global', csShareOfPlatformRate })
     .onConflictDoUpdate({
       target: platformSettings.key,
-      set: { platformFeeRate, csShareOfPlatformRate, updatedAt: new Date() },
+      set: { csShareOfPlatformRate, updatedAt: new Date() },
     })
     .returning()
 

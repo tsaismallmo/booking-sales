@@ -21,24 +21,24 @@ export default auth((req) => {
 
   const roles = req.auth.user?.roles ?? []
   const isAdmin = roles.includes('admin')
+  const isVendor = roles.includes('vendor')
   const isLogistics = roles.includes('logistics')
-  const canManageBookings = roles.includes('vendor') || isAdmin
-  // 依身份決定進來後預設帶去哪裡：能管理單據的去單據管理，純客服去看板，純後勤去需求處理
-  const fallback = canManageBookings ? '/bookings' : roles.includes('customer_service') ? '/dashboard' : isLogistics ? '/requests' : '/dashboard'
+  // 依身份決定進來後預設帶去哪裡：廠商去單據管理，管理員去所有單據，純客服去看板，純後勤去需求處理
+  const fallback = isVendor ? '/bookings' : isAdmin ? '/admin/bookings' : roles.includes('customer_service') ? '/dashboard' : isLogistics ? '/requests' : '/dashboard'
 
   // 帳號管理、分店對應表只給管理員
   if ((pathname.startsWith('/accounts') || pathname.startsWith('/branch-aliases')) && !isAdmin) {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
-  // 單據管理列表、解析簡訊建單，只給有廠商或管理員身份的人，純客服看不到
+  // 單據管理列表、解析簡訊建單：只給廠商，管理員有自己的「所有單據」頁面
   const isBookingsListRoute = pathname === '/bookings' || pathname.startsWith('/bookings/import-sms')
-  if (isBookingsListRoute && !canManageBookings) {
+  if (isBookingsListRoute && !isVendor) {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
   // 新增單據：有廠商/管理員身份的人可以建任何類別；純客服也能進來，但只能建臨時單/預定單（API 會再擋一次）
-  const canCreateBookings = canManageBookings || roles.includes('customer_service')
+  const canCreateBookings = isVendor || isAdmin || roles.includes('customer_service')
   if (pathname.startsWith('/bookings/new') && !canCreateBookings) {
     return NextResponse.redirect(new URL(fallback, req.url))
   }

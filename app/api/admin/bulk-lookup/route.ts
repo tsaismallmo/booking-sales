@@ -12,6 +12,7 @@ type Item = {
   partySize?: string
   customerRaw?: string // 姓名+電話合併欄位，比對時看是否包含資料庫的姓名
   deposit?: string
+  vendorId?: string // 訂單歸屬解析出來的廠商 id，避免不同廠商剛好用了相同訂位代號互相比對錯
 }
 
 export async function POST(req: NextRequest) {
@@ -39,6 +40,7 @@ export async function POST(req: NextRequest) {
     customerPhone: bookings.customerPhone,
     partySize: bookings.partySize,
     depositAmount: bookings.depositAmount,
+    vendorId: bookings.vendorId,
     status: bookings.status,
   }).from(bookings).where(inArray(bookings.bookingCode, codes))
 
@@ -48,7 +50,7 @@ export async function POST(req: NextRequest) {
     // 逐步縮窄：每個欄位有值才過濾，取命中最多條件的結果
     if (item.code) pool = pool.filter((r) => r.bookingCode === item.code)
 
-    // 用日期／分店／時段／人數／姓名／訂金一起比對；哪個欄位有提供就用哪個
+    // 用日期／分店／時段／人數／姓名／訂金／訂單歸屬一起比對；哪個欄位有提供就用哪個
     const byAll = pool.filter((r) => {
       if (item.date && r.bookingDate !== item.date) return false
       if (item.branch && r.branch !== item.branch) return false
@@ -56,6 +58,7 @@ export async function POST(req: NextRequest) {
       if (item.partySize && r.partySize !== null && Number(item.partySize) !== r.partySize) return false
       if (item.customerRaw && r.customerName && !item.customerRaw.includes(r.customerName)) return false
       if (item.deposit && r.depositAmount !== null && !amountsMatch(item.deposit, r.depositAmount)) return false
+      if (item.vendorId && r.vendorId !== item.vendorId) return false
       return true
     })
 

@@ -172,6 +172,7 @@ export default function BulkImportPage() {
 
     const parsed: ParsedRow[] = dataLines.map((line, i) => {
       const cols = line.split("\t");
+      const vendorRaw = get(cols, finalMap.vendorRaw);
       return {
         lineNo: i + 1,
         bookingCode: get(cols, finalMap.bookingCode),
@@ -181,7 +182,7 @@ export default function BulkImportPage() {
         partySize:   get(cols, finalMap.partySize),
         customerRaw: get(cols, finalMap.customerRaw),
         deposit:     get(cols, finalMap.deposit),
-        vendorRaw:   get(cols, finalMap.vendorRaw),
+        vendorRaw,
         soldDate:    normaliseDate(get(cols, finalMap.soldDate)),
         collectedAmount: get(cols, finalMap.collectedAmount),
         account:     get(cols, finalMap.account),
@@ -190,14 +191,14 @@ export default function BulkImportPage() {
         soldCount:   finalMap.soldCount >= 0 ? get(cols, finalMap.soldCount) : "",
         lookupResult: null,
         selectedBookingId: "",
-        vendorId: "",
+        vendorId: resolveByName(vendors, vendorRaw),
         salespersonId: "",
         updateState: "idle" as const,
         updateMsg: "",
       };
     }).filter((r) => r.bookingCode); // 跳過沒有訂位代號的列
 
-    // Batch lookup
+    // Batch lookup：訂單歸屬（廠商）也要拿來比對，避免不同廠商剛好用了相同的訂位代號互相比對錯
     const lookupItems = parsed.map((r) => ({
       code:        r.bookingCode || undefined,
       date:        r.bookingDate || undefined,
@@ -206,6 +207,7 @@ export default function BulkImportPage() {
       partySize:   r.partySize || undefined,
       customerRaw: r.customerRaw || undefined,
       deposit:     r.deposit || undefined,
+      vendorId:    r.vendorId || undefined,
     }));
 
     const res = await fetch("/api/admin/bulk-lookup", {
@@ -222,7 +224,6 @@ export default function BulkImportPage() {
         ...r,
         lookupResult: lr,
         selectedBookingId: defaultId,
-        vendorId: resolveByName(vendors, r.vendorRaw),
         salespersonId: resolveByName(allUsers, r.salespersonRaw),
       };
     });
@@ -314,7 +315,7 @@ export default function BulkImportPage() {
               </p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", marginLeft: 12, marginBottom: 8 }}>
                 {[
-                  ["比對用", "訂位代號、分店、日期、時段、人數、姓名+電話、訂金"],
+                  ["比對用", "訂位代號、分店、日期、時段、人數、姓名+電話、訂金、訂單歸屬"],
                   ["更新用", "訂單歸屬、售出日期、收款金額、帳戶、銷售人員、代訂費"],
                   ["略過", "狀態、星期、付款人員、來源 等其他欄位"],
                 ].map(([label, content]) => (

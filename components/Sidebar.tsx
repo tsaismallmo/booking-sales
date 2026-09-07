@@ -26,10 +26,6 @@ export function Sidebar({ roles }: { roles: Role[] }) {
   const isCustomerService = roles.includes("customer_service");
   const isLogistics = roles.includes("logistics");
   const isVendorStaff = roles.includes("vendor_staff");
-  // 純客服（沒有廠商/管理員身份）看不到「單據管理」，只給看單據看板；
-  // 有廠商或管理員身份的人看到的是全部單據（或自己的），稱為「單據管理」
-  const canManageBookings = isVendor || isAdmin || isCustomerService;
-
   return (
     <aside className="erp-sidebar">
       <div className="erp-sidebar-logo">
@@ -74,18 +70,16 @@ export function Sidebar({ roles }: { roles: Role[] }) {
           </Link>
         )}
 
-        {/* ── 單據 ── 廠商 / 管理員 */}
-        {(canManageBookings || isAdmin) && (
+        {/* ── 單據 ── 廠商 */}
+        {isVendor && (
           <>
             <div className="erp-sidebar-divider" />
             <div className="erp-sidebar-section">單據</div>
+            <Link href="/bookings" className={cn("erp-sidebar-item", pathname.startsWith("/bookings") && !fromAdmin && "active")}>
+              <ClipboardList size={15} />
+              單據管理
+            </Link>
           </>
-        )}
-        {canManageBookings && (
-          <Link href="/bookings" className={cn("erp-sidebar-item", pathname.startsWith("/bookings") && !fromAdmin && "active")}>
-            <ClipboardList size={15} />
-            單據管理
-          </Link>
         )}
 
         {/* ── 廠商 ── 廠商本人 / 廠商員工 / 管理員(平台分潤) */}
