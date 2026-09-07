@@ -236,42 +236,52 @@ export default function BulkImportPage() {
   const updateRow = (lineNo: number, patch: Partial<ParsedRow>) =>
     setRows((rs) => rs.map((r) => (r.lineNo === lineNo ? { ...r, ...patch } : r)));
 
+  // 一筆一筆序列送出的話，Neon 每次 PATCH 大約 1 秒，上百筆會等超過一分鐘、看起來像卡住；
+  // 改成一批併發送出（不要整批一次全丟，避免瞬間打爆連線），並且每批完成就更新畫面看到進度
+  const IMPORT_CONCURRENCY = 8;
+
   const handleImport = async () => {
     const valid = rows.filter((r) => r.selectedBookingId);
     if (valid.length === 0) return;
     setImporting(true);
 
     let ok = 0;
-    const updated = [...rows];
-    for (const r of valid) {
-      const body: Record<string, string | number | null | undefined> = {
-        soldDate:        r.soldDate || undefined,
-        collectedAmount: r.collectedAmount ? stripCommas(r.collectedAmount) : undefined,
-        account:         r.account || undefined,
-        salespersonId:   r.salespersonId || null,
-        agencyFee:       r.agencyFee ? stripCommas(r.agencyFee) : undefined,
-        soldCount:       r.soldCount ? Number(stripCommas(r.soldCount)) : undefined,
-      };
-      // 有售出日期就一併把狀態標成 sold（跟 InStockBoard 銷售 modal 一致）
-      if (r.soldDate) body.status = "sold";
-      if (r.vendorId) body.vendorId = r.vendorId;
+    let processed = 0;
 
-      const res = await fetch(`/api/bookings/${r.selectedBookingId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const idx = updated.findIndex((u) => u.lineNo === r.lineNo);
-      if (res.ok) {
-        updated[idx] = { ...updated[idx], updateState: "ok" };
-        ok++;
-      } else {
+    for (let i = 0; i < valid.length; i += IMPORT_CONCURRENCY) {
+      const chunk = valid.slice(i, i + IMPORT_CONCURRENCY);
+      const chunkResults = await Promise.all(chunk.map(async (r) => {
+        const body: Record<string, string | number | null | undefined> = {
+          soldDate:        r.soldDate || undefined,
+          collectedAmount: r.collectedAmount ? stripCommas(r.collectedAmount) : undefined,
+          account:         r.account || undefined,
+          salespersonId:   r.salespersonId || null,
+          agencyFee:       r.agencyFee ? stripCommas(r.agencyFee) : undefined,
+          soldCount:       r.soldCount ? Number(stripCommas(r.soldCount)) : undefined,
+        };
+        // 有售出日期就一併把狀態標成 sold（跟 InStockBoard 銷售 modal 一致）
+        if (r.soldDate) body.status = "sold";
+        if (r.vendorId) body.vendorId = r.vendorId;
+
+        const res = await fetch(`/api/bookings/${r.selectedBookingId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) return { lineNo: r.lineNo, updateState: "ok" as const, updateMsg: "" };
         const data = await res.json().catch(() => ({}));
-        updated[idx] = { ...updated[idx], updateState: "error", updateMsg: data.error || `HTTP ${res.status}` };
-      }
+        return { lineNo: r.lineNo, updateState: "error" as const, updateMsg: data.error || `HTTP ${res.status}` };
+      }));
+
+      ok += chunkResults.filter((r) => r.updateState === "ok").length;
+      processed += chunk.length;
+      setRows((prev) => prev.map((row) => {
+        const result = chunkResults.find((r) => r.lineNo === row.lineNo);
+        return result ? { ...row, updateState: result.updateState, updateMsg: result.updateMsg } : row;
+      }));
+      setSummary(`匯入中... ${processed} / ${valid.length}`);
     }
 
-    setRows(updated);
     setImporting(false);
     setSummary(`完成：${ok} / ${valid.length} 筆更新成功`);
     setPhase("done");
@@ -287,7 +297,7 @@ export default function BulkImportPage() {
           <h1 className="erp-page-title">批次匯入售出資料</h1>
           <p className="erp-page-subtitle">
             {phase === "input" && "從 Excel 複製資料貼上，系統自動比對單據"}
-            {phase === "preview" && `解析 ${rows.length} 列，可比對 ${matchCount} 筆`}
+            {phase === "preview" && (importing ? summary : `解析 ${rows.length} 列，可比對 ${matchCount} 筆`)}
             {phase === "done" && summary}
           </p>
         </div>
