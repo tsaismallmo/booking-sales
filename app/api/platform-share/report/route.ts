@@ -1,16 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { and, eq, gte, lte } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { bookings, vendorRateSettings, users } from '@/lib/db/schema'
+import { bookings, users } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
-import { computeShare, type RateSettings } from '@/lib/platform-share'
-
-const DEFAULTS: RateSettings = { platformFeeRate: 20 }
-
-async function getRates(vendorId: string): Promise<RateSettings> {
-  const [row] = await db.select().from(vendorRateSettings).where(eq(vendorRateSettings.vendorId, vendorId))
-  return row ?? DEFAULTS
-}
+import { computeShare } from '@/lib/platform-share'
 
 async function getVendorBookings(vendorId: string, from: string, to: string) {
   return db
@@ -37,9 +30,8 @@ export async function GET(req: NextRequest) {
   const vendorId = isVendor ? session.user.id : req.nextUrl.searchParams.get('vendorId')
 
   if (vendorId) {
-    const rates = await getRates(vendorId)
     const rows = await getVendorBookings(vendorId, from, to)
-    const results = rows.map((b) => computeShare(b, rates)).filter((r) => r !== null)
+    const results = rows.map((b) => computeShare(b)).filter((r) => r !== null)
     const totals = results.reduce(
       (acc, r) => ({
         platformFee: acc.platformFee + r.platformFee,
@@ -53,16 +45,15 @@ export async function GET(req: NextRequest) {
       return r ? { ...r, branch: b.branch, customerName: b.customerName, bookingCode: b.bookingCode } : null
     }).filter((r) => r !== null)
 
-    return NextResponse.json({ mode: 'detail', vendorId, rates, bookings: detail, totals })
+    return NextResponse.json({ mode: 'detail', vendorId, bookings: detail, totals })
   }
 
   // 管理員沒指定廠商：回傳全部廠商的彙總
   const vendors = (await db.select().from(users)).filter((u) => u.roles.includes('vendor'))
   const vendorSummaries = []
   for (const v of vendors) {
-    const rates = await getRates(v.id)
     const rows = await getVendorBookings(v.id, from, to)
-    const results = rows.map((b) => computeShare(b, rates)).filter((r) => r !== null)
+    const results = rows.map((b) => computeShare(b)).filter((r) => r !== null)
     if (results.length === 0) continue
     const totals = results.reduce(
       (acc, r) => ({ platformFee: acc.platformFee + r.platformFee, vendorProfit: acc.vendorProfit + r.vendorProfit }),

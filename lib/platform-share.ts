@@ -1,6 +1,5 @@
-export type RateSettings = {
-  platformFeeRate: number // 平台費率（%）
-}
+// 平台分潤固定抽 20%，廠商拿 80%
+export const PLATFORM_FEE_RATE = 20
 
 export type ShareBooking = {
   id: string
@@ -18,13 +17,13 @@ export type ShareResult = {
   vendorProfit: number
 }
 
-// 平台分潤：平台費 = 實收代訂費 × 平台費率%，廠商利潤 = 實收代訂費 - 平台費
-export function computeShare(booking: ShareBooking, rates: RateSettings): ShareResult | null {
+// 平台分潤：平台費 = 實收代訂費 × 20%，廠商利潤 = 實收代訂費 - 平台費
+export function computeShare(booking: ShareBooking): ShareResult | null {
   const n = booking.partySize ?? 0
   const actualFee = booking.agencyFee === null ? null : Number(booking.agencyFee)
   if (n <= 0 || actualFee === null || Number.isNaN(actualFee)) return null
 
-  const platformFee = Math.round(actualFee * rates.platformFeeRate / 100)
+  const platformFee = Math.round(actualFee * PLATFORM_FEE_RATE / 100)
   const vendorProfit = actualFee - platformFee
 
   return {

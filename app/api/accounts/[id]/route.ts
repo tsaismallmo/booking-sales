@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { eq, or } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { users, bookings, bookingRequests, smsLogs, vendorRosterEntries, vendorRosterLists, vendorRateSettings } from '@/lib/db/schema'
+import { users, bookings, bookingRequests, smsLogs, vendorRosterEntries, vendorRosterLists } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -45,7 +45,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   await db.delete(bookings).where(or(eq(bookings.vendorId, id), eq(bookings.salespersonId, id)))
   await db.delete(vendorRosterEntries).where(eq(vendorRosterEntries.vendorId, id))
   await db.delete(vendorRosterLists).where(eq(vendorRosterLists.vendorId, id))
-  await db.delete(vendorRateSettings).where(eq(vendorRateSettings.vendorId, id))
   await db.update(users).set({ employerVendorId: null }).where(eq(users.employerVendorId, id))
   await db.delete(users).where(eq(users.id, id))
   return NextResponse.json({ ok: true })

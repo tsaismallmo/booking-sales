@@ -3,10 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { WEEKDAYS, parseDateOnly } from "@/lib/quote";
+import { PLATFORM_FEE_RATE } from "@/lib/platform-share";
 
 type Vendor = { id: string; name: string | null; email: string; roles: string[] };
-
-type RateSettings = { platformFeeRate: number };
 
 type ShareBooking = {
   id: string;
@@ -23,7 +22,6 @@ type ShareBooking = {
 type DetailReport = {
   mode: "detail";
   vendorId: string;
-  rates: RateSettings;
   bookings: ShareBooking[];
   totals: { platformFee: number; vendorProfit: number; count: number };
 };
@@ -51,6 +49,8 @@ function currentMonthStr() {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
 }
 
+const VENDOR_PCT = 100 - PLATFORM_FEE_RATE;
+
 export default function PlatformSharePage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isVendor, setIsVendor] = useState(false);
@@ -62,10 +62,6 @@ export default function PlatformSharePage() {
   const [month, setMonth] = useState(currentMonthStr());
   const [report, setReport] = useState<DetailReport | SummaryReport | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const [rateForm, setRateForm] = useState<RateSettings>({ platformFeeRate: 20 });
-  const [savingRates, setSavingRates] = useState(false);
-  const [saveMsg, setSaveMsg] = useState("");
 
   useEffect(() => {
     fetch("/api/me")
@@ -99,35 +95,8 @@ export default function PlatformSharePage() {
       .then((data) => {
         setReport(data);
         setLoading(false);
-        if (data.mode === "detail") setRateForm(data.rates);
       });
   }, [activeVendorId, month, isAdmin, isVendor, selectedVendorId]);
-
-  const handleSaveRates = async () => {
-    setSavingRates(true);
-    setSaveMsg("");
-    const body: RateSettings & { vendorId?: string } = { ...rateForm };
-    if (isAdmin && !isVendor) body.vendorId = selectedVendorId;
-    const res = await fetch("/api/platform-share/settings", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    setSavingRates(false);
-    if (res.ok) {
-      setSaveMsg("已儲存");
-      const { from, to } = monthRange(month);
-      const qs = new URLSearchParams({ from, to });
-      if (activeVendorId) qs.set("vendorId", activeVendorId);
-      fetch(`/api/platform-share/report?${qs.toString()}`)
-        .then((res) => res.json())
-        .then((data) => setReport(data));
-    } else {
-      setSaveMsg("儲存失敗");
-    }
-  };
-
-  const canEditRates = isVendor || (isAdmin && !!selectedVendorId);
 
   const detail = report?.mode === "detail" ? report : null;
   const summary = report?.mode === "summary" ? report : null;
@@ -137,15 +106,14 @@ export default function PlatformSharePage() {
     return `${y} 年 ${Number(m)} 月`;
   }, [month]);
 
-  const platformPct = detail ? detail.rates.platformFeeRate : null;
-  const vendorPct = platformPct === null ? null : 100 - platformPct;
-
   return (
     <div className="erp-page">
       <div className="erp-page-header">
         <div>
           <h1 className="erp-page-title">平台分潤</h1>
-          <p className="erp-page-subtitle">現貨單已售出訂單的代訂費分潤試算（只有廠商本人跟管理員看得到）</p>
+          <p className="erp-page-subtitle">
+            現貨單已售出訂單的代訂費分潤試算（平台 {PLATFORM_FEE_RATE}% / 廠商 {VENDOR_PCT}%，只有廠商本人跟管理員看得到）
+          </p>
         </div>
       </div>
 
@@ -165,28 +133,6 @@ export default function PlatformSharePage() {
 
       {loading && <div style={{ textAlign: "center", color: "var(--gray-400)", padding: 30 }}>載入中...</div>}
 
-      {!loading && canEditRates && (
-        <div className="erp-card" style={{ marginBottom: 16 }}>
-          <div className="erp-card-header"><span className="erp-card-title">代訂費率設定</span></div>
-          <div className="erp-card-body" style={{ display: "flex", gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}>
-            <label style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 4 }}>
-              平台費率（%）
-              <input
-                type="number" min={0} max={100} className="erp-input"
-                style={{ width: 100 }}
-                value={rateForm.platformFeeRate}
-                onChange={(e) => setRateForm({ platformFeeRate: Number(e.target.value) || 0 })}
-              />
-            </label>
-            <div style={{ fontSize: 12, color: "var(--gray-500)", paddingBottom: 8 }}>
-              廠商利潤 {100 - rateForm.platformFeeRate}%
-            </div>
-            <button className="btn btn-primary" onClick={handleSaveRates} disabled={savingRates}>{savingRates ? "儲存中..." : "儲存設定"}</button>
-            <span style={{ fontSize: 13, color: "var(--color-success)" }}>{saveMsg}</span>
-          </div>
-        </div>
-      )}
-
       {!loading && summary && (
         <div className="erp-card">
           <div className="erp-card-header"><span className="erp-card-title">{monthLabel}　全部廠商彙總</span></div>
@@ -194,7 +140,7 @@ export default function PlatformSharePage() {
             <table className="erp-table">
               <thead>
                 <tr>
-                  <th>廠商</th><th>已售筆數</th><th>平台費</th><th>廠商利潤</th>
+                  <th>廠商</th><th>已售筆數</th><th>平台費 ({PLATFORM_FEE_RATE}%)</th><th>廠商利潤 ({VENDOR_PCT}%)</th>
                 </tr>
               </thead>
               <tbody>
@@ -236,8 +182,8 @@ export default function PlatformSharePage() {
                 <tr>
                   <th>日期</th><th>星期</th><th>分店</th><th>訂位代號</th><th>姓名</th><th>人數</th>
                   <th>實收代訂費</th>
-                  <th>平台費{platformPct !== null && ` (${platformPct}%)`}</th>
-                  <th>廠商利潤{vendorPct !== null && ` (${vendorPct}%)`}</th>
+                  <th>平台費 ({PLATFORM_FEE_RATE}%)</th>
+                  <th>廠商利潤 ({VENDOR_PCT}%)</th>
                 </tr>
               </thead>
               <tbody>

@@ -113,13 +113,6 @@ export const vendorRosterEntries = pgTable('vendor_roster_entries', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
-// 廠商代訂費率設定：平台分潤按代訂費的百分比抽成。只有廠商本人跟管理員看得到、改得到。
-export const vendorRateSettings = pgTable('vendor_rate_settings', {
-  vendorId: uuid('vendor_id').primaryKey().references(() => users.id),
-  platformFeeRate: integer('platform_fee_rate').notNull().default(20), // 平台費率（%）
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
-
 // 簡訊留存：付款通知／付款完成簡訊原文，留存並可連結到對應單據
 export const smsLogs = pgTable('sms_logs', {
   id: uuid('id').defaultRandom().primaryKey(),
