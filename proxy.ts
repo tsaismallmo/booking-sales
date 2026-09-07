@@ -63,6 +63,11 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
+  // 客服分潤：只有客服本人跟管理員能看
+  if (pathname.startsWith('/cs-share') && !roles.includes('customer_service') && !isAdmin) {
+    return NextResponse.redirect(new URL(fallback, req.url))
+  }
+
   return response
 })
 

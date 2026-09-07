@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { ClipboardList, Users, LogOut, MapPinned, Wrench, Package, Clock3, CalendarClock, BookUser, CalendarDays, PieChart, BellRing, BadgeCheck, TableProperties } from "lucide-react";
+import { ClipboardList, Users, LogOut, MapPinned, Wrench, Package, Clock3, CalendarClock, BookUser, CalendarDays, PieChart, BellRing, BadgeCheck, TableProperties, HandCoins } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/types/next-auth";
 
@@ -120,6 +120,18 @@ export function Sidebar({ roles }: { roles: Role[] }) {
           </Link>
         )}
 
+
+        {/* ── 客服 ── 客服本人 / 管理員 */}
+        {(isCustomerService || isAdmin) && (
+          <>
+            <div className="erp-sidebar-divider" />
+            <div className="erp-sidebar-section">客服</div>
+            <Link href="/cs-share" className={cn("erp-sidebar-item", pathname.startsWith("/cs-share") && "active")}>
+              <HandCoins size={15} />
+              客服分潤
+            </Link>
+          </>
+        )}
 
         {/* ── 系統 ── 管理員 */}
         {isAdmin && (
