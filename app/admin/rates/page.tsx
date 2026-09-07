@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type VendorRate = {
   vendorId: string;
@@ -10,6 +10,9 @@ type VendorRate = {
   bookingCount: number;
 };
 
+type CsStaffShare = { salespersonId: string; name: string; bookingCount: number };
+type CsSummaryReport = { mode: "summary"; staff: CsStaffShare[]; totals: { count: number } };
+
 function pad2(n: number) {
   return String(n).padStart(2, "0");
 }
@@ -17,6 +20,25 @@ function pad2(n: number) {
 function defaultMonth() {
   const now = new Date();
   return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`;
+}
+
+function monthRange(monthStr: string) {
+  const [y, m] = monthStr.split("-").map(Number);
+  const from = `${y}-${pad2(m)}-01`;
+  const lastDay = new Date(y, m, 0).getDate();
+  const to = `${y}-${pad2(m)}-${pad2(lastDay)}`;
+  return { from, to };
+}
+
+// 漲幅：上月是 0 的話顯示「新增」而不是無限大的百分比
+function growthLabel(prev: number, curr: number): { text: string; color: string } {
+  if (prev === 0) {
+    if (curr === 0) return { text: "—", color: "var(--gray-400)" };
+    return { text: "新增", color: "var(--color-success)" };
+  }
+  const pct = Math.round(((curr - prev) / prev) * 1000) / 10;
+  const color = pct > 0 ? "var(--color-success)" : pct < 0 ? "var(--color-danger)" : "var(--gray-500)";
+  return { text: `${pct > 0 ? "+" : ""}${pct}%`, color };
 }
 
 export default function AdminRatesPage() {
@@ -32,6 +54,10 @@ export default function AdminRatesPage() {
   const [savingVendor, setSavingVendor] = useState<string | null>(null);
   const [loadingVendors, setLoadingVendors] = useState(true);
   const [error, setError] = useState("");
+
+  const [csThisMonth, setCsThisMonth] = useState<CsSummaryReport | null>(null);
+  const [csPrevMonth, setCsPrevMonth] = useState<CsSummaryReport | null>(null);
+  const [loadingCsCompare, setLoadingCsCompare] = useState(true);
 
   const loadVendors = (m: string) => {
     fetch(`/api/admin/vendor-rates?month=${m}`)
@@ -55,6 +81,39 @@ export default function AdminRatesPage() {
   useEffect(() => {
     loadVendors(month);
   }, [month]);
+
+  useEffect(() => {
+    if (!referenceMonth) return;
+    const qs = (m: string) => {
+      const { from, to } = monthRange(m);
+      return new URLSearchParams({ from, to }).toString();
+    };
+    Promise.all([
+      fetch(`/api/cs-share/report?${qs(month)}`).then((res) => res.json()),
+      fetch(`/api/cs-share/report?${qs(referenceMonth)}`).then((res) => res.json()),
+    ]).then(([thisM, prevM]) => {
+      setCsThisMonth(thisM);
+      setCsPrevMonth(prevM);
+      setLoadingCsCompare(false);
+    });
+  }, [month, referenceMonth]);
+
+  const csComparisonRows = useMemo(() => {
+    if (!csThisMonth) return [];
+    const prevMap = new Map((csPrevMonth?.staff ?? []).map((s) => [s.salespersonId, s]));
+    const rows = csThisMonth.staff.map((s) => ({
+      salespersonId: s.salespersonId,
+      name: s.name,
+      prevCount: prevMap.get(s.salespersonId)?.bookingCount ?? 0,
+      count: s.bookingCount,
+    }));
+    for (const [id, s] of prevMap) {
+      if (!rows.some((r) => r.salespersonId === id)) {
+        rows.push({ salespersonId: id, name: s.name, prevCount: s.bookingCount, count: 0 });
+      }
+    }
+    return rows;
+  }, [csThisMonth, csPrevMonth]);
 
   const handleSaveGlobal = async () => {
     setSavingGlobal(true);
@@ -186,6 +245,53 @@ export default function AdminRatesPage() {
                 <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--gray-400)" }}>目前沒有廠商帳號</td></tr>
               )}
             </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="erp-card" style={{ marginTop: 16 }}>
+        <div className="erp-card-header"><span className="erp-card-title">客服銷售筆數漲幅比較（{referenceMonth}　vs　{month}）</span></div>
+        <div className="erp-table-wrap">
+          <table className="erp-table">
+            <thead>
+              <tr>
+                <th>客服</th><th>{referenceMonth} 銷售筆數</th><th>{month} 銷售筆數</th><th>漲幅</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loadingCsCompare && (
+                <tr><td colSpan={4} style={{ textAlign: "center", color: "var(--gray-400)" }}>載入中...</td></tr>
+              )}
+              {!loadingCsCompare && csComparisonRows.map((r) => {
+                const g = growthLabel(r.prevCount, r.count);
+                return (
+                  <tr key={r.salespersonId}>
+                    <td>{r.name}</td>
+                    <td>{r.prevCount}</td>
+                    <td>{r.count}</td>
+                    <td style={{ color: g.color, fontWeight: 600 }}>{g.text}</td>
+                  </tr>
+                );
+              })}
+              {!loadingCsCompare && csComparisonRows.length === 0 && (
+                <tr><td colSpan={4} style={{ textAlign: "center", color: "var(--gray-400)" }}>這兩個月都沒有可計算的資料</td></tr>
+              )}
+            </tbody>
+            {!loadingCsCompare && csComparisonRows.length > 0 && (
+              <tfoot>
+                {(() => {
+                  const g = growthLabel(csPrevMonth?.totals.count ?? 0, csThisMonth?.totals.count ?? 0);
+                  return (
+                    <tr style={{ fontWeight: 600 }}>
+                      <td>總計</td>
+                      <td>{csPrevMonth?.totals.count ?? 0}</td>
+                      <td>{csThisMonth?.totals.count ?? 0}</td>
+                      <td style={{ color: g.color }}>{g.text}</td>
+                    </tr>
+                  );
+                })()}
+              </tfoot>
+            )}
           </table>
         </div>
       </div>
