@@ -21,6 +21,8 @@ export function Sidebar({ roles }: { roles: Role[] }) {
   const fromParam = searchParams.get("from");
   const fromAdmin = fromParam === "admin";
   const fromSold = fromParam === "sold";
+  const fromTemp = fromParam === "temp";
+  const fromReserved = fromParam === "reserved";
   const isAdmin = roles.includes("admin");
   const isVendor = roles.includes("vendor");
   const isCustomerService = roles.includes("customer_service");
@@ -46,13 +48,13 @@ export function Sidebar({ roles }: { roles: Role[] }) {
           </Link>
         )}
         {(isCustomerService || isAdmin || isLogistics) && (
-          <Link href="/dashboard/temp" className={cn("erp-sidebar-item", pathname.startsWith("/dashboard/temp") && "active")}>
+          <Link href="/dashboard/temp" className={cn("erp-sidebar-item", (pathname.startsWith("/dashboard/temp") || (pathname.startsWith("/bookings") && fromTemp)) && "active")}>
             <Clock3 size={15} />
             臨時單看板
           </Link>
         )}
         {(isCustomerService || isAdmin) && (
-          <Link href="/dashboard/reserved" className={cn("erp-sidebar-item", pathname.startsWith("/dashboard/reserved") && "active")}>
+          <Link href="/dashboard/reserved" className={cn("erp-sidebar-item", (pathname.startsWith("/dashboard/reserved") || (pathname.startsWith("/bookings") && fromReserved)) && "active")}>
             <CalendarClock size={15} />
             預定單看板
           </Link>
@@ -75,7 +77,7 @@ export function Sidebar({ roles }: { roles: Role[] }) {
           <>
             <div className="erp-sidebar-divider" />
             <div className="erp-sidebar-section">單據</div>
-            <Link href="/bookings" className={cn("erp-sidebar-item", pathname.startsWith("/bookings") && !fromAdmin && "active")}>
+            <Link href="/bookings" className={cn("erp-sidebar-item", pathname.startsWith("/bookings") && !fromAdmin && !fromSold && !fromTemp && !fromReserved && "active")}>
               <ClipboardList size={15} />
               單據管理
             </Link>

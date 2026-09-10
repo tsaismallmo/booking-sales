@@ -8,6 +8,10 @@ function NewBookingForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const presetCategory = searchParams.get("category");
+  // 從哪個看板點「＋新增」進來的，儲存/取消後就回那個看板，不要固定跳單據管理
+  const fromParam = searchParams.get("from");
+  const RETURN_PATHS: Record<string, string> = { temp: "/dashboard/temp", reserved: "/dashboard/reserved" };
+  const returnTo = (fromParam && RETURN_PATHS[fromParam]) || "/bookings";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [vendorId, setVendorId] = useState("");
@@ -71,14 +75,14 @@ function NewBookingForm() {
       setError(data.error || "儲存失敗");
       return;
     }
-    router.push("/bookings");
+    router.push(returnTo);
   };
 
   return (
     <div className="erp-page">
       <div className="erp-page-header">
         <h1 className="erp-page-title">新增單據</h1>
-        <button onClick={() => router.push("/bookings")} className="btn btn-secondary">取消</button>
+        <button onClick={() => router.push(returnTo)} className="btn btn-secondary">取消</button>
       </div>
 
       {error && <div className="erp-alert danger">{error}</div>}
@@ -197,7 +201,7 @@ function NewBookingForm() {
         <button onClick={handleSubmit} disabled={loading} className="btn btn-primary">
           {loading ? "儲存中..." : "儲存單據"}
         </button>
-        <button onClick={() => router.push("/bookings")} className="btn btn-secondary">取消</button>
+        <button onClick={() => router.push(returnTo)} className="btn btn-secondary">取消</button>
       </div>
     </div>
   );
