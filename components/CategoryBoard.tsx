@@ -107,7 +107,13 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
                   <td>{formatCurrency(b.depositAmount)}</td>
                   <td>{b.branch ?? "—"}</td>
                   <td>{b.note ?? "—"}</td>
-                  <td><Link href={`/bookings/${b.id}/edit`} className="btn btn-primary" style={{ padding: "4px 10px", fontSize: 13 }}>銷售</Link></td>
+                  <td>
+                    {b.bookingCode ? (
+                      <Link href={`/bookings/${b.id}/edit`} className="btn btn-primary" style={{ padding: "4px 10px", fontSize: 13 }}>銷售</Link>
+                    ) : (
+                      <Link href={`/bookings/${b.id}/edit`} className="btn btn-secondary" style={{ padding: "4px 10px", fontSize: 13 }}>編輯</Link>
+                    )}
+                  </td>
                 </tr>
               ))}
               {!loading && bookings.length === 0 && (
