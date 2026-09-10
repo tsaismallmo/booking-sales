@@ -19,6 +19,7 @@ export default function EditBookingPage() {
   const [pureCustomerService, setPureCustomerService] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [csStaff, setCsStaff] = useState<{ id: string; name: string | null }[]>([]);
+  const [vendors, setVendors] = useState<{ id: string; name: string | null; email: string }[]>([]);
 
   useEffect(() => {
     fetch("/api/me")
@@ -34,8 +35,9 @@ export default function EditBookingPage() {
     fetch("/api/directory")
       .then((r) => r.json())
       .then((data) => {
-        const cs = (Array.isArray(data) ? data : []).filter((u: { roles: string[] }) => u.roles.includes("customer_service"));
-        setCsStaff(cs);
+        const all = Array.isArray(data) ? data : [];
+        setCsStaff(all.filter((u: { roles: string[] }) => u.roles.includes("customer_service")));
+        setVendors(all.filter((u: { roles: string[] }) => u.roles.includes("vendor")));
       });
   }, []);
 
@@ -44,6 +46,7 @@ export default function EditBookingPage() {
       .then((res) => res.json())
       .then((data) => {
         setForm({
+          vendorId: data.vendorId ?? "",
           branch: data.branch ?? "",
           category: data.category ?? "現貨單",
           bookingDate: data.bookingDate ?? "",
@@ -109,6 +112,17 @@ export default function EditBookingPage() {
           <div className="erp-card-header"><span className="erp-card-title">基本資訊</span></div>
           <div className="erp-card-body">
             <div className="erp-form-grid">
+              {isAdmin && form.category === "臨時單" && (
+                <div className="erp-form-group">
+                  <label className="erp-label">歸屬廠商</label>
+                  <select className="erp-select" value={form.vendorId ?? ""} onChange={set("vendorId")}>
+                    <option value="">不指定</option>
+                    {vendors.map((v) => (
+                      <option key={v.id} value={v.id}>{v.name || v.email}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="erp-form-group">
                 <label className="erp-label">分店</label>
                 <input className="erp-input" value={form.branch} onChange={set("branch")} />

@@ -44,10 +44,10 @@ export async function POST(req: NextRequest) {
 
   const isVendor = roles.includes('vendor')
   const isAdmin = roles.includes('admin')
-  const isNoVendorCategory = body.category === '臨時單' || body.category === '預定單'
+  const csCreatableCategory = body.category === '臨時單' || body.category === '預定單'
 
   // 純客服（沒有廠商/管理員身份）只能建立臨時單或預定單，這兩種不是從廠商既有訂位轉過來的
-  if (!isVendor && !isAdmin && !isNoVendorCategory) {
+  if (!isVendor && !isAdmin && !csCreatableCategory) {
     return NextResponse.json({ error: '客服只能建立臨時單或預定單' }, { status: 403 })
   }
 
@@ -56,12 +56,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '現貨單要填訂位姓名與電話' }, { status: 400 })
   }
 
-  // 有廠商角色的人只能建立自己的單據；臨時單/預定單不用綁廠商；其他情況（管理員建現貨單）要指定歸屬廠商
+  // 有廠商角色的人只能建立自己的單據；預定單不綁廠商；臨時單可以填廠商歸屬但不強制
+  // （建立當下可能還不知道要給哪個廠商）；其他情況（現貨單）一定要指定歸屬廠商
   let vendorId: string | null
   if (isVendor) {
     vendorId = session.user.id
-  } else if (isNoVendorCategory) {
+  } else if (body.category === '預定單') {
     vendorId = null
+  } else if (body.category === '臨時單') {
+    vendorId = body.vendorId || null
   } else {
     vendorId = body.vendorId || null
     if (!vendorId) return NextResponse.json({ error: '缺少廠商歸屬' }, { status: 400 })

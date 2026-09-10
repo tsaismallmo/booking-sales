@@ -87,7 +87,9 @@ function NewBookingForm() {
         <div className="erp-card-header"><span className="erp-card-title">基本資訊</span></div>
         <div className="erp-card-body">
           <div className="erp-form-grid">
-            <VendorSelect value={vendorId} onChange={setVendorId} />
+            {form.category !== "預定單" && (
+              <VendorSelect value={vendorId} onChange={setVendorId} required={form.category === "現貨單"} />
+            )}
             <div className="erp-form-group">
               <label className="erp-label">分店</label>
               <input className="erp-input" value={form.branch} onChange={set("branch")} />
