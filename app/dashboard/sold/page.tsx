@@ -79,8 +79,9 @@ export default function SoldDashboardPage() {
       .then((r) => r.json())
       .then((me) => {
         const roles: string[] = me.roles ?? [];
-        // 轉需求只給純客服或管理員，廠商不能發（跟單據詳情頁的規則一致）
-        setCanCreateRequest((roles.includes("customer_service") || roles.includes("admin")) && !roles.includes("vendor"));
+        // 已售看板本來就只有客服／管理員身份能進來（廠商本人不會看到這頁），
+        // 所以不用像單據詳情頁那樣再排除廠商角色——就算帳號同時也掛廠商身份也一樣能發
+        setCanCreateRequest(roles.includes("customer_service") || roles.includes("admin"));
       });
     fetch("/api/booking-requests?status=resolved")
       .then((r) => r.json())
