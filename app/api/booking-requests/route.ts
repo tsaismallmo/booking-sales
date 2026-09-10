@@ -46,6 +46,19 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(rows)
   }
 
+  // 廠商（含廠商員工）只看得到自己單據上的需求，用來追蹤進度，不是給他們處理用
+  if (roles.includes('vendor') || roles.includes('vendor_staff')) {
+    const ownerId = roles.includes('vendor') ? session.user.id : session.user.employerVendorId
+    if (!ownerId) return NextResponse.json([])
+    const relevantBookings = await db.select({ id: bookings.id }).from(bookings).where(eq(bookings.vendorId, ownerId))
+    const ids = relevantBookings.map((b) => b.id)
+    if (ids.length === 0) return NextResponse.json([])
+    const rows = statusFilter
+      ? await db.select().from(bookingRequests).where(and(arrayOverlaps(bookingRequests.bookingIds, ids), eq(bookingRequests.status, statusFilter as 'pending' | 'resolved')))
+      : await db.select().from(bookingRequests).where(arrayOverlaps(bookingRequests.bookingIds, ids))
+    return NextResponse.json(rows)
+  }
+
   return NextResponse.json([])
 }
 

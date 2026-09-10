@@ -43,8 +43,8 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
-  // 需求看板給後勤人員／管理員／客服（客服看自己發起的進度，不能處理）
-  if (pathname.startsWith('/requests') && !isLogistics && !isAdmin && !roles.includes('customer_service')) {
+  // 需求看板給後勤人員／管理員／客服（能處理）／廠商本人＋廠商員工（只能看自己單據的進度，不能處理）
+  if (pathname.startsWith('/requests') && !isLogistics && !isAdmin && !roles.includes('customer_service') && !isVendor && !roles.includes('vendor_staff')) {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 

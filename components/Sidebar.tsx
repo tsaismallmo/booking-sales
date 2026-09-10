@@ -35,8 +35,8 @@ export function Sidebar({ roles }: { roles: Role[] }) {
 
       <nav className="erp-sidebar-nav">
 
-        {/* ── 看板 ── 客服 / 管理員 / 後勤 */}
-        {(isCustomerService || isAdmin || isLogistics) && (
+        {/* ── 看板 ── 客服 / 管理員 / 後勤 / 廠商（廠商只看得到需求看板） */}
+        {(isCustomerService || isAdmin || isLogistics || isVendor || isVendorStaff) && (
           <div className="erp-sidebar-section">看板</div>
         )}
         {(isCustomerService || isAdmin) && (
@@ -63,7 +63,7 @@ export function Sidebar({ roles }: { roles: Role[] }) {
             已售看板
           </Link>
         )}
-        {(isLogistics || isAdmin || isCustomerService) && (
+        {(isLogistics || isAdmin || isCustomerService || isVendor || isVendorStaff) && (
           <Link href="/requests" className={cn("erp-sidebar-item", pathname.startsWith("/requests") && "active")}>
             <Wrench size={15} />
             需求看板
