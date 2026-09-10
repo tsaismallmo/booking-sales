@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { eq } from 'drizzle-orm'
+import { eq, and, inArray, arrayOverlaps } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { bookings } from '@/lib/db/schema'
+import { bookings, bookingRequests } from '@/lib/db/schema'
 import { auth } from '@/auth'
 import type { Role } from '@/types/next-auth'
 import { LOGISTICS_CATEGORIES } from '@/lib/roles'
@@ -15,12 +15,24 @@ function seesAll(roles: Role[]) {
   return roles.includes('admin') || roles.includes('customer_service')
 }
 
-async function getOwnedBooking(id: string, userId: string, roles: Role[]) {
+// 這筆單是不是跟「我自己擁有的某一筆單」同一個轉需求（合併需求可能跨廠商），
+// 有的話只給看，不給改/刪——不然合併需求裡另一個廠商完全看不到對方是誰、要怎麼配合
+async function isMergedWithOwnBooking(id: string, userId: string) {
+  const groups = await db.select({ bookingIds: bookingRequests.bookingIds }).from(bookingRequests).where(arrayOverlaps(bookingRequests.bookingIds, [id]))
+  if (groups.length === 0) return false
+  const otherIds = [...new Set(groups.flatMap((g) => g.bookingIds).filter((bid) => bid !== id))]
+  if (otherIds.length === 0) return false
+  const [ownedSibling] = await db.select({ id: bookings.id }).from(bookings).where(and(inArray(bookings.id, otherIds), eq(bookings.vendorId, userId)))
+  return !!ownedSibling
+}
+
+async function getOwnedBooking(id: string, userId: string, roles: Role[], { allowMergedView = false }: { allowMergedView?: boolean } = {}) {
   const [row] = await db.select().from(bookings).where(eq(bookings.id, id))
   if (!row) return null
   if (seesAll(roles)) return row
   if (roles.includes('logistics') && (LOGISTICS_CATEGORIES as readonly string[]).includes(row.category)) return row
   if (row.vendorId === userId) return row
+  if (allowMergedView && roles.includes('vendor') && (await isMergedWithOwnBooking(id, userId))) return row
   return null
 }
 
@@ -29,7 +41,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!session?.user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const row = await getOwnedBooking(id, session.user.id, session.user.roles)
+  const row = await getOwnedBooking(id, session.user.id, session.user.roles, { allowMergedView: true })
   if (!row) return NextResponse.json({ error: 'not found' }, { status: 404 })
   return NextResponse.json(row)
 }

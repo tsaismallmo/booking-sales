@@ -31,6 +31,10 @@ type Booking = {
 
 type Vendor = { id: string; name: string | null; email: string; roles: string[] };
 
+// 合併需求可能跨廠商，看的人不一定對每一筆都有查看權限（例如廠商只能看自己的），
+// 這種情況要跟「單據不存在」分開處理，不能直接把錯誤物件當成單據顯示
+type BookingEntry = { kind: "ok"; booking: Booking } | { kind: "restricted"; id: string };
+
 function Field({ label, current, proposed }: { label: string; current: React.ReactNode; proposed: React.ReactNode }) {
   if (proposed == null || proposed === "") return null;
   return (
@@ -43,12 +47,13 @@ function Field({ label, current, proposed }: { label: string; current: React.Rea
 
 export default function RequestsPage() {
   const [requests, setRequests] = useState<BookingRequest[]>([]);
-  const [bookings, setBookings] = useState<Record<string, Booking>>({});
+  const [bookings, setBookings] = useState<Record<string, BookingEntry>>({});
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [canResolve, setCanResolve] = useState(false);
+  const [canSeeVendorNames, setCanSeeVendorNames] = useState(false);
   const [myUserId, setMyUserId] = useState("");
   const [resolvedByNames, setResolvedByNames] = useState<Record<string, string>>({});
 
@@ -61,12 +66,17 @@ export default function RequestsPage() {
         const roles: string[] = me.roles ?? [];
         setCanResolve(roles.includes("logistics") || roles.includes("admin"));
         setMyUserId(me.id ?? "");
-      });
-    fetch("/api/directory")
-      .then((res) => res.json())
-      .then((data) => {
-        const vs = (Array.isArray(data) ? data : []).filter((u: Vendor) => u.roles.includes("vendor"));
-        setVendors(vs);
+        // 廠商自己看到的單一定都是自己的，不需要查廠商名稱，/api/directory 對廠商身份也會擋掉（403）
+        const seeVendorNames = roles.includes("admin") || roles.includes("customer_service") || roles.includes("logistics");
+        setCanSeeVendorNames(seeVendorNames);
+        if (seeVendorNames) {
+          fetch("/api/directory")
+            .then((res) => res.json())
+            .then((data) => {
+              const vs = (Array.isArray(data) ? data : []).filter((u: Vendor) => u.roles.includes("vendor"));
+              setVendors(vs);
+            });
+        }
       });
   }, []);
 
@@ -79,9 +89,11 @@ export default function RequestsPage() {
         const allIds = Array.from(new Set(rows.flatMap((r) => r.bookingIds)));
         return Promise.all(
           allIds.map((id) =>
-            fetch(`/api/bookings/${id}`)
-              .then((res) => res.json())
-              .then((b) => [id, b] as const)
+            fetch(`/api/bookings/${id}`).then((res): Promise<readonly [string, BookingEntry]> =>
+              res.ok
+                ? res.json().then((b: Booking) => [id, { kind: "ok", booking: b }] as const)
+                : Promise.resolve([id, { kind: "restricted", id }] as const)
+            )
           )
         );
       })
@@ -131,26 +143,33 @@ export default function RequestsPage() {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {requests.map((r) => {
-          const linkedBookings = r.bookingIds.map((id) => bookings[id]).filter((b): b is Booking => !!b);
-          const b0 = linkedBookings[0];
+          const linkedEntries = r.bookingIds.map((id) => bookings[id]).filter((e): e is BookingEntry => !!e);
+          const okBookings = linkedEntries.flatMap((e) => (e.kind === "ok" ? [e.booking] : []));
+          const b0 = okBookings[0];
           return (
             <div key={r.id} className="erp-card">
               <div className="erp-card-header">
                 <span className="erp-card-title">
-                  {b0 ? `${linkedBookings.length > 1 ? `合併 ${linkedBookings.length} 筆・` : ""}${b0.category}` : "載入中..."}
+                  {b0 ? `${linkedEntries.length > 1 ? `合併 ${linkedEntries.length} 筆・` : ""}${b0.category}` : "載入中..."}
                 </span>
               </div>
               <div className="erp-card-body erp-sysinfo">
-                {linkedBookings.map((b) => (
-                  <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                {linkedEntries.map((e) => e.kind === "restricted" ? (
+                  <div key={e.id} style={{ fontSize: 13, color: "var(--gray-400)", marginBottom: 4 }}>
+                    （同一組還有一筆其他廠商的單據，沒有查看權限）
+                  </div>
+                ) : (
+                  <div key={e.booking.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                     <span style={{ fontSize: 13 }}>
-                      <span className="badge badge-navy" style={{ fontSize: 11, marginRight: 4 }}>
-                        {b.vendorId ? (vendorMap.get(b.vendorId) ?? "—") : "—"}
-                      </span>
-                      {b.branch ?? "—"}　{b.bookingDate}　{b.timeSlot ?? "—"}　{b.partySize ?? "—"}人
-                      {(b.customerName || b.customerPhone) && <>　｜　{b.customerName ?? "—"}　{b.customerPhone ?? "—"}</>}
+                      {canSeeVendorNames && (
+                        <span className="badge badge-navy" style={{ fontSize: 11, marginRight: 4 }}>
+                          {e.booking.vendorId ? (vendorMap.get(e.booking.vendorId) ?? "—") : "—"}
+                        </span>
+                      )}
+                      {e.booking.branch ?? "—"}　{e.booking.bookingDate}　{e.booking.timeSlot ?? "—"}　{e.booking.partySize ?? "—"}人
+                      {(e.booking.customerName || e.booking.customerPhone) && <>　｜　{e.booking.customerName ?? "—"}　{e.booking.customerPhone ?? "—"}</>}
                     </span>
-                    <Link href={`/bookings/${b.id}`} className="btn btn-ghost" style={{ fontSize: 12, padding: "2px 8px" }}>查看單據</Link>
+                    <Link href={`/bookings/${e.booking.id}`} className="btn btn-ghost" style={{ fontSize: 12, padding: "2px 8px" }}>查看單據</Link>
                   </div>
                 ))}
 
