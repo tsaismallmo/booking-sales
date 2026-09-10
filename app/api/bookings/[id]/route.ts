@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { eq, and, inArray, arrayOverlaps } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { bookings, bookingRequests } from '@/lib/db/schema'
+import { bookings, bookingRequests, users } from '@/lib/db/schema'
 import { auth } from '@/auth'
 import type { Role } from '@/types/next-auth'
 import { LOGISTICS_CATEGORIES } from '@/lib/roles'
@@ -43,7 +43,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params
   const row = await getOwnedBooking(id, session.user.id, session.user.roles, { allowMergedView: true })
   if (!row) return NextResponse.json({ error: 'not found' }, { status: 404 })
-  return NextResponse.json(row)
+
+  // 附上廠商名稱，不用讓前端另外去查整個帳號名冊（廠商角色查不到、開放的話又會看到其他廠商的名單）
+  let vendorName: string | null = null
+  if (row.vendorId) {
+    const [vendor] = await db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, row.vendorId))
+    vendorName = vendor ? (vendor.name ?? vendor.email) : null
+  }
+
+  return NextResponse.json({ ...row, vendorName })
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
