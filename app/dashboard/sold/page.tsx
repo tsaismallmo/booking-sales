@@ -147,8 +147,23 @@ export default function SoldDashboardPage() {
         (b) => (b.customerName ?? "").toLowerCase().includes(q) || (b.customerPhone ?? "").includes(q) || (b.bookingCode ?? "").includes(q)
       );
     }
-    return [...rows].sort((a, b) => (b.soldDate ?? "").localeCompare(a.soldDate ?? ""));
-  }, [bookings, branchFilter, vendorFilter, search]);
+    // 合併單據（同一組需求）要排在一起，不能各自照售出日期散開；
+    // 用「這組所有單據 id 排序後接起來」當群組 key，同一組的人排序時一定會排到同一個 key，自然就會相鄰
+    const sortGroupOf = (b: Booking) => {
+      const siblings = mergeMap.get(b.id) ?? [];
+      if (siblings.length === 0) return { key: b.id, date: b.soldDate ?? "" };
+      const allIds = [b.id, ...siblings].sort();
+      const dates = allIds.map((id) => bookingsById.get(id)?.soldDate ?? "");
+      return { key: allIds.join(","), date: dates.reduce((max, d) => (d > max ? d : max), "") };
+    };
+    return [...rows].sort((a, b) => {
+      const ga = sortGroupOf(a);
+      const gb = sortGroupOf(b);
+      const dateCmp = gb.date.localeCompare(ga.date);
+      if (dateCmp !== 0) return dateCmp;
+      return ga.key.localeCompare(gb.key);
+    });
+  }, [bookings, branchFilter, vendorFilter, search, mergeMap, bookingsById]);
 
   const totalCollected = useMemo(
     () => filtered.reduce((sum, b) => sum + (b.collectedAmount ? Number(b.collectedAmount) : 0), 0),
