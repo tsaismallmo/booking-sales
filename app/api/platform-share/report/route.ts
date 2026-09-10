@@ -24,16 +24,19 @@ async function getVendorBookings(vendorId: string, from: string, to: string) {
 }
 
 // 平台費率、客服分潤比例都是按「售出月份」設定的，同一份報表裡的單據可能是不同月份賣出的，
-// 所以每一筆都要照自己的售出日期去查那個月的費率，不能套用單一固定值
+// 所以每一筆都要照自己的售出日期去查那個月的費率，不能套用單一固定值。
+// 臨時單不抽平台費，費率固定當 0%（廠商拿全額），不查廠商設定的費率。
 function computeShareByOwnSoldMonth(
-  rows: (ShareBooking & { vendorId: string | null; soldDate: string | null })[],
+  rows: (ShareBooking & { vendorId: string | null; soldDate: string | null; category: string })[],
   vendorRateMap: Map<string, number>,
   csRateMap: Map<string, number>
 ) {
   return rows.map((b) => {
     const month = b.soldDate ? b.soldDate.slice(0, 7) : null
     const vendorKey = b.vendorId && month ? `${b.vendorId}|${month}` : null
-    const platformFeeRate = (vendorKey ? vendorRateMap.get(vendorKey) : undefined) ?? DEFAULT_PLATFORM_RATES.platformFeeRate
+    const platformFeeRate = b.category === '現貨單'
+      ? (vendorKey ? vendorRateMap.get(vendorKey) : undefined) ?? DEFAULT_PLATFORM_RATES.platformFeeRate
+      : 0
     const csShareOfPlatformRate = (month ? csRateMap.get(month) : undefined) ?? DEFAULT_PLATFORM_RATES.csShareOfPlatformRate
     return computeShare(b, { platformFeeRate, csShareOfPlatformRate })
   }).filter((r) => r !== null)

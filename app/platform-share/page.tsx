@@ -178,7 +178,7 @@ export default function PlatformSharePage() {
             <span style={{ fontSize: 13, color: "var(--gray-500)" }}>本月平台費率　{detail.platformFeeRate}%</span>
           </div>
           <p style={{ padding: "0 16px", margin: "8px 0 0", fontSize: 12, color: "var(--gray-400)" }}>
-            臨時單只是列出來讓你知道賣了，平台費／廠商利潤不計入下面的總計
+            臨時單不抽平台費，廠商拿全額，只是列出來讓你知道賣了，不計入下面的總計
           </p>
           <div className="erp-table-wrap">
             <table className="erp-table">
