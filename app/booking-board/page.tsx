@@ -378,14 +378,17 @@ function InlineTab() {
 }
 
 // ── EztableTab ────────────────────────────────────────────────────────────────
+// 固定看「這個月＋接下來 2 個月」，每張卡片直接列出這 3 個月分別可訂哪些分店，
+// 不用再切換月份；下拉選單可以縮小成只看其中一個月。
 
-type EztableAvail = RosterEntry & { bookedBranches: string[]; openBranches: string[] };
+type MonthMeta = { year: number; month: number; label: string }; // month 0-indexed
+type MonthAvail = { label: string; openBranches: string[]; bookedBranches: string[] };
+type EztableAvail = RosterEntry & { totalCount: number; months: MonthAvail[] };
 type EztableExcl = RosterEntry & { bookedBranches: string[] };
 
 function EztableTab() {
-  const now = new Date();
-  const [month, setMonth] = useState(`${now.getFullYear()}-${pad2(now.getMonth() + 1)}`);
   const [branchFilter, setBranchFilter] = useState("");
+  const [monthFilter, setMonthFilter] = useState(""); // "" = 全部（3 個月都顯示），否則是 offset "0"/"1"/"2"
   const [roster, setRoster] = useState<RosterEntry[]>([]);
   const [myBookings, setMyBookings] = useState<MyBooking[]>([]);
   const [excludedRosterIds, setExcludedRosterIds] = useState<Set<string>>(new Set());
@@ -405,10 +408,14 @@ function EztableTab() {
   const includedRoster = useMemo(() => roster.filter((r) => !excludedRosterIds.has(r.id)), [roster, excludedRosterIds]);
   const eztableBookings = useMemo(() => myBookings.filter(isEztableBooking), [myBookings]);
 
-  const [viewYear, viewMonth] = useMemo(() => {
-    const [y, m] = month.split("-").map(Number);
-    return [y, m - 1]; // month 0-indexed
-  }, [month]);
+  // 這個月＋接下來 2 個月，固定 3 個月的視窗
+  const monthMetas = useMemo<MonthMeta[]>(() => {
+    const now = new Date();
+    return [0, 1, 2].map((offset) => {
+      const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+      return { year: d.getFullYear(), month: d.getMonth(), label: `${d.getMonth() + 1}月` };
+    });
+  }, []);
 
   // 從 EZTABLE 訂位資料推算所有已知分店
   const allBranches = useMemo(
@@ -416,60 +423,76 @@ function EztableTab() {
     [eztableBookings]
   );
   const branches = allBranches;
+  const knownBranches = useMemo(() => (branchFilter ? [branchFilter] : allBranches), [branchFilter, allBranches]);
+
+  // 每個月分別算「誰在哪些分店已經訂過」
+  const perPhoneBranchByMonth = useMemo(() => {
+    const result = new Map<string, Map<string, Set<string>>>(); // "year-month" → phone → Set(branch)
+    for (const meta of monthMetas) {
+      const perPhone = new Map<string, Set<string>>();
+      eztableBookings.forEach((b) => {
+        if (!b.customerPhone) return;
+        const d = parseDateOnly(b.bookingDate);
+        if (d.getFullYear() !== meta.year || d.getMonth() !== meta.month) return;
+        if (branchFilter && b.branch !== branchFilter) return;
+        const set = perPhone.get(b.customerPhone) ?? new Set<string>();
+        set.add(b.branch ?? "");
+        perPhone.set(b.customerPhone, set);
+      });
+      result.set(`${meta.year}-${meta.month}`, perPhone);
+    }
+    return result;
+  }, [eztableBookings, monthMetas, branchFilter]);
 
   const { available, excluded } = useMemo<{ available: EztableAvail[]; excluded: EztableExcl[] }>(() => {
-    // 計算每個人當月的 EZTABLE 訂位，按分店分組
-    const perPhoneBranch = new Map<string, Set<string>>(); // phone → Set(branch)
-    eztableBookings.forEach((b) => {
-      if (!b.customerPhone) return;
-      const d = parseDateOnly(b.bookingDate);
-      if (d.getFullYear() !== viewYear || d.getMonth() !== viewMonth) return;
-      if (branchFilter && b.branch !== branchFilter) return;
-      const set = perPhoneBranch.get(b.customerPhone) ?? new Set<string>();
-      set.add(b.branch ?? "");
-      perPhoneBranch.set(b.customerPhone, set);
-    });
-
-    const knownBranches = branchFilter ? [branchFilter] : allBranches;
+    const today = todayStr();
+    const displayedOffsets = monthFilter === "" ? [0, 1, 2] : [Number(monthFilter)];
     const avail: EztableAvail[] = [];
     const excl: EztableExcl[] = [];
 
     includedRoster.forEach((r) => {
-      if (!r.phone) {
-        avail.push({ ...r, bookedBranches: [], openBranches: knownBranches });
+      const phone = r.phone ?? "";
+      const currentKey = `${monthMetas[0].year}-${monthMetas[0].month}`;
+      const currentBookedSet = phone ? (perPhoneBranchByMonth.get(currentKey)?.get(phone) ?? new Set<string>()) : new Set<string>();
+      const currentOpenBranches = knownBranches.filter((br) => !currentBookedSet.has(br));
+
+      // 不可訂位的判斷固定看「這個月」是否已經訂滿所有已知分店，跟舊版邏輯一致
+      if (currentOpenBranches.length === 0 && knownBranches.length > 0) {
+        excl.push({ ...r, bookedBranches: [...currentBookedSet].filter(Boolean).sort() });
         return;
       }
-      const bookedSet = perPhoneBranch.get(r.phone) ?? new Set<string>();
-      const bookedBranches = [...bookedSet].filter(Boolean).sort();
-      if (branchFilter) {
-        if (bookedSet.has(branchFilter)) excl.push({ ...r, bookedBranches });
-        else avail.push({ ...r, bookedBranches: [], openBranches: [branchFilter] });
-      } else {
-        const openBranches = knownBranches.filter((br) => !bookedSet.has(br));
-        if (openBranches.length === 0 && knownBranches.length > 0) {
-          excl.push({ ...r, bookedBranches });
-        } else {
-          avail.push({ ...r, bookedBranches, openBranches });
-        }
-      }
+
+      const totalCount = phone
+        ? eztableBookings.filter((b) => b.customerPhone === phone && b.bookingDate >= today).length
+        : 0;
+
+      const months: MonthAvail[] = displayedOffsets.map((offset) => {
+        const meta = monthMetas[offset];
+        const bookedSet = phone ? (perPhoneBranchByMonth.get(`${meta.year}-${meta.month}`)?.get(phone) ?? new Set<string>()) : new Set<string>();
+        return {
+          label: meta.label,
+          openBranches: knownBranches.filter((br) => !bookedSet.has(br)),
+          bookedBranches: [...bookedSet].filter(Boolean).sort(),
+        };
+      });
+
+      avail.push({ ...r, totalCount, months });
     });
 
     return { available: avail, excluded: excl };
-  }, [includedRoster, eztableBookings, viewYear, viewMonth, branchFilter, allBranches]);
-
-  const monthLabel = useMemo(() => {
-    const [y, m] = month.split("-").map(Number);
-    return `${y} 年 ${m} 月`;
-  }, [month]);
+  }, [includedRoster, eztableBookings, perPhoneBranchByMonth, knownBranches, monthMetas, monthFilter]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div className="erp-card">
         <div className="erp-card-body" style={{ padding: "12px 16px", display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <input type="month" className="erp-input" style={{ maxWidth: 160 }} value={month} onChange={(e) => setMonth(e.target.value)} />
           <select className="erp-select" style={{ maxWidth: 130 }} value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)}>
             <option value="">全部分店</option>
             {branches.map((b) => <option key={b} value={b}>{b}</option>)}
+          </select>
+          <select className="erp-select" style={{ maxWidth: 130 }} value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)}>
+            <option value="">全部</option>
+            {monthMetas.map((m, i) => <option key={i} value={String(i)}>{m.label}</option>)}
           </select>
         </div>
       </div>
@@ -491,7 +514,7 @@ function EztableTab() {
       <div className="erp-card">
         <div className="erp-card-body" style={{ padding: 16 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: "var(--gray-500)", marginBottom: 8 }}>
-            {monthLabel}　可訂位（{available.length} 位）
+            可訂位（{available.length} 位）
           </div>
           {available.length === 0
             ? <div style={{ fontSize: 13, color: "var(--gray-400)", marginBottom: 16 }}>名單中所有客人本月都已訂過</div>
@@ -501,16 +524,18 @@ function EztableTab() {
                   <div key={p.id} className="erp-person-card avail">
                     <div style={{ fontSize: 13, fontWeight: 600, color: "var(--gray-800)" }}>{p.name || "（無姓名）"}</div>
                     <div style={{ fontSize: 12, color: "var(--gray-500)" }}>{p.phone ?? "—"}</div>
-                    {p.openBranches.length > 0 && p.openBranches.length < allBranches.length && (
-                      <div style={{ fontSize: 11, color: "var(--color-success)", marginTop: 3 }}>
-                        可訂：{p.openBranches.join("、")}
+                    {p.months.map((m) => (
+                      <div key={m.label} style={{ fontSize: 11, color: "var(--gray-600)", marginTop: 2 }}>
+                        {m.label}可訂：{
+                          knownBranches.length === 0 || m.openBranches.length === knownBranches.length
+                            ? "全部"
+                            : m.openBranches.length === 0
+                              ? "已滿"
+                              : m.openBranches.join("、")
+                        }
                       </div>
-                    )}
-                    {p.bookedBranches.length > 0 && (
-                      <div style={{ fontSize: 11, color: "var(--gray-400)", marginTop: 2 }}>
-                        已訂：{p.bookedBranches.join("、")}
-                      </div>
-                    )}
+                    ))}
+                    <div style={{ fontSize: 11, color: "var(--accent-500)", marginTop: 3 }}>共 {p.totalCount} 筆</div>
                   </div>
                 ))}
               </div>
@@ -525,7 +550,7 @@ function EztableTab() {
                   <div style={{ color: "var(--gray-400)" }}>{p.phone ?? "—"}</div>
                 </div>
                 <div style={{ color: "var(--color-danger)", textAlign: "right" }}>
-                  本月已訂：{p.bookedBranches.join("、") || "—"}
+                  {monthMetas[0].label}已訂：{p.bookedBranches.join("、") || "—"}
                 </div>
               </div>
             ))}
