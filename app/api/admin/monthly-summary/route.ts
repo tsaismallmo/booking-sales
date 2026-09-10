@@ -66,8 +66,6 @@ export async function GET(req: NextRequest) {
     let agencyFeeTotal = 0
     let vendorProfitTotal = 0
     let platformFeeTotal = 0
-    let csShareTotal = 0
-    let platformNetTotal = 0
     let bookingCount = 0
 
     for (const b of rows) {
@@ -80,9 +78,13 @@ export async function GET(req: NextRequest) {
       agencyFeeTotal += r.actualFee
       vendorProfitTotal += r.vendorProfit
       platformFeeTotal += r.platformFee
-      csShareTotal += r.csShare
-      platformNetTotal += r.platformNet
     }
+
+    // 客服分潤是「這個月全部平台費總和 × 客服分潤比例」再取整數一次（跟 /api/cs-share/report
+    // 的獎金池算法一致），不能把每一筆單據自己先取整數的 csShare 加總——那樣會因為每筆各自
+    // 四捨五入，總和跟獎金池對不起來（例如客服分潤頁顯示 45，這裡卻變成 46）
+    const csShareTotal = Math.round(platformFeeTotal * csShareOfPlatformRate / 100)
+    const platformNetTotal = platformFeeTotal - csShareTotal
 
     const collectedAmountTotal = rows.reduce((s, b) => s + (b.collectedAmount ? Number(b.collectedAmount) : 0), 0)
     const depositAmountTotal = rows.reduce((s, b) => s + (b.depositAmount ? Number(b.depositAmount) : 0), 0)
