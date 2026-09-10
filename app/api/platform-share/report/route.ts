@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { and, eq, gte, lte } from 'drizzle-orm'
+import { and, eq, gte, inArray, lte } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { bookings, users } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
@@ -7,14 +7,16 @@ import { computeShare, DEFAULT_PLATFORM_RATES, type ShareBooking } from '@/lib/p
 import { getCsShareRatesForMonths, getVendorPlatformFeeRatesForMonths } from '@/lib/platform-settings'
 
 // 依「售出日期」篩選期間，不是訂位日期——月份報表要看的是這個月實際賣了什麼，
-// 不是這個月有哪些訂位要用餐（訂位日期可能是任何月份）
+// 不是這個月有哪些訂位要用餐（訂位日期可能是任何月份）。
+// 臨時單現在也可能有廠商歸屬、也可能賣出，所以也一起撈出來列在畫面上，
+// 但不算進分潤金額——分潤的抽成安排本來就只針對現貨單，臨時單只是給廠商知道賣了。
 async function getVendorBookings(vendorId: string, from: string, to: string) {
   return db
     .select()
     .from(bookings)
     .where(and(
       eq(bookings.vendorId, vendorId),
-      eq(bookings.category, '現貨單'),
+      inArray(bookings.category, ['現貨單', '臨時單']),
       eq(bookings.status, 'sold'),
       gte(bookings.soldDate, from),
       lte(bookings.soldDate, to)
@@ -61,17 +63,17 @@ export async function GET(req: NextRequest) {
       getCsShareRatesForMonths(months),
     ])
     const results = computeShareByOwnSoldMonth(rows, vendorRateMap, csRateMap)
+    // 分潤金額只算現貨單；臨時單就算算出了 platformFee/vendorProfit 也不能加進總計，只是拿來顯示
+    const categoryById = new Map(rows.map((b) => [b.id, b.category]))
     const totals = results.reduce(
-      (acc, r) => ({
-        platformFee: acc.platformFee + r.platformFee,
-        vendorProfit: acc.vendorProfit + r.vendorProfit,
-        count: acc.count + 1,
-      }),
+      (acc, r) => (categoryById.get(r.id) === '現貨單'
+        ? { platformFee: acc.platformFee + r.platformFee, vendorProfit: acc.vendorProfit + r.vendorProfit, count: acc.count + 1 }
+        : acc),
       { platformFee: 0, vendorProfit: 0, count: 0 }
     )
     const detail = rows.map((b) => {
       const r = results.find((x) => x.id === b.id)
-      return r ? { ...r, branch: b.branch, customerName: b.customerName, bookingCode: b.bookingCode } : null
+      return r ? { ...r, category: b.category, branch: b.branch, customerName: b.customerName, bookingCode: b.bookingCode } : null
     }).filter((r) => r !== null)
     // 查詢區間通常就是頁面選的那個月，直接把那個月的費率一起回傳，前端不用再一筆一筆列
     const platformFeeRate = vendorRateMap.get(`${vendorId}|${queryMonth}`) ?? DEFAULT_PLATFORM_RATES.platformFeeRate
@@ -92,14 +94,19 @@ export async function GET(req: NextRequest) {
     ])
     const results = computeShareByOwnSoldMonth(rows, vendorRateMap, csRateMap)
     if (results.length === 0) continue
-    const totals = results.reduce(
+    // 管理員的全廠商彙總只看金額，這裡沒有像單一廠商那樣的明細列表可以順便顯示臨時單，
+    // 所以彙總維持只算現貨單，跟明細頁的「不算進總計」邏輯一致
+    const categoryById = new Map(rows.map((b) => [b.id, b.category]))
+    const feeResults = results.filter((r) => categoryById.get(r.id) === '現貨單')
+    if (feeResults.length === 0) continue
+    const totals = feeResults.reduce(
       (acc, r) => ({ platformFee: acc.platformFee + r.platformFee, vendorProfit: acc.vendorProfit + r.vendorProfit }),
       { platformFee: 0, vendorProfit: 0 }
     )
     vendorSummaries.push({
       vendorId: v.id,
       vendorName: v.name || v.email,
-      bookingCount: results.length,
+      bookingCount: feeResults.length,
       platformFee: totals.platformFee,
       vendorProfit: totals.vendorProfit,
     })
