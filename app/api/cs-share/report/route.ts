@@ -1,19 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { and, eq, gte, lte } from 'drizzle-orm'
+import { and, eq, gte, inArray, lte } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { bookings, users } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
 import { computeShare, DEFAULT_PLATFORM_RATES, type ShareBooking } from '@/lib/platform-share'
 import { getCsShareRatesForMonths, getVendorPlatformFeeRatesForMonths } from '@/lib/platform-settings'
 
-// 依「售出日期」篩選期間，不是訂位日期，原因同 platform-share
+// 依「售出日期」篩選期間，不是訂位日期，原因同 platform-share。
+// 臨時單也算客服的銷售筆數（這是在算業績量，不是分潤金額），但因為臨時單不抽平台費，
+// 分潤金額（csShare）算出來會是 0，見下面 computeShareByOwnVendorMonth。
 async function getSalespersonBookings(salespersonId: string, from: string, to: string) {
   return db
     .select()
     .from(bookings)
     .where(and(
       eq(bookings.salespersonId, salespersonId),
-      eq(bookings.category, '現貨單'),
+      inArray(bookings.category, ['現貨單', '臨時單']),
       eq(bookings.status, 'sold'),
       gte(bookings.soldDate, from),
       lte(bookings.soldDate, to)
@@ -21,16 +23,19 @@ async function getSalespersonBookings(salespersonId: string, from: string, to: s
 }
 
 // 一個客服賣的單可能來自不同廠商、不同售出月份，平台費率、客服分潤比例都是按售出月份設定的，
-// 所以要照每一筆單據自己的廠商跟售出日期去查那個月的費率，不能用單一固定值
+// 所以要照每一筆單據自己的廠商跟售出日期去查那個月的費率，不能用單一固定值。
+// 臨時單不抽平台費，費率固定當 0%，分潤金額自然算出 0，但筆數還是會被算進去。
 function computeShareByOwnVendorMonth(
-  rows: (ShareBooking & { vendorId: string | null; soldDate: string | null })[],
+  rows: (ShareBooking & { vendorId: string | null; soldDate: string | null; category: string })[],
   vendorRateMap: Map<string, number>,
   csRateMap: Map<string, number>
 ) {
   return rows.map((b) => {
     const month = b.soldDate ? b.soldDate.slice(0, 7) : null
     const vendorKey = b.vendorId && month ? `${b.vendorId}|${month}` : null
-    const platformFeeRate = (vendorKey ? vendorRateMap.get(vendorKey) : undefined) ?? DEFAULT_PLATFORM_RATES.platformFeeRate
+    const platformFeeRate = b.category === '現貨單'
+      ? (vendorKey ? vendorRateMap.get(vendorKey) : undefined) ?? DEFAULT_PLATFORM_RATES.platformFeeRate
+      : 0
     const csShareOfPlatformRate = (month ? csRateMap.get(month) : undefined) ?? DEFAULT_PLATFORM_RATES.csShareOfPlatformRate
     return computeShare(b, { platformFeeRate, csShareOfPlatformRate })
   }).filter((r) => r !== null)
@@ -71,7 +76,7 @@ export async function GET(req: NextRequest) {
     )
     const detail = rows.map((b) => {
       const r = results.find((x) => x.id === b.id)
-      return r ? { ...r, branch: b.branch, customerName: b.customerName, bookingCode: b.bookingCode } : null
+      return r ? { ...r, category: b.category, branch: b.branch, customerName: b.customerName, bookingCode: b.bookingCode } : null
     }).filter((r) => r !== null)
 
     return NextResponse.json({ mode: 'detail', salespersonId, bookings: detail, totals })

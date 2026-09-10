@@ -8,6 +8,7 @@ type Staff = { id: string; name: string | null; email: string; roles: string[] }
 
 type ShareBooking = {
   id: string;
+  category: string;
   bookingDate: string;
   partySize: number;
   actualFee: number;
@@ -178,7 +179,10 @@ export default function CsSharePage() {
               <tbody>
                 {detail.bookings.map((b) => (
                   <tr key={b.id}>
-                    <td>{b.bookingDate}</td>
+                    <td>
+                      {b.category !== "現貨單" && <span className="badge badge-gray" style={{ fontSize: 11, marginRight: 4 }}>{b.category}</span>}
+                      {b.bookingDate}
+                    </td>
                     <td>週{WEEKDAYS[parseDateOnly(b.bookingDate).getDay()]}</td>
                     <td>{b.branch ?? "—"}</td>
                     <td className="font-mono">{b.bookingCode ?? "—"}</td>
@@ -189,7 +193,7 @@ export default function CsSharePage() {
                   </tr>
                 ))}
                 {detail.bookings.length === 0 && (
-                  <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--gray-400)" }}>這個月沒有掛在你名下已售出的現貨單</td></tr>
+                  <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--gray-400)" }}>這個月沒有掛在你名下已售出的單據</td></tr>
                 )}
               </tbody>
               {detail.bookings.length > 0 && (
