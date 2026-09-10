@@ -85,6 +85,7 @@ export const bookingRequests = pgTable('booking_requests', {
   proposedBookingDate: date('proposed_booking_date'),
   proposedTimeSlot: text('proposed_time_slot'),
   proposedPartySize: integer('proposed_party_size'),
+  previousPartySize: integer('previous_party_size'), // 送出需求當下、改人數前的原始人數（proposedPartySize 有填才會存），用來在看板顯示「原X→現Y」
 
   createdById: uuid('created_by_id').references(() => users.id),
   resolvedById: uuid('resolved_by_id').references(() => users.id),

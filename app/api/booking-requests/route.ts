@@ -60,6 +60,14 @@ export async function POST(req: NextRequest) {
   const bookingIds: string[] = Array.isArray(body.bookingIds) ? body.bookingIds : body.bookingId ? [body.bookingId] : []
   if (bookingIds.length === 0) return NextResponse.json({ error: '缺少 bookingIds' }, { status: 400 })
 
+  const proposedPartySize = body.proposedPartySize ? Number(body.proposedPartySize) : null
+  // 要改人數的話，順便記下送出當下（改之前）的原始人數，之後才能在看板顯示「原X→現Y」
+  let previousPartySize: number | null = null
+  if (proposedPartySize !== null) {
+    const [firstBooking] = await db.select({ partySize: bookings.partySize }).from(bookings).where(eq(bookings.id, bookingIds[0]))
+    previousPartySize = firstBooking?.partySize ?? null
+  }
+
   const [row] = await db
     .insert(bookingRequests)
     .values({
@@ -68,7 +76,8 @@ export async function POST(req: NextRequest) {
       proposedBranch: body.proposedBranch || null,
       proposedBookingDate: body.proposedBookingDate || null,
       proposedTimeSlot: body.proposedTimeSlot || null,
-      proposedPartySize: body.proposedPartySize ? Number(body.proposedPartySize) : null,
+      proposedPartySize,
+      previousPartySize,
       createdById: session.user.id,
     })
     .returning()

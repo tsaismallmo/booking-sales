@@ -24,7 +24,13 @@ type Booking = {
 
 type Vendor = { id: string; name: string | null };
 
-type BookingRequestRow = { id: string; bookingIds: string[]; status: "pending" | "resolved" };
+type BookingRequestRow = {
+  id: string;
+  bookingIds: string[];
+  status: "pending" | "resolved";
+  proposedPartySize: number | null;
+  previousPartySize: number | null;
+};
 
 export default function SoldDashboardPage() {
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
@@ -37,6 +43,7 @@ export default function SoldDashboardPage() {
   const [canCreateRequest, setCanCreateRequest] = useState(false);
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [mergeMap, setMergeMap] = useState<Map<string, string[]>>(new Map());
+  const [partySizeChangeMap, setPartySizeChangeMap] = useState<Map<string, { from: number; to: number }>>(new Map());
   const [requestBooking, setRequestBooking] = useState<Booking | null>(null);
   const [requestForm, setRequestForm] = useState({ note: "", proposedPartySize: "" });
   const [submittingRequest, setSubmittingRequest] = useState(false);
@@ -75,20 +82,33 @@ export default function SoldDashboardPage() {
         // 轉需求只給純客服或管理員，廠商不能發（跟單據詳情頁的規則一致）
         setCanCreateRequest((roles.includes("customer_service") || roles.includes("admin")) && !roles.includes("vendor"));
       });
-    // 已處理完成、而且一次合併了不只一筆單據的需求，代表那幾筆單據是同一組（例如同一個客人拆成好幾筆）
     fetch("/api/booking-requests?status=resolved")
       .then((r) => r.json())
       .then((data: BookingRequestRow[]) => {
-        const groups = (Array.isArray(data) ? data : []).filter((req) => req.bookingIds.length > 1);
-        const map = new Map<string, string[]>();
+        const resolved = Array.isArray(data) ? data : [];
+
+        // 一次合併了不只一筆單據的需求，代表那幾筆單據是同一組（例如同一個客人拆成好幾筆）
+        const groups = resolved.filter((req) => req.bookingIds.length > 1);
+        const merge = new Map<string, string[]>();
         for (const g of groups) {
           for (const id of g.bookingIds) {
             const siblings = g.bookingIds.filter((otherId) => otherId !== id);
-            const existing = map.get(id) ?? [];
-            map.set(id, [...new Set([...existing, ...siblings])]);
+            const existing = merge.get(id) ?? [];
+            merge.set(id, [...new Set([...existing, ...siblings])]);
           }
         }
-        setMergeMap(map);
+        setMergeMap(merge);
+
+        // 有改人數、而且改前改後真的不一樣的需求，記下第一筆單據的「原X→現Y」
+        const partySize = new Map<string, { from: number; to: number }>();
+        for (const req of resolved) {
+          if (req.proposedPartySize === null || req.previousPartySize === null) continue;
+          if (req.proposedPartySize === req.previousPartySize) continue;
+          const bookingId = req.bookingIds[0];
+          if (!bookingId) continue;
+          partySize.set(bookingId, { from: req.previousPartySize, to: req.proposedPartySize });
+        }
+        setPartySizeChangeMap(partySize);
       });
     loadPendingRequests();
   }, []);
@@ -196,7 +216,14 @@ export default function SoldDashboardPage() {
                   <td>{b.branch ?? "—"}</td>
                   <td>{b.bookingDate}</td>
                   <td>{b.timeSlot ?? "—"}</td>
-                  <td>{b.partySize ?? "—"}</td>
+                  <td>
+                    {b.partySize ?? "—"}
+                    {partySizeChangeMap.has(b.id) && (
+                      <div style={{ fontSize: 11, color: "var(--color-warning)" }}>
+                        原{partySizeChangeMap.get(b.id)!.from}→現{partySizeChangeMap.get(b.id)!.to}
+                      </div>
+                    )}
+                  </td>
                   <td className="font-mono">{b.bookingCode ?? "—"}</td>
                   <td>
                     {(mergeMap.get(b.id) ?? []).length === 0 ? "—" : (
