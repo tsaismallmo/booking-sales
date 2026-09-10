@@ -24,6 +24,8 @@ type Booking = {
 
 type Vendor = { id: string; name: string | null };
 
+type BookingRequestRow = { id: string; bookingIds: string[]; status: "pending" | "resolved" };
+
 export default function SoldDashboardPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -31,6 +33,20 @@ export default function SoldDashboardPage() {
   const [branchFilter, setBranchFilter] = useState("");
   const [vendorFilter, setVendorFilter] = useState("all");
   const [search, setSearch] = useState("");
+
+  const [canCreateRequest, setCanCreateRequest] = useState(false);
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+  const [requestBooking, setRequestBooking] = useState<Booking | null>(null);
+  const [requestForm, setRequestForm] = useState({ note: "", proposedPartySize: "" });
+  const [submittingRequest, setSubmittingRequest] = useState(false);
+
+  const loadPendingRequests = () => {
+    fetch("/api/booking-requests?status=pending")
+      .then((r) => r.json())
+      .then((data: BookingRequestRow[]) => {
+        setPendingIds(new Set((Array.isArray(data) ? data : []).flatMap((req) => req.bookingIds)));
+      });
+  };
 
   useEffect(() => {
     fetch("/api/admin/bookings")
@@ -48,7 +64,31 @@ export default function SoldDashboardPage() {
         const vs = (Array.isArray(data) ? data : []).filter((u: { roles: string[] }) => u.roles.includes("vendor"));
         setVendors(vs);
       });
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((me) => {
+        const roles: string[] = me.roles ?? [];
+        // 轉需求只給純客服或管理員，廠商不能發（跟單據詳情頁的規則一致）
+        setCanCreateRequest((roles.includes("customer_service") || roles.includes("admin")) && !roles.includes("vendor"));
+      });
+    loadPendingRequests();
   }, []);
+
+  const handleSubmitRequest = async () => {
+    if (!requestBooking) return;
+    setSubmittingRequest(true);
+    const res = await fetch("/api/booking-requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bookingIds: [requestBooking.id], ...requestForm }),
+    });
+    setSubmittingRequest(false);
+    if (res.ok) {
+      setRequestBooking(null);
+      setRequestForm({ note: "", proposedPartySize: "" });
+      loadPendingRequests();
+    }
+  };
 
   const vendorMap = useMemo(() => new Map(vendors.map((v) => [v.id, v.name ?? v.id])), [vendors]);
 
@@ -145,7 +185,22 @@ export default function SoldDashboardPage() {
                   <td>{b.account ?? "—"}</td>
                   <td>{formatCurrency(b.agencyFee)}</td>
                   <td>
-                    <Link href={`/bookings/${b.id}?from=sold`} className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: 13 }}>查看</Link>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <Link href={`/bookings/${b.id}?from=sold`} className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: 13 }}>查看</Link>
+                      {canCreateRequest && (
+                        pendingIds.has(b.id) ? (
+                          <span className="badge badge-warning" style={{ fontSize: 11 }}>需求處理中</span>
+                        ) : (
+                          <button
+                            className="btn btn-secondary"
+                            style={{ padding: "4px 10px", fontSize: 13 }}
+                            onClick={() => { setRequestBooking(b); setRequestForm({ note: "", proposedPartySize: "" }); }}
+                          >
+                            轉需求
+                          </button>
+                        )
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -156,6 +211,37 @@ export default function SoldDashboardPage() {
           </table>
         </div>
       </div>
+
+      {requestBooking && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }}
+          onClick={(e) => { if (e.target === e.currentTarget) setRequestBooking(null); }}>
+          <div style={{ background: "var(--surface)", borderRadius: 12, padding: "18px 20px", maxWidth: 420, width: "100%", boxShadow: "0 8px 32px rgba(0,0,0,0.2)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, fontSize: 15, fontWeight: 700 }}>
+              <span>轉需求</span>
+              <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--gray-400)" }} onClick={() => setRequestBooking(null)}>✕</button>
+            </div>
+            <div style={{ fontSize: 12, color: "var(--gray-500)", marginBottom: 14 }}>
+              {requestBooking.bookingCode ?? "—"} · {requestBooking.branch ?? "—"} · {requestBooking.bookingDate} · {requestBooking.customerName ?? "—"}
+            </div>
+            <div className="erp-form-grid">
+              <div className="erp-form-group">
+                <label className="erp-label">改成人數</label>
+                <input type="number" className="erp-input" placeholder="不改就留空" value={requestForm.proposedPartySize} onChange={(e) => setRequestForm({ ...requestForm, proposedPartySize: e.target.value })} />
+              </div>
+              <div className="erp-form-group full">
+                <label className="erp-label">說明</label>
+                <textarea className="erp-textarea" rows={2} placeholder="給後勤人員的說明" value={requestForm.note} onChange={(e) => setRequestForm({ ...requestForm, note: e.target.value })} />
+              </div>
+            </div>
+            <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+              <button onClick={handleSubmitRequest} disabled={submittingRequest} className="btn btn-primary">
+                {submittingRequest ? "送出中..." : "送出需求"}
+              </button>
+              <button onClick={() => setRequestBooking(null)} className="btn btn-secondary">取消</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
