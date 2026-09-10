@@ -1,75 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { and, eq, gte, inArray, lte } from 'drizzle-orm'
+import { and, eq, gte, inArray, isNotNull, lte } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { bookings, users } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
-import { computeShare, DEFAULT_PLATFORM_RATES, type ShareBooking } from '@/lib/platform-share'
-import { getCsShareRatesForMonths, getVendorPlatformFeeRatesForMonths } from '@/lib/platform-settings'
+import { computeShare, DEFAULT_PLATFORM_RATES } from '@/lib/platform-share'
+import { getCsShareRate, getVendorPlatformFeeRatesForMonths } from '@/lib/platform-settings'
 
+// 客服分潤不是一筆一筆單獨算的，是先算出一個獎金池，每個客服再照自己賣出量佔全部客服賣出量的
+// 比例（成交率）去分這個池子：
+//   1. 獎金池 = 這個月「全部廠商」現貨單的平台費總和 × 客服分潤比例（月）
+//   2. 成交率 = 這個客服賣出的單量 ÷ 全部客服賣出的單量（現貨單＋臨時單都算，臨時單本身
+//      沒有平台費可以分，但賣出的量還是算業績）
+//   3. 這個客服分到的錢 = 獎金池 × 成交率
 // 依「售出日期」篩選期間，不是訂位日期，原因同 platform-share。
-// 臨時單也算客服的銷售筆數跟客服分潤金額（客服分潤是客服自己的業績抽成，不是從平台費裡分，
-// 所以就算臨時單不抽平台費，客服還是照客服分潤比例直接抽實收代訂費，見下面 computeShareByOwnVendorMonth）。
-async function getSalespersonBookings(salespersonId: string, from: string, to: string) {
-  return db
-    .select()
-    .from(bookings)
-    .where(and(
-      eq(bookings.salespersonId, salespersonId),
-      inArray(bookings.category, ['現貨單', '臨時單']),
-      eq(bookings.status, 'sold'),
-      gte(bookings.soldDate, from),
-      lte(bookings.soldDate, to)
-    ))
-}
 
-// 一個客服賣的單可能來自不同廠商、不同售出月份，平台費率、客服分潤比例都是按售出月份設定的，
-// 所以要照每一筆單據自己的廠商跟售出日期去查那個月的費率，不能用單一固定值。
-// 現貨單：客服分潤 = 平台費 × 客服分潤比例（從平台的抽成裡再分一部分給客服）。
-// 臨時單：沒有平台費可以分，但客服分潤比例照樣直接乘實收代訂費算給客服，
-// 這筆是平台自己吸收的（不是從廠商那邊抽來的），所以 platformNet 會是負的，符合
-// 「廠商利潤 + 平台淨收 + 客服分潤 = 實收代訂費」這個恆等式。
-function computeShareByOwnVendorMonth(
-  rows: (ShareBooking & { vendorId: string | null; soldDate: string | null; category: string })[],
-  vendorRateMap: Map<string, number>,
-  csRateMap: Map<string, number>
-) {
-  return rows.map((b) => {
-    const month = b.soldDate ? b.soldDate.slice(0, 7) : null
-    const csShareOfPlatformRate = (month ? csRateMap.get(month) : undefined) ?? DEFAULT_PLATFORM_RATES.csShareOfPlatformRate
+// 這個月全部廠商的現貨單平台費總和（不分廠商），拿來當客服分潤獎金池的基礎
+async function computeTotalPlatformFee(from: string, to: string) {
+  const rows = await db.select().from(bookings).where(and(
+    eq(bookings.category, '現貨單'),
+    eq(bookings.status, 'sold'),
+    gte(bookings.soldDate, from),
+    lte(bookings.soldDate, to)
+  ))
+  if (rows.length === 0) return 0
 
-    if (b.category === '現貨單') {
-      const vendorKey = b.vendorId && month ? `${b.vendorId}|${month}` : null
-      const platformFeeRate = (vendorKey ? vendorRateMap.get(vendorKey) : undefined) ?? DEFAULT_PLATFORM_RATES.platformFeeRate
-      return computeShare(b, { platformFeeRate, csShareOfPlatformRate })
-    }
-
-    const n = b.partySize ?? 0
-    const actualFee = b.agencyFee === null ? null : Number(b.agencyFee)
-    if (n <= 0 || actualFee === null || Number.isNaN(actualFee)) return null
-    const csShare = Math.round(actualFee * csShareOfPlatformRate / 100)
-    return {
-      id: b.id,
-      bookingDate: b.bookingDate,
-      partySize: n,
-      actualFee,
-      platformFeeRate: 0,
-      platformFee: 0,
-      vendorProfit: actualFee,
-      csShare,
-      platformNet: -csShare,
-      salespersonId: b.salespersonId ?? null,
-    }
-  }).filter((r) => r !== null)
-}
-
-async function buildRateMaps(rows: { vendorId: string | null; soldDate: string | null }[]) {
   const vendorIds = [...new Set(rows.map((b) => b.vendorId).filter((v): v is string => !!v))]
   const months = [...new Set(rows.map((b) => b.soldDate?.slice(0, 7)).filter((m): m is string => !!m))]
-  const [vendorRateMap, csRateMap] = await Promise.all([
-    getVendorPlatformFeeRatesForMonths(vendorIds, months),
-    getCsShareRatesForMonths(months),
-  ])
-  return { vendorRateMap, csRateMap }
+  const vendorRateMap = await getVendorPlatformFeeRatesForMonths(vendorIds, months)
+
+  let total = 0
+  for (const b of rows) {
+    const month = b.soldDate ? b.soldDate.slice(0, 7) : null
+    const vendorKey = b.vendorId && month ? `${b.vendorId}|${month}` : null
+    const platformFeeRate = (vendorKey ? vendorRateMap.get(vendorKey) : undefined) ?? DEFAULT_PLATFORM_RATES.platformFeeRate
+    const r = computeShare(b, { platformFeeRate, csShareOfPlatformRate: 0 })
+    if (r) total += r.platformFee
+  }
+  return total
+}
+
+// 全部客服（不分是誰）賣出的單，用來當成交率的分母；只算有指定銷售人員的單
+async function getAllSoldBookingsWithSalesperson(from: string, to: string) {
+  return db.select().from(bookings).where(and(
+    inArray(bookings.category, ['現貨單', '臨時單']),
+    eq(bookings.status, 'sold'),
+    isNotNull(bookings.salespersonId),
+    gte(bookings.soldDate, from),
+    lte(bookings.soldDate, to)
+  ))
 }
 
 export async function GET(req: NextRequest) {
@@ -87,38 +65,52 @@ export async function GET(req: NextRequest) {
   const queryStaffId = req.nextUrl.searchParams.get('salespersonId')
   const salespersonId = queryStaffId || (isCS && !isAdmin ? session.user.id : null)
 
-  if (salespersonId) {
-    const rows = await getSalespersonBookings(salespersonId, from, to)
-    const { vendorRateMap, csRateMap } = await buildRateMaps(rows)
-    const results = computeShareByOwnVendorMonth(rows, vendorRateMap, csRateMap)
-    const totals = results.reduce(
-      (acc, r) => ({ csShare: acc.csShare + r.csShare, count: acc.count + 1 }),
-      { csShare: 0, count: 0 }
-    )
-    const detail = rows.map((b) => {
-      const r = results.find((x) => x.id === b.id)
-      return r ? { ...r, category: b.category, branch: b.branch, customerName: b.customerName, bookingCode: b.bookingCode } : null
-    }).filter((r) => r !== null)
+  // 獎金池、全部客服的成交量，這兩個是公司共用的，跟查哪個客服無關；月份用查詢區間的起始月
+  const [totalPlatformFee, csShareOfPlatformRate, allSoldRows] = await Promise.all([
+    computeTotalPlatformFee(from, to),
+    getCsShareRate(from.slice(0, 7)),
+    getAllSoldBookingsWithSalesperson(from, to),
+  ])
+  const pool = Math.round(totalPlatformFee * csShareOfPlatformRate / 100)
+  const totalSoldCount = allSoldRows.length
 
-    return NextResponse.json({ mode: 'detail', salespersonId, bookings: detail, totals })
+  if (salespersonId) {
+    const myRows = allSoldRows.filter((b) => b.salespersonId === salespersonId)
+    const csShare = totalSoldCount > 0 ? Math.round(pool * myRows.length / totalSoldCount) : 0
+    const bookings_ = myRows
+      .map((b) => ({
+        id: b.id,
+        category: b.category,
+        bookingDate: b.bookingDate,
+        partySize: b.partySize,
+        branch: b.branch,
+        customerName: b.customerName,
+        bookingCode: b.bookingCode,
+      }))
+      .sort((a, b) => b.bookingDate.localeCompare(a.bookingDate))
+
+    return NextResponse.json({
+      mode: 'detail',
+      salespersonId,
+      bookings: bookings_,
+      totals: { count: myRows.length, csShare },
+    })
   }
 
   // 管理員沒指定客服：回傳全部客服的彙總
   const csStaff = (await db.select().from(users)).filter((u) => u.roles.includes('customer_service'))
-  const staffSummaries = []
-  for (const s of csStaff) {
-    const rows = await getSalespersonBookings(s.id, from, to)
-    if (rows.length === 0) continue
-    const { vendorRateMap, csRateMap } = await buildRateMaps(rows)
-    const results = computeShareByOwnVendorMonth(rows, vendorRateMap, csRateMap)
-    if (results.length === 0) continue
-    const csShare = results.reduce((sum, r) => sum + r.csShare, 0)
-    staffSummaries.push({ salespersonId: s.id, name: s.name || s.email, bookingCount: results.length, csShare })
-  }
-  const grandTotals = staffSummaries.reduce(
-    (acc, s) => ({ csShare: acc.csShare + s.csShare, count: acc.count + s.bookingCount }),
-    { csShare: 0, count: 0 }
-  )
+  const staffSummaries = csStaff
+    .map((s) => {
+      const count = allSoldRows.filter((b) => b.salespersonId === s.id).length
+      if (count === 0) return null
+      const csShare = totalSoldCount > 0 ? Math.round(pool * count / totalSoldCount) : 0
+      return { salespersonId: s.id, name: s.name || s.email, bookingCount: count, csShare }
+    })
+    .filter((s) => s !== null)
 
-  return NextResponse.json({ mode: 'summary', staff: staffSummaries, totals: grandTotals })
+  return NextResponse.json({
+    mode: 'summary',
+    staff: staffSummaries,
+    totals: { count: totalSoldCount, csShare: pool },
+  })
 }
