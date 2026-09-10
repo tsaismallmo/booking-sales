@@ -43,7 +43,7 @@ function computeShareByOwnSoldMonth(
 }
 
 export async function GET(req: NextRequest) {
-  const session = await requireRole('vendor', 'admin')
+  const session = await requireRole('vendor', 'vendor_staff', 'admin')
   if (!session) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
   const from = req.nextUrl.searchParams.get('from')
@@ -51,11 +51,17 @@ export async function GET(req: NextRequest) {
   if (!from || !to) return NextResponse.json({ error: '缺少 from/to' }, { status: 400 })
 
   // 明確指定 vendorId 的話一律照指定的來；沒指定時，純廠商（沒有管理員身份）預設看自己的，
-  // 管理員（就算同時也是廠商）預設看全部彙總——理由同 cs-share/report
+  // 廠商員工（沒有管理員身份）預設看所屬廠商的，管理員（就算同時也是廠商）預設看全部彙總——理由同 cs-share/report
   const isAdmin = session.user.roles.includes('admin')
   const isVendor = session.user.roles.includes('vendor')
+  const isVendorStaff = session.user.roles.includes('vendor_staff')
   const queryVendorId = req.nextUrl.searchParams.get('vendorId')
-  const vendorId = queryVendorId || (isVendor && !isAdmin ? session.user.id : null)
+  const vendorId = queryVendorId
+    || (isVendor && !isAdmin ? session.user.id : null)
+    || (isVendorStaff && !isAdmin ? session.user.employerVendorId : null)
+
+  // 廠商員工如果沒有設定所屬廠商，不能讓他掉到下面「管理員看全部廠商」的分支
+  if (isVendorStaff && !isAdmin && !vendorId) return NextResponse.json({ mode: 'detail', vendorId: null, platformFeeRate: 0, bookings: [], totals: { platformFee: 0, vendorProfit: 0, count: 0 } })
 
   if (vendorId) {
     const rows = await getVendorBookings(vendorId, from, to)
