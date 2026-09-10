@@ -46,16 +46,16 @@ export function Sidebar({ roles }: { roles: Role[] }) {
           </Link>
         )}
         {(isCustomerService || isAdmin || isLogistics) && (
-          <>
-            <Link href="/dashboard/temp" className={cn("erp-sidebar-item", pathname.startsWith("/dashboard/temp") && "active")}>
-              <Clock3 size={15} />
-              臨時單看板
-            </Link>
-            <Link href="/dashboard/reserved" className={cn("erp-sidebar-item", pathname.startsWith("/dashboard/reserved") && "active")}>
-              <CalendarClock size={15} />
-              預定單看板
-            </Link>
-          </>
+          <Link href="/dashboard/temp" className={cn("erp-sidebar-item", pathname.startsWith("/dashboard/temp") && "active")}>
+            <Clock3 size={15} />
+            臨時單看板
+          </Link>
+        )}
+        {(isCustomerService || isAdmin) && (
+          <Link href="/dashboard/reserved" className={cn("erp-sidebar-item", pathname.startsWith("/dashboard/reserved") && "active")}>
+            <CalendarClock size={15} />
+            預定單看板
+          </Link>
         )}
         {(isCustomerService || isAdmin) && (
           <Link href="/dashboard/sold" className={cn("erp-sidebar-item", (pathname.startsWith("/dashboard/sold") || (pathname.startsWith("/bookings") && fromSold)) && "active")}>

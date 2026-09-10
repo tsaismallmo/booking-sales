@@ -48,8 +48,8 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
-  // 預定單看板：給客服／管理員／後勤處理，廠商、廠商員工不用看（他們自己的單據走「單據管理」）
-  if (pathname.startsWith('/dashboard/reserved') && !isLogistics && !isAdmin && !roles.includes('customer_service')) {
+  // 預定單看板：只給客服／管理員處理，廠商、廠商員工、後勤都不用看
+  if (pathname.startsWith('/dashboard/reserved') && !isAdmin && !roles.includes('customer_service')) {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 

@@ -3,6 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { WEEKDAYS, parseDateOnly, dateLabel } from "@/lib/quote";
+import { fetchCached } from "@/lib/offline-cache";
+
+// 斷網時如果有用到上次的快取資料，用這個提示；savedAt 是那份快取資料抓下來的時間
+function OfflineBanner({ savedAt }: { savedAt: number | null }) {
+  if (savedAt === null) return null;
+  return (
+    <div className="erp-alert info">
+      ⚠ 目前離線中，顯示的是上次連線時（{new Date(savedAt).toLocaleString("zh-TW")}）抓到的資料，可能不是最新的
+    </div>
+  );
+}
 
 type Tab = "calendar" | "inline" | "eztable";
 
@@ -145,11 +156,21 @@ function InlineTab() {
   const [roster, setRoster] = useState<RosterEntry[]>([]);
   const [myBookings, setMyBookings] = useState<MyBooking[]>([]);
   const [excludedListIds, setExcludedListIds] = useState<Set<string>>(new Set());
+  const [offlineSavedAt, setOfflineSavedAt] = useState<number | null>(null);
 
   useEffect(() => {
-    fetch("/api/roster/lists").then((r) => r.json()).then((d) => setRosterLists(Array.isArray(d) ? d : []));
-    fetch("/api/roster").then((r) => r.json()).then((d) => setRoster(Array.isArray(d) ? d : []));
-    fetch("/api/booking-board/mine").then((r) => r.json()).then((d) => setMyBookings(Array.isArray(d) ? d : []));
+    const noteIfCached = (r: { fromCache: boolean; savedAt: number | null }) => {
+      if (r.fromCache) setOfflineSavedAt((prev) => (prev === null || (r.savedAt ?? 0) < prev ? r.savedAt : prev));
+    };
+    fetchCached<RosterList[]>("/api/roster/lists", "roster-lists")
+      .then((r) => { setRosterLists(Array.isArray(r.data) ? r.data : []); noteIfCached(r); })
+      .catch(() => {});
+    fetchCached<RosterEntry[]>("/api/roster", "roster")
+      .then((r) => { setRoster(Array.isArray(r.data) ? r.data : []); noteIfCached(r); })
+      .catch(() => {});
+    fetchCached<MyBooking[]>("/api/booking-board/mine", "booking-board-mine")
+      .then((r) => { setMyBookings(Array.isArray(r.data) ? r.data : []); noteIfCached(r); })
+      .catch(() => {});
   }, []);
 
   const toggleListIncluded = (listId: string) =>
@@ -197,6 +218,7 @@ function InlineTab() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <OfflineBanner savedAt={offlineSavedAt} />
       {/* Controls */}
       <div className="erp-card">
         <div className="erp-card-body" style={{ padding: "12px 16px", display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
@@ -294,11 +316,21 @@ function EztableTab() {
   const [roster, setRoster] = useState<RosterEntry[]>([]);
   const [myBookings, setMyBookings] = useState<MyBooking[]>([]);
   const [excludedListIds, setExcludedListIds] = useState<Set<string>>(new Set());
+  const [offlineSavedAt, setOfflineSavedAt] = useState<number | null>(null);
 
   useEffect(() => {
-    fetch("/api/roster/lists").then((r) => r.json()).then((d) => setRosterLists(Array.isArray(d) ? d : []));
-    fetch("/api/roster").then((r) => r.json()).then((d) => setRoster(Array.isArray(d) ? d : []));
-    fetch("/api/booking-board/mine").then((r) => r.json()).then((d) => setMyBookings(Array.isArray(d) ? d : []));
+    const noteIfCached = (r: { fromCache: boolean; savedAt: number | null }) => {
+      if (r.fromCache) setOfflineSavedAt((prev) => (prev === null || (r.savedAt ?? 0) < prev ? r.savedAt : prev));
+    };
+    fetchCached<RosterList[]>("/api/roster/lists", "roster-lists")
+      .then((r) => { setRosterLists(Array.isArray(r.data) ? r.data : []); noteIfCached(r); })
+      .catch(() => {});
+    fetchCached<RosterEntry[]>("/api/roster", "roster")
+      .then((r) => { setRoster(Array.isArray(r.data) ? r.data : []); noteIfCached(r); })
+      .catch(() => {});
+    fetchCached<MyBooking[]>("/api/booking-board/mine", "booking-board-mine")
+      .then((r) => { setMyBookings(Array.isArray(r.data) ? r.data : []); noteIfCached(r); })
+      .catch(() => {});
   }, []);
 
   const toggleListIncluded = (listId: string) =>
@@ -387,6 +419,7 @@ function EztableTab() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <OfflineBanner savedAt={offlineSavedAt} />
       <div className="erp-card">
         <div className="erp-card-body" style={{ padding: "12px 16px", display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           <select className="erp-select" style={{ maxWidth: 130 }} value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)}>
@@ -497,48 +530,56 @@ function CalendarTab() {
 
   const [branchFilter, setBranchFilter] = useState("");
   const [exclDays, setExclDays] = useState(7);
+  const [offlineSavedAt, setOfflineSavedAt] = useState<number | null>(null);
+
+  const noteIfCached = (r: { fromCache: boolean; savedAt: number | null }) => {
+    if (r.fromCache) setOfflineSavedAt((prev) => (prev === null || (r.savedAt ?? 0) < prev ? r.savedAt : prev));
+  };
 
   useEffect(() => {
-    fetch(`/api/booking-board/calendar?year=${viewYear}&month=${viewMonth}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setMonthCounts(data && typeof data === "object" ? data : {});
+    fetchCached<Record<string, DayCounts>>(`/api/booking-board/calendar?year=${viewYear}&month=${viewMonth}`, `booking-board-calendar:${viewYear}-${viewMonth}`)
+      .then((r) => {
+        setMonthCounts(r.data && typeof r.data === "object" ? r.data : {});
         setLoadingMonth(false);
-      });
+        noteIfCached(r);
+      })
+      .catch(() => setLoadingMonth(false));
   }, [viewYear, viewMonth]);
 
   useEffect(() => {
     // 名單預設只勾選跟自己登入帳號同一個 email 建的那份，其他的先不勾，
     // 要靠 /api/me 的 email 跟名單的 ownerEmail 配對，所以要等兩邊都拿到才能算
-    fetch("/api/me")
-      .then((res) => res.json())
-      .then((me) => {
-        const myEmail: string | null = me.email ?? null;
-        fetch("/api/roster/lists")
-          .then((res) => res.json())
-          .then((data) => {
-            const lists: RosterList[] = Array.isArray(data) ? data : [];
+    fetchCached<{ email: string | null }>("/api/me", "me")
+      .then((meR) => {
+        const myEmail = meR.data.email ?? null;
+        noteIfCached(meR);
+        fetchCached<RosterList[]>("/api/roster/lists", "roster-lists")
+          .then((r) => {
+            const lists = Array.isArray(r.data) ? r.data : [];
             setRosterLists(lists);
+            noteIfCached(r);
             const mine = lists.filter((l) => myEmail && l.ownerEmail === myEmail);
             if (mine.length > 0) {
               const mineIds = new Set(mine.map((l) => l.id));
               setExcludedListIds(new Set(lists.filter((l) => !mineIds.has(l.id)).map((l) => l.id)));
             }
-          });
-      });
-    fetch("/api/roster")
-      .then((res) => res.json())
-      .then((data) => setRoster(Array.isArray(data) ? data : []));
-    fetch("/api/booking-board/mine")
-      .then((res) => res.json())
-      .then((data) => setMyBookings(Array.isArray(data) ? data : []));
+          })
+          .catch(() => {});
+      })
+      .catch(() => {});
+    fetchCached<RosterEntry[]>("/api/roster", "roster")
+      .then((r) => { setRoster(Array.isArray(r.data) ? r.data : []); noteIfCached(r); })
+      .catch(() => {});
+    fetchCached<MyBooking[]>("/api/booking-board/mine", "booking-board-mine")
+      .then((r) => { setMyBookings(Array.isArray(r.data) ? r.data : []); noteIfCached(r); })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
     if (!selectedDate) return;
-    fetch(`/api/booking-board/day-demands?date=${selectedDate}`)
-      .then((res) => res.json())
-      .then((data) => setDayDemands(Array.isArray(data) ? data : []));
+    fetchCached<DemandBooking[]>(`/api/booking-board/day-demands?date=${selectedDate}`, `booking-board-day-demands:${selectedDate}`)
+      .then((r) => { setDayDemands(Array.isArray(r.data) ? r.data : []); noteIfCached(r); })
+      .catch(() => {});
   }, [selectedDate]);
 
   // 切換選取日期時，之前展開的名單成員明細也要收起來，不然可能對到別天的資料
@@ -601,7 +642,9 @@ function CalendarTab() {
   const today = todayStr();
 
   return (
-    <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
+    <div>
+      <OfflineBanner savedAt={offlineSavedAt} />
+      <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
       {/* 左：月曆本體（縮小版） */}
       <div className="erp-card" style={{ width: 340, flexShrink: 0 }}>
         <div className="erp-card-body" style={{ padding: 14 }}>
@@ -801,6 +844,7 @@ function CalendarTab() {
             )}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
