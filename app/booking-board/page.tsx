@@ -148,9 +148,10 @@ type InlineExcl = RosterEntry & { futureBookings: MyBooking[] };
 function InlineTab() {
   const [branchFilter, setBranchFilter] = useState("");
   const [limit, setLimit] = useState(2);
+  const [rosterLists, setRosterLists] = useState<RosterList[]>([]);
   const [roster, setRoster] = useState<RosterEntry[]>([]);
   const [myBookings, setMyBookings] = useState<MyBooking[]>([]);
-  const [excludedRosterIds, setExcludedRosterIds] = useState<Set<string>>(new Set());
+  const [excludedListIds, setExcludedListIds] = useState<Set<string>>(new Set());
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [date, setDate] = useState(todayStr());
   const [timeSlot, setTimeSlot] = useState("");
@@ -159,18 +160,19 @@ function InlineTab() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
+    fetch("/api/roster/lists").then((r) => r.json()).then((d) => setRosterLists(Array.isArray(d) ? d : []));
     fetch("/api/roster").then((r) => r.json()).then((d) => setRoster(Array.isArray(d) ? d : []));
     fetch("/api/booking-board/mine").then((r) => r.json()).then((d) => setMyBookings(Array.isArray(d) ? d : []));
   }, []);
 
-  const toggleExcluded = (id: string) =>
-    setExcludedRosterIds((s) => {
+  const toggleListIncluded = (listId: string) =>
+    setExcludedListIds((s) => {
       const n = new Set(s);
-      if (n.has(id)) n.delete(id); else n.add(id);
+      if (n.has(listId)) n.delete(listId); else n.add(listId);
       return n;
     });
 
-  const includedRoster = useMemo(() => roster.filter((r) => !excludedRosterIds.has(r.id)), [roster, excludedRosterIds]);
+  const includedRoster = useMemo(() => roster.filter((r) => !excludedListIds.has(r.listId)), [roster, excludedListIds]);
   const branches = useMemo(
     () => Array.from(new Set(myBookings.map((b) => b.branch).filter((b): b is string => !!b))).sort(),
     [myBookings]
@@ -256,12 +258,12 @@ function InlineTab() {
       {/* Roster toggle */}
       <div className="erp-card">
         <div className="erp-card-body" style={{ padding: "10px 16px" }}>
-          <CollapseSection title={`名單（${includedRoster.length}/${roster.length} 位）`}>
-            {roster.length === 0 && <div style={{ fontSize: 12, color: "var(--gray-400)" }}>廠商名單目前是空的</div>}
-            {roster.map((r) => (
-              <label key={r.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, padding: "3px 0" }}>
-                <input type="checkbox" checked={!excludedRosterIds.has(r.id)} onChange={() => toggleExcluded(r.id)} />
-                {r.name}　{r.phone ?? "—"}
+          <CollapseSection title={`名單（${rosterLists.filter((l) => !excludedListIds.has(l.id)).length}/${rosterLists.length} 個名單）`}>
+            {rosterLists.length === 0 && <div style={{ fontSize: 12, color: "var(--gray-400)" }}>廠商名單目前是空的</div>}
+            {rosterLists.map((l) => (
+              <label key={l.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, padding: "3px 0" }}>
+                <input type="checkbox" checked={!excludedListIds.has(l.id)} onChange={() => toggleListIncluded(l.id)} />
+                {l.name}（{l.entryCount} 位）
               </label>
             ))}
           </CollapseSection>
