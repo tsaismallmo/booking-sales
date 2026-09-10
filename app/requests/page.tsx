@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 type BookingRequest = {
@@ -18,6 +18,7 @@ type BookingRequest = {
 
 type Booking = {
   id: string;
+  vendorId: string | null;
   branch: string | null;
   category: string;
   bookingDate: string;
@@ -27,6 +28,8 @@ type Booking = {
   customerName: string | null;
   customerPhone: string | null;
 };
+
+type Vendor = { id: string; name: string | null; email: string; roles: string[] };
 
 function Field({ label, current, proposed }: { label: string; current: React.ReactNode; proposed: React.ReactNode }) {
   if (proposed == null || proposed === "") return null;
@@ -41,12 +44,15 @@ function Field({ label, current, proposed }: { label: string; current: React.Rea
 export default function RequestsPage() {
   const [requests, setRequests] = useState<BookingRequest[]>([]);
   const [bookings, setBookings] = useState<Record<string, Booking>>({});
+  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [canResolve, setCanResolve] = useState(false);
   const [myUserId, setMyUserId] = useState("");
   const [resolvedByNames, setResolvedByNames] = useState<Record<string, string>>({});
+
+  const vendorMap = useMemo(() => new Map(vendors.map((v) => [v.id, v.name ?? v.email])), [vendors]);
 
   useEffect(() => {
     fetch("/api/me")
@@ -55,6 +61,12 @@ export default function RequestsPage() {
         const roles: string[] = me.roles ?? [];
         setCanResolve(roles.includes("logistics") || roles.includes("admin"));
         setMyUserId(me.id ?? "");
+      });
+    fetch("/api/directory")
+      .then((res) => res.json())
+      .then((data) => {
+        const vs = (Array.isArray(data) ? data : []).filter((u: Vendor) => u.roles.includes("vendor"));
+        setVendors(vs);
       });
   }, []);
 
@@ -132,6 +144,9 @@ export default function RequestsPage() {
                 {linkedBookings.map((b) => (
                   <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                     <span style={{ fontSize: 13 }}>
+                      <span className="badge badge-navy" style={{ fontSize: 11, marginRight: 4 }}>
+                        {b.vendorId ? (vendorMap.get(b.vendorId) ?? "—") : "—"}
+                      </span>
                       {b.branch ?? "—"}　{b.bookingDate}　{b.timeSlot ?? "—"}　{b.partySize ?? "—"}人
                       {(b.customerName || b.customerPhone) && <>　｜　{b.customerName ?? "—"}　{b.customerPhone ?? "—"}</>}
                     </span>
