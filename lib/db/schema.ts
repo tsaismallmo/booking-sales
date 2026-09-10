@@ -1,4 +1,4 @@
-import { pgTable, pgEnum, uuid, text, integer, numeric, date, timestamp, jsonb, unique, type AnyPgColumn } from 'drizzle-orm/pg-core'
+import { pgTable, pgEnum, uuid, text, integer, numeric, date, timestamp, jsonb, unique, boolean, type AnyPgColumn } from 'drizzle-orm/pg-core'
 
 export const roleEnum = pgEnum('role', ['admin', 'vendor', 'customer_service', 'logistics', 'vendor_staff'])
 export const bookingStatusEnum = pgEnum('booking_status', ['unsold', 'reserved', 'sold', 'refunded'])
@@ -44,6 +44,8 @@ export const bookings = pgTable('bookings', {
   customerName: text('customer_name'), // 姓名
   customerPhone: text('customer_phone'), // 電話
   source: text('source'), // 來源
+  isInline: boolean('is_inline').notNull().default(false), // 是否為 Inline 訂位（明確勾選，取代之前用「來源」文字猜的做法）
+  isEztable: boolean('is_eztable').notNull().default(false), // 是否為 EZTABLE 訂位（明確勾選，取代之前用訂位代號長度猜的做法）
 
   // 銷售/收款
   soldDate: date('sold_date'), // 售出日期

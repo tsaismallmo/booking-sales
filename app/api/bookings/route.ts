@@ -80,6 +80,8 @@ export async function POST(req: NextRequest) {
       customerName: body.customerName || null,
       customerPhone: body.customerPhone || null,
       source: body.source || null,
+      isInline: !!body.isInline,
+      isEztable: !!body.isEztable,
       soldDate: body.soldDate || null,
       collectedAmount: body.collectedAmount || null,
       account: body.account || null,

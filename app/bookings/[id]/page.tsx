@@ -211,6 +211,7 @@ export default function BookingDetailPage() {
           <Row label="姓名" value={booking.customerName} />
           <Row label="電話" value={booking.customerPhone} />
           <Row label="來源" value={booking.source} />
+          <Row label="訂位平台" value={[booking.isInline ? "Inline" : null, booking.isEztable ? "EZTABLE" : null].filter(Boolean).join("、") || null} />
         </div>
       </div>
 

@@ -40,6 +40,8 @@ type MyBooking = {
   customerPhone: string | null;
   depositAmount: string | null;
   source: string | null;
+  isInline: boolean;
+  isEztable: boolean;
   note: string | null;
   status: "unsold" | "reserved" | "sold" | "refunded";
 };
@@ -120,13 +122,14 @@ function computeAvailability(
 }
 
 // ── Inline / EZTABLE helpers ─────────────────────────────────────────────────
+// 現在單據上有明確的「訂位平台」勾選欄位，不用再用來源文字／訂位代號長度猜了
 
 function isInlineBooking(b: MyBooking) {
-  return (b.source ?? "").toLowerCase().includes("inline");
+  return b.isInline;
 }
 
 function isEztableBooking(b: MyBooking) {
-  return (b.bookingCode ?? "").trim().length === 8;
+  return b.isEztable;
 }
 
 function splitChineseName(name: string) {

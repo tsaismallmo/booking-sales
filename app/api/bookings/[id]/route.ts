@@ -66,6 +66,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       customerName: pureCustomerService ? existing.customerName : (body.customerName ?? existing.customerName),
       customerPhone: pureCustomerService ? existing.customerPhone : (body.customerPhone ?? existing.customerPhone),
       source: pureCustomerService ? existing.source : (body.source ?? existing.source),
+      isInline: pureCustomerService ? existing.isInline : (body.isInline !== undefined ? !!body.isInline : existing.isInline),
+      isEztable: pureCustomerService ? existing.isEztable : (body.isEztable !== undefined ? !!body.isEztable : existing.isEztable),
       vendorId: roles.includes('admin') ? (body.vendorId !== undefined ? (body.vendorId || null) : existing.vendorId) : existing.vendorId,
       soldDate: blankToNull(body.soldDate ?? existing.soldDate),
       collectedAmount: blankToNull(body.collectedAmount ?? existing.collectedAmount),

@@ -14,6 +14,8 @@ export default function EditBookingPage() {
   const [rolesReady, setRolesReady] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState<Record<string, string>>({});
+  const [isInline, setIsInline] = useState(false);
+  const [isEztable, setIsEztable] = useState(false);
   const [pureCustomerService, setPureCustomerService] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [csStaff, setCsStaff] = useState<{ id: string; name: string | null }[]>([]);
@@ -65,6 +67,8 @@ export default function EditBookingPage() {
           info: data.info ?? "",
           note: data.note ?? "",
         });
+        setIsInline(!!data.isInline);
+        setIsEztable(!!data.isEztable);
         setBookingReady(true);
       });
   }, [params.id]);
@@ -78,7 +82,7 @@ export default function EditBookingPage() {
     const res = await fetch(`/api/bookings/${params.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({ ...form, isInline, isEztable }),
     });
     setLoading(false);
     if (!res.ok) {
@@ -181,6 +185,21 @@ export default function EditBookingPage() {
                 <label className="erp-label">來源</label>
                 <input className="erp-input" value={form.source} onChange={set("source")} />
               </div>
+              {form.category === "現貨單" && (
+                <div className="erp-form-group">
+                  <label className="erp-label">訂位平台</label>
+                  <div style={{ display: "flex", gap: 16, alignItems: "center", height: 38 }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                      <input type="checkbox" checked={isInline} onChange={(e) => setIsInline(e.target.checked)} />
+                      Inline
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                      <input type="checkbox" checked={isEztable} onChange={(e) => setIsEztable(e.target.checked)} />
+                      EZTABLE
+                    </label>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
