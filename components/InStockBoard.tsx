@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
 import {
   WEEKDAYS,
@@ -31,11 +32,17 @@ type Booking = {
 };
 
 export function InStockBoard() {
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [vendorMap, setVendorMap] = useState<Map<string, string>>(new Map());
   const [csStaff, setCsStaff] = useState<{ id: string; name: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingBookingIds, setPendingBookingIds] = useState<Set<string>>(new Set());
+  const [mergeMap, setMergeMap] = useState<Map<string, string[]>>(new Map());
+
+  // 目前可以銷售的只有未售出的現貨單，但合併需求的對象不一定還是未售出，
+  // 所以保留完整的現貨單清單（不分狀態）另外查 sibling，畫面上列出的還是只有未售出的
+  const bookings = useMemo(() => allBookings.filter((b) => b.status === "unsold"), [allBookings]);
+  const bookingsById = useMemo(() => new Map(allBookings.map((b) => [b.id, b])), [allBookings]);
 
   // 篩選條件
   const [branchFilter, setBranchFilter] = useState("");
@@ -77,6 +84,21 @@ export function InStockBoard() {
         setPendingBookingIds(new Set(ids));
       });
 
+    // 已處理完成、而且一次合併了不只一筆單據的需求，代表那幾筆單據是同一組（例如同一個客人拆成好幾筆）
+    fetch("/api/booking-requests?status=resolved")
+      .then((res) => res.json())
+      .then((data) => {
+        const groups = (Array.isArray(data) ? data : []).filter((r: { bookingIds: string[] }) => r.bookingIds.length > 1);
+        const map = new Map<string, string[]>();
+        for (const g of groups as { bookingIds: string[] }[]) {
+          for (const id of g.bookingIds) {
+            const siblings = g.bookingIds.filter((otherId) => otherId !== id);
+            map.set(id, [...new Set([...(map.get(id) ?? []), ...siblings])]);
+          }
+        }
+        setMergeMap(map);
+      });
+
     fetch("/api/directory")
       .then((res) => res.json())
       .then((data) => {
@@ -96,10 +118,8 @@ export function InStockBoard() {
         return fetch(url).then((res) => res.json());
       })
       .then((data) => {
-        const rows: Booking[] = (Array.isArray(data) ? data : []).filter(
-          (b: Booking) => b.status === "unsold" && b.category === "現貨單"
-        );
-        setBookings(rows);
+        const rows: Booking[] = (Array.isArray(data) ? data : []).filter((b: Booking) => b.category === "現貨單");
+        setAllBookings(rows);
         setLoading(false);
       });
   }, []);
@@ -266,7 +286,7 @@ ${QUOTE_CLOSING}${partyNote}`;
       setSaleError(data.error || "儲存失敗");
       return;
     }
-    setBookings((prev) => prev.filter((b) => b.id !== saleTarget.id));
+    setAllBookings((prev) => prev.map((b) => (b.id === saleTarget.id ? { ...b, status: "sold" } : b)));
     setSaleTarget(null);
   };
 
@@ -352,7 +372,22 @@ ${QUOTE_CLOSING}${partyNote}`;
                   <td>{b.customerPhone ?? "—"}</td>
                   <td>{formatCurrency(b.depositAmount)}</td>
                   <td>{b.branch ?? "—"}</td>
-                  <td>{pendingBookingIds.has(b.id) && <span className="badge badge-warning">需求處理中</span>}</td>
+                  <td>
+                    {pendingBookingIds.has(b.id) && <span className="badge badge-warning">需求處理中</span>}
+                    {(mergeMap.get(b.id) ?? []).length > 0 && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: pendingBookingIds.has(b.id) ? 4 : 0 }}>
+                        {(mergeMap.get(b.id) ?? []).map((siblingId) => {
+                          const sibling = bookingsById.get(siblingId);
+                          return (
+                            <Link key={siblingId} href={`/bookings/${siblingId}`} className="font-mono" style={{ fontSize: 12, color: "var(--brand-700)" }}>
+                              🔗 {sibling?.bookingCode ?? siblingId.slice(0, 8)}
+                              {sibling && ` · ${sibling.bookingDate}`}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </td>
                   <td>{b.note ?? "—"}</td>
                   <td><button onClick={() => handleOpenSale(b)} className="btn btn-primary" style={{ padding: "4px 10px", fontSize: 13 }}>銷售</button></td>
                 </tr>
