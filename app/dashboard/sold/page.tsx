@@ -27,7 +27,7 @@ type Vendor = { id: string; name: string | null };
 type BookingRequestRow = { id: string; bookingIds: string[]; status: "pending" | "resolved" };
 
 export default function SoldDashboardPage() {
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
   const [branchFilter, setBranchFilter] = useState("");
@@ -36,9 +36,16 @@ export default function SoldDashboardPage() {
 
   const [canCreateRequest, setCanCreateRequest] = useState(false);
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+  const [mergeMap, setMergeMap] = useState<Map<string, string[]>>(new Map());
   const [requestBooking, setRequestBooking] = useState<Booking | null>(null);
   const [requestForm, setRequestForm] = useState({ note: "", proposedPartySize: "" });
   const [submittingRequest, setSubmittingRequest] = useState(false);
+
+  const bookings = useMemo(
+    () => allBookings.filter((b) => (b as unknown as { status: string }).status === "sold"),
+    [allBookings]
+  );
+  const bookingsById = useMemo(() => new Map(allBookings.map((b) => [b.id, b])), [allBookings]);
 
   const loadPendingRequests = () => {
     fetch("/api/booking-requests?status=pending")
@@ -52,10 +59,7 @@ export default function SoldDashboardPage() {
     fetch("/api/admin/bookings")
       .then((r) => r.json())
       .then((data) => {
-        const rows = (Array.isArray(data) ? data : []).filter(
-          (b: Booking) => (b as unknown as { status: string }).status === "sold"
-        );
-        setBookings(rows);
+        setAllBookings(Array.isArray(data) ? data : []);
         setLoading(false);
       });
     fetch("/api/directory")
@@ -70,6 +74,21 @@ export default function SoldDashboardPage() {
         const roles: string[] = me.roles ?? [];
         // 轉需求只給純客服或管理員，廠商不能發（跟單據詳情頁的規則一致）
         setCanCreateRequest((roles.includes("customer_service") || roles.includes("admin")) && !roles.includes("vendor"));
+      });
+    // 已處理完成、而且一次合併了不只一筆單據的需求，代表那幾筆單據是同一組（例如同一個客人拆成好幾筆）
+    fetch("/api/booking-requests?status=resolved")
+      .then((r) => r.json())
+      .then((data: BookingRequestRow[]) => {
+        const groups = (Array.isArray(data) ? data : []).filter((req) => req.bookingIds.length > 1);
+        const map = new Map<string, string[]>();
+        for (const g of groups) {
+          for (const id of g.bookingIds) {
+            const siblings = g.bookingIds.filter((otherId) => otherId !== id);
+            const existing = map.get(id) ?? [];
+            map.set(id, [...new Set([...existing, ...siblings])]);
+          }
+        }
+        setMergeMap(map);
       });
     loadPendingRequests();
   }, []);
@@ -156,6 +175,7 @@ export default function SoldDashboardPage() {
                 <th>時段</th>
                 <th>人數</th>
                 <th>訂位代號</th>
+                <th>合併單據</th>
                 <th>姓名</th>
                 <th>電話</th>
                 <th>訂金</th>
@@ -167,7 +187,7 @@ export default function SoldDashboardPage() {
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={14} style={{ textAlign: "center", color: "var(--gray-400)" }}>載入中...</td></tr>
+                <tr><td colSpan={15} style={{ textAlign: "center", color: "var(--gray-400)" }}>載入中...</td></tr>
               )}
               {!loading && filtered.map((b) => (
                 <tr key={b.id}>
@@ -178,6 +198,26 @@ export default function SoldDashboardPage() {
                   <td>{b.timeSlot ?? "—"}</td>
                   <td>{b.partySize ?? "—"}</td>
                   <td className="font-mono">{b.bookingCode ?? "—"}</td>
+                  <td>
+                    {(mergeMap.get(b.id) ?? []).length === 0 ? "—" : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                        {(mergeMap.get(b.id) ?? []).map((siblingId) => {
+                          const sibling = bookingsById.get(siblingId);
+                          return (
+                            <Link
+                              key={siblingId}
+                              href={`/bookings/${siblingId}?from=sold`}
+                              className="font-mono"
+                              style={{ fontSize: 12, color: "var(--brand-700)" }}
+                            >
+                              🔗 {sibling?.bookingCode ?? siblingId.slice(0, 8)}
+                              {sibling && ` · ${sibling.bookingDate}`}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </td>
                   <td>{b.customerName ?? "—"}</td>
                   <td>{b.customerPhone ?? "—"}</td>
                   <td>{formatCurrency(b.depositAmount)}</td>
@@ -205,7 +245,7 @@ export default function SoldDashboardPage() {
                 </tr>
               ))}
               {!loading && filtered.length === 0 && (
-                <tr><td colSpan={14} style={{ textAlign: "center", color: "var(--gray-400)" }}>尚無已售單據</td></tr>
+                <tr><td colSpan={15} style={{ textAlign: "center", color: "var(--gray-400)" }}>尚無已售單據</td></tr>
               )}
             </tbody>
           </table>
