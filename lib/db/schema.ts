@@ -89,6 +89,7 @@ export const bookingRequests = pgTable('booking_requests', {
 
   createdById: uuid('created_by_id').references(() => users.id),
   resolvedById: uuid('resolved_by_id').references(() => users.id),
+  resolvedByName: text('resolved_by_name'), // 實際處理的人員（自由輸入，可能跟登入帳號不是同一個人，例如共用登入帳號的情況）
   resolvedAt: timestamp('resolved_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })

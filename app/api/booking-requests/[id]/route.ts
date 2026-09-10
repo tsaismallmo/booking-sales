@@ -37,7 +37,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const [row] = await db
     .update(bookingRequests)
-    .set({ status: 'resolved', resolvedById: session.user.id, resolvedAt: new Date() })
+    .set({ status: 'resolved', resolvedById: session.user.id, resolvedByName: body.resolvedByName || null, resolvedAt: new Date() })
     .where(eq(bookingRequests.id, id))
     .returning()
 

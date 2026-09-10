@@ -46,6 +46,7 @@ export default function RequestsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [canResolve, setCanResolve] = useState(false);
   const [myUserId, setMyUserId] = useState("");
+  const [resolvedByNames, setResolvedByNames] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetch("/api/me")
@@ -81,11 +82,13 @@ export default function RequestsPage() {
   useEffect(load, []);
 
   const handleResolve = async (id: string) => {
+    const resolvedByName = (resolvedByNames[id] ?? "").trim();
+    if (!resolvedByName) return;
     setResolvingId(id);
     await fetch(`/api/booking-requests/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ apply: true }),
+      body: JSON.stringify({ apply: true, resolvedByName }),
     });
     setResolvingId(null);
     load();
@@ -145,9 +148,22 @@ export default function RequestsPage() {
                     <span className="erp-sysinfo-val">{r.note}</span>
                   </div>
                 )}
-                <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+                <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                   {canResolve && (
-                    <button onClick={() => handleResolve(r.id)} disabled={resolvingId === r.id} className="btn btn-primary">
+                    <input
+                      className="erp-input"
+                      style={{ maxWidth: 160 }}
+                      placeholder="處理人員"
+                      value={resolvedByNames[r.id] ?? ""}
+                      onChange={(e) => setResolvedByNames((s) => ({ ...s, [r.id]: e.target.value }))}
+                    />
+                  )}
+                  {canResolve && (
+                    <button
+                      onClick={() => handleResolve(r.id)}
+                      disabled={resolvingId === r.id || !(resolvedByNames[r.id] ?? "").trim()}
+                      className="btn btn-primary"
+                    >
                       {resolvingId === r.id ? "處理中..." : "套用並完成"}
                     </button>
                   )}
