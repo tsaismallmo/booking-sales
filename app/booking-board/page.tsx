@@ -71,8 +71,14 @@ function daysBetween(bDate: string, targetDate: string) {
 }
 
 type Conflict = { date: string; diffDays: number };
-type AvailablePerson = RosterEntry & { totalCount: number; monthCount: number };
+type AvailablePerson = RosterEntry & { totalCount: number; monthCount: number; bookings: MyBooking[] };
 type ExcludedPerson = RosterEntry & { conflicts: Conflict[] };
+
+// 日期簡短格式：10/4，跟受限名單的衝突日期顯示一致
+function shortDate(dateStr: string) {
+  const d = parseDateOnly(dateStr);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
 
 function computeAvailability(
   targetDate: string,
@@ -106,7 +112,7 @@ function computeAvailability(
     } else {
       const allBks = myBookings.filter((b) => b.customerPhone === phone && b.bookingDate >= today);
       const monthCount = allBks.filter((b) => b.bookingDate.slice(0, 7) === targetDate.slice(0, 7)).length;
-      available.push({ ...c, totalCount: allBks.length, monthCount });
+      available.push({ ...c, totalCount: allBks.length, monthCount, bookings: [...allBks].sort((a, b) => a.bookingDate.localeCompare(b.bookingDate)) });
     }
   }
 
@@ -548,6 +554,7 @@ function CalendarTab() {
   const [loadingMonth, setLoadingMonth] = useState(true);
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [expandedPersonId, setExpandedPersonId] = useState<string | null>(null);
 
   const [rosterLists, setRosterLists] = useState<RosterList[]>([]);
   const [roster, setRoster] = useState<RosterEntry[]>([]);
@@ -586,18 +593,24 @@ function CalendarTab() {
       .then((data) => setDayDemands(Array.isArray(data) ? data : []));
   }, [selectedDate]);
 
+  // 切換選取日期時，之前展開的名單成員明細也要收起來，不然可能對到別天的資料
+  const selectDate = (date: string | null) => {
+    setSelectedDate(date);
+    setExpandedPersonId(null);
+  };
+
   const goPrevMonth = () => {
     if (viewMonth === 1) { setViewYear((y) => y - 1); setViewMonth(12); } else { setViewMonth((m) => m - 1); }
-    setSelectedDate(null);
+    selectDate(null);
   };
   const goNextMonth = () => {
     if (viewMonth === 12) { setViewYear((y) => y + 1); setViewMonth(1); } else { setViewMonth((m) => m + 1); }
-    setSelectedDate(null);
+    selectDate(null);
   };
   const goToday = () => {
     setViewYear(now.getFullYear());
     setViewMonth(now.getMonth() + 1);
-    setSelectedDate(todayStr());
+    selectDate(todayStr());
   };
 
   const cells = useMemo(() => {
@@ -689,7 +702,7 @@ function CalendarTab() {
                 <button
                   key={dateStr}
                   className={`erp-calendar-cell${isToday ? " today" : ""}${isSelected ? " selected" : ""}`}
-                  onClick={() => setSelectedDate(dateStr)}
+                  onClick={() => selectDate(dateStr)}
                 >
                   <span className="erp-calendar-date">{day}</span>
                   {counts && counts.total > 0 && (
@@ -787,17 +800,34 @@ function CalendarTab() {
                   <div style={{ fontSize: 13, color: "var(--gray-400)", marginBottom: 16 }}>名單中所有客人在此期間均受限</div>
                 ) : (
                   <div className="erp-person-grid" style={{ marginBottom: 16 }}>
-                    {available.map((p) => (
-                      <div key={p.id} className="erp-person-card avail">
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--gray-800)" }}>{p.name || "（無姓名）"}</div>
-                        <div style={{ fontSize: 12, color: "var(--gray-500)" }}>{p.phone ?? "—"}</div>
-                        {p.totalCount > 0 && (
-                          <div style={{ fontSize: 11, color: "var(--accent-500)", marginTop: 3 }}>
-                            共 {p.totalCount} 筆　當月 {p.monthCount} 筆
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                    {available.map((p) => {
+                      const isExpanded = expandedPersonId === p.id;
+                      return (
+                        <div
+                          key={p.id}
+                          className="erp-person-card avail"
+                          style={{ cursor: p.totalCount > 0 ? "pointer" : "default" }}
+                          onClick={() => p.totalCount > 0 && setExpandedPersonId(isExpanded ? null : p.id)}
+                        >
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--gray-800)" }}>{p.name || "（無姓名）"}</div>
+                          <div style={{ fontSize: 12, color: "var(--gray-500)" }}>{p.phone ?? "—"}</div>
+                          {p.totalCount > 0 && (
+                            <div style={{ fontSize: 11, color: "var(--accent-500)", marginTop: 3 }}>
+                              共 {p.totalCount} 筆　當月 {p.monthCount} 筆
+                            </div>
+                          )}
+                          {isExpanded && (
+                            <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid var(--accent-300)", display: "flex", flexDirection: "column", gap: 2 }}>
+                              {p.bookings.map((b) => (
+                                <div key={b.id} style={{ fontSize: 11, color: "var(--gray-600)" }}>
+                                  {shortDate(b.bookingDate)}　{b.branch ?? "—"}　{b.timeSlot ?? "—"}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
