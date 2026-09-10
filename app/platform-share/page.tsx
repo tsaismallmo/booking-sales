@@ -22,6 +22,7 @@ type ShareBooking = {
 type DetailReport = {
   mode: "detail";
   vendorId: string;
+  platformFeeRate: number;
   bookings: ShareBooking[];
   totals: { platformFee: number; vendorProfit: number; count: number };
 };
@@ -171,8 +172,9 @@ export default function PlatformSharePage() {
 
       {!loading && detail && (
         <div className="erp-card">
-          <div className="erp-card-header">
+          <div className="erp-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span className="erp-card-title">{monthLabel}　已售 {detail.totals.count} 筆</span>
+            <span style={{ fontSize: 13, color: "var(--gray-500)" }}>本月平台費率　{detail.platformFeeRate}%</span>
           </div>
           <div className="erp-table-wrap">
             <table className="erp-table">
@@ -180,7 +182,6 @@ export default function PlatformSharePage() {
                 <tr>
                   <th>日期</th><th>星期</th><th>分店</th><th>訂位代號</th><th>姓名</th><th>人數</th>
                   <th>實收代訂費</th>
-                  <th>平台費率</th>
                   <th>平台費</th>
                   <th>廠商利潤</th>
                 </tr>
@@ -195,13 +196,12 @@ export default function PlatformSharePage() {
                     <td>{b.customerName ?? "—"}</td>
                     <td>{b.partySize}</td>
                     <td>{formatCurrency(b.actualFee)}</td>
-                    <td>{b.platformFeeRate}%</td>
                     <td>{formatCurrency(b.platformFee)}</td>
                     <td>{formatCurrency(b.vendorProfit)}</td>
                   </tr>
                 ))}
                 {detail.bookings.length === 0 && (
-                  <tr><td colSpan={10} style={{ textAlign: "center", color: "var(--gray-400)" }}>這個月沒有可計算的資料（要現貨單、已售出、有填代訂費）</td></tr>
+                  <tr><td colSpan={9} style={{ textAlign: "center", color: "var(--gray-400)" }}>這個月沒有可計算的資料（要現貨單、已售出、有填代訂費）</td></tr>
                 )}
               </tbody>
               {detail.bookings.length > 0 && (
@@ -209,7 +209,6 @@ export default function PlatformSharePage() {
                   <tr style={{ fontWeight: 600 }}>
                     <td colSpan={6}>總計</td>
                     <td>{formatCurrency(detail.bookings.reduce((s, b) => s + b.actualFee, 0))}</td>
-                    <td></td>
                     <td>{formatCurrency(detail.totals.platformFee)}</td>
                     <td>{formatCurrency(detail.totals.vendorProfit)}</td>
                   </tr>

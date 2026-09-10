@@ -54,7 +54,8 @@ export async function GET(req: NextRequest) {
 
   if (vendorId) {
     const rows = await getVendorBookings(vendorId, from, to)
-    const months = [...new Set(rows.map((b) => b.soldDate?.slice(0, 7)).filter((m): m is string => !!m))]
+    const queryMonth = from.slice(0, 7)
+    const months = [...new Set([queryMonth, ...rows.map((b) => b.soldDate?.slice(0, 7)).filter((m): m is string => !!m)])]
     const [vendorRateMap, csRateMap] = await Promise.all([
       getVendorPlatformFeeRatesForMonths([vendorId], months),
       getCsShareRatesForMonths(months),
@@ -72,8 +73,10 @@ export async function GET(req: NextRequest) {
       const r = results.find((x) => x.id === b.id)
       return r ? { ...r, branch: b.branch, customerName: b.customerName, bookingCode: b.bookingCode } : null
     }).filter((r) => r !== null)
+    // 查詢區間通常就是頁面選的那個月，直接把那個月的費率一起回傳，前端不用再一筆一筆列
+    const platformFeeRate = vendorRateMap.get(`${vendorId}|${queryMonth}`) ?? DEFAULT_PLATFORM_RATES.platformFeeRate
 
-    return NextResponse.json({ mode: 'detail', vendorId, bookings: detail, totals })
+    return NextResponse.json({ mode: 'detail', vendorId, platformFeeRate, bookings: detail, totals })
   }
 
   // 管理員沒指定廠商：回傳全部廠商的彙總（每一筆單據照自己售出月份的費率算）
