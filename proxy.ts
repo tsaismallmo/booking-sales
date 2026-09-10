@@ -48,6 +48,11 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
+  // 預定單看板：給客服／管理員／後勤處理，廠商、廠商員工不用看（他們自己的單據走「單據管理」）
+  if (pathname.startsWith('/dashboard/reserved') && !isLogistics && !isAdmin && !roles.includes('customer_service')) {
+    return NextResponse.redirect(new URL(fallback, req.url))
+  }
+
   // 廠商名單：廠商本人可管理，廠商員工可唯讀查看所屬廠商的名單
   if (pathname.startsWith('/roster') && !roles.includes('vendor') && !roles.includes('vendor_staff')) {
     return NextResponse.redirect(new URL(fallback, req.url))

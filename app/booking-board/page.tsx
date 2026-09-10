@@ -26,6 +26,7 @@ type RosterList = {
   id: string;
   name: string;
   entryCount: number;
+  ownerEmail: string | null;
 };
 
 type MyBooking = {
@@ -507,9 +508,24 @@ function CalendarTab() {
   }, [viewYear, viewMonth]);
 
   useEffect(() => {
-    fetch("/api/roster/lists")
+    // 名單預設只勾選跟自己登入帳號同一個 email 建的那份，其他的先不勾，
+    // 要靠 /api/me 的 email 跟名單的 ownerEmail 配對，所以要等兩邊都拿到才能算
+    fetch("/api/me")
       .then((res) => res.json())
-      .then((data) => setRosterLists(Array.isArray(data) ? data : []));
+      .then((me) => {
+        const myEmail: string | null = me.email ?? null;
+        fetch("/api/roster/lists")
+          .then((res) => res.json())
+          .then((data) => {
+            const lists: RosterList[] = Array.isArray(data) ? data : [];
+            setRosterLists(lists);
+            const mine = lists.filter((l) => myEmail && l.ownerEmail === myEmail);
+            if (mine.length > 0) {
+              const mineIds = new Set(mine.map((l) => l.id));
+              setExcludedListIds(new Set(lists.filter((l) => !mineIds.has(l.id)).map((l) => l.id)));
+            }
+          });
+      });
     fetch("/api/roster")
       .then((res) => res.json())
       .then((data) => setRoster(Array.isArray(data) ? data : []));
