@@ -51,6 +51,7 @@ export default function EditBookingPage() {
           status: data.status ?? "unsold",
           cancelDeadline: data.cancelDeadline ?? "",
           paymentDeadline: data.paymentDeadline ?? "",
+          actualBooker: data.actualBooker ?? "",
           depositAmount: data.depositAmount ?? "",
           depositPayer: data.depositPayer ?? "",
           customerName: data.customerName ?? "",
@@ -135,6 +136,10 @@ export default function EditBookingPage() {
               <div className="erp-form-group">
                 <label className="erp-label">付款期限</label>
                 <input type="date" className="erp-input" value={form.paymentDeadline} onChange={set("paymentDeadline")} />
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">實際訂位人員</label>
+                <input className="erp-input" value={form.actualBooker} onChange={set("actualBooker")} />
               </div>
             </div>
           </div>

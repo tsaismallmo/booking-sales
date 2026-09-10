@@ -193,6 +193,7 @@ export default function BookingDetailPage() {
           <Row label="訂位代號" value={booking.bookingCode} />
           <Row label="退訂期限" value={booking.cancelDeadline} />
           <Row label="付款期限" value={booking.paymentDeadline} />
+          <Row label="實際訂位人員" value={booking.actualBooker} />
         </div>
       </div>
 

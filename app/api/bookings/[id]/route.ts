@@ -62,6 +62,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       paymentDeadline: pureCustomerService ? existing.paymentDeadline : blankToNull(body.paymentDeadline ?? existing.paymentDeadline),
       depositAmount: pureCustomerService ? existing.depositAmount : blankToNull(body.depositAmount ?? existing.depositAmount),
       depositPayer: pureCustomerService ? existing.depositPayer : (body.depositPayer ?? existing.depositPayer),
+      actualBooker: pureCustomerService ? existing.actualBooker : (body.actualBooker ?? existing.actualBooker),
       customerName: pureCustomerService ? existing.customerName : (body.customerName ?? existing.customerName),
       customerPhone: pureCustomerService ? existing.customerPhone : (body.customerPhone ?? existing.customerPhone),
       source: pureCustomerService ? existing.source : (body.source ?? existing.source),
