@@ -53,6 +53,7 @@ export default function RequestsPage() {
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [canResolve, setCanResolve] = useState(false);
+  const [canManageQueue, setCanManageQueue] = useState(false); // 刪除權限維持只有管理員／後勤，跟能不能處理是分開的兩件事
   const [canSeeVendorNames, setCanSeeVendorNames] = useState(false);
   const [myUserId, setMyUserId] = useState("");
   const [resolvedByNames, setResolvedByNames] = useState<Record<string, string>>({});
@@ -64,7 +65,10 @@ export default function RequestsPage() {
       .then((res) => res.json())
       .then((me) => {
         const roles: string[] = me.roles ?? [];
-        setCanResolve(roles.includes("logistics") || roles.includes("admin"));
+        // 廠商／廠商員工看到的清單本來就只有包含自己單據的需求（見 /api/booking-requests 的廠商分支），
+        // 所以清單裡的每一筆對他們來說都能處理，不用再逐筆判斷
+        setCanResolve(roles.includes("logistics") || roles.includes("admin") || roles.includes("vendor") || roles.includes("vendor_staff"));
+        setCanManageQueue(roles.includes("logistics") || roles.includes("admin"));
         setMyUserId(me.id ?? "");
         // 廠商自己看到的單一定都是自己的，不需要查廠商名稱，/api/directory 對廠商身份也會擋掉（403）
         const seeVendorNames = roles.includes("admin") || roles.includes("customer_service") || roles.includes("logistics");
@@ -201,7 +205,7 @@ export default function RequestsPage() {
                       {resolvingId === r.id ? "處理中..." : "套用並完成"}
                     </button>
                   )}
-                  {(canResolve || r.createdById === myUserId) && (
+                  {(canManageQueue || r.createdById === myUserId) && (
                     <button onClick={() => handleDelete(r.id)} disabled={deletingId === r.id} className="btn btn-ghost" style={{ color: "var(--color-danger)" }}>
                       {deletingId === r.id ? "刪除中..." : "刪除"}
                     </button>

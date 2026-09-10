@@ -1,18 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { eq } from 'drizzle-orm'
+import { eq, and, inArray } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { bookingRequests, bookings } from '@/lib/db/schema'
-import { requireRole } from '@/lib/auth-guard'
 import { auth } from '@/auth'
 
 // 處理需求：把提議的欄位套用回單據，並把需求標記為已完成
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await requireRole('admin', 'logistics')
-  if (!session) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+  const session = await auth()
+  if (!session?.user) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
   const { id } = await params
   const [existing] = await db.select().from(bookingRequests).where(eq(bookingRequests.id, id))
   if (!existing) return NextResponse.json({ error: 'not found' }, { status: 404 })
+
+  const roles = session.user.roles
+  // 管理員／後勤本來就能處理任何需求；廠商（含廠商員工）只要需求裡包含自己的單就能處理，
+  // 就算是跨廠商的合併需求也算（自己的那部分算數就好，不用整組都是自己的單）
+  let canResolveThis = roles.includes('admin') || roles.includes('logistics')
+  if (!canResolveThis && (roles.includes('vendor') || roles.includes('vendor_staff'))) {
+    const ownerId = roles.includes('vendor') ? session.user.id : session.user.employerVendorId
+    if (ownerId) {
+      const [ownedInGroup] = await db.select({ id: bookings.id }).from(bookings)
+        .where(and(inArray(bookings.id, existing.bookingIds), eq(bookings.vendorId, ownerId)))
+      canResolveThis = !!ownedInGroup
+    }
+  }
+  if (!canResolveThis) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
   const body = await req.json()
   const apply = body.apply !== false // 預設套用提議的變更
