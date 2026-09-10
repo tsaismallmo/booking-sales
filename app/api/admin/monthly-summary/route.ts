@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { and, eq, gte, lte } from 'drizzle-orm'
+import { and, eq, gte, inArray, lte } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { bookings } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
@@ -36,11 +36,13 @@ export async function GET(req: NextRequest) {
   const results = []
   for (const month of months) {
     const { from, to } = monthRange(month)
+    // 臨時單也算進筆數／實收金額（真的有現金流動），但不抽平台費，費率固定 0%，
+    // 所以 platformFeeTotal／csShareTotal／platformNetTotal 不會被臨時單影響到
     const rows = await db
       .select()
       .from(bookings)
       .where(and(
-        eq(bookings.category, '現貨單'),
+        inArray(bookings.category, ['現貨單', '臨時單']),
         eq(bookings.status, 'sold'),
         gte(bookings.soldDate, from),
         lte(bookings.soldDate, to)
@@ -69,7 +71,9 @@ export async function GET(req: NextRequest) {
     let bookingCount = 0
 
     for (const b of rows) {
-      const platformFeeRate = (b.vendorId ? rateMap.get(`${b.vendorId}|${month}`) : undefined) ?? 20
+      const platformFeeRate = b.category === '現貨單'
+        ? (b.vendorId ? rateMap.get(`${b.vendorId}|${month}`) : undefined) ?? 20
+        : 0
       const r = computeShare(b, { platformFeeRate, csShareOfPlatformRate })
       if (!r) continue
       bookingCount += 1

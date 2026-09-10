@@ -34,7 +34,7 @@ export default function MonthlySummaryPage() {
         <div>
           <h1 className="erp-page-title">每月金流總覽</h1>
           <p className="erp-page-subtitle">
-            近 12 個月，依售出日期彙總（只算現貨單、已售出的）：代訂費、收款、訂金、廠商分潤、平台費、客服分潤（只有管理員看得到）
+            近 12 個月，依售出日期彙總（現貨單＋臨時單、只算已售出的）：代訂費、收款、訂金、廠商分潤、平台費、客服分潤（只有管理員看得到）。臨時單不抽平台費，只會反映在筆數／代訂費／廠商分潤，平台費跟客服分潤不受影響
           </p>
         </div>
       </div>
