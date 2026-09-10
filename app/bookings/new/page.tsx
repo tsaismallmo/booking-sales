@@ -166,21 +166,19 @@ function NewBookingForm() {
               <label className="erp-label">來源</label>
               <input className="erp-input" value={form.source} onChange={set("source")} />
             </div>
-            {form.category === "現貨單" && (
-              <div className="erp-form-group">
-                <label className="erp-label">訂位平台</label>
-                <div style={{ display: "flex", gap: 16, alignItems: "center", height: 38 }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
-                    <input type="checkbox" checked={form.isInline} onChange={setChecked("isInline")} />
-                    Inline
-                  </label>
-                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
-                    <input type="checkbox" checked={form.isEztable} onChange={setChecked("isEztable")} />
-                    EZTABLE
-                  </label>
-                </div>
+            <div className="erp-form-group">
+              <label className="erp-label">訂位平台</label>
+              <div style={{ display: "flex", gap: 16, alignItems: "center", height: 38 }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                  <input type="checkbox" checked={form.isInline} onChange={setChecked("isInline")} />
+                  Inline
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                  <input type="checkbox" checked={form.isEztable} onChange={setChecked("isEztable")} />
+                  EZTABLE
+                </label>
               </div>
-            )}
+            </div>
             <div className="erp-form-group full">
               <label className="erp-label">資訊</label>
               <input className="erp-input" placeholder="快速註記" value={form.info} onChange={set("info")} />
