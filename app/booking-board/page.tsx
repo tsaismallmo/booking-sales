@@ -589,7 +589,7 @@ function CalendarTab() {
     });
 
   const dayBookings = useMemo(
-    () => (selectedDate ? myBookings.filter((b) => b.bookingDate === selectedDate) : []),
+    () => (selectedDate ? myBookings.filter((b) => b.bookingDate === selectedDate && b.status === "unsold") : []),
     [myBookings, selectedDate]
   );
 

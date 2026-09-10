@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { bookings, bookingRequests } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
 
-// 月曆總覽：不分廠商，回傳整個平台每天的訂位筆數 + 有待處理需求的筆數
+// 月曆總覽：不分廠商，回傳整個平台每天「未出售」的訂位筆數 + 有待處理需求的筆數
 export async function GET(req: NextRequest) {
   const session = await requireRole('vendor', 'vendor_staff')
   if (!session) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   const monthBookings = await db
     .select({ id: bookings.id, bookingDate: bookings.bookingDate })
     .from(bookings)
-    .where(and(gte(bookings.bookingDate, start), lte(bookings.bookingDate, end)))
+    .where(and(gte(bookings.bookingDate, start), lte(bookings.bookingDate, end), eq(bookings.status, 'unsold')))
 
   const pendingRequests = await db
     .select({ bookingIds: bookingRequests.bookingIds })
