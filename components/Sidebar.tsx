@@ -47,7 +47,7 @@ export function Sidebar({ roles }: { roles: Role[] }) {
             現貨單看板
           </Link>
         )}
-        {(isCustomerService || isAdmin || isLogistics) && (
+        {(isCustomerService || isAdmin || isLogistics || isVendorStaff) && (
           <Link href="/dashboard/temp" className={cn("erp-sidebar-item", (pathname.startsWith("/dashboard/temp") || (pathname.startsWith("/bookings") && fromTemp)) && "active")}>
             <Clock3 size={15} />
             臨時單看板

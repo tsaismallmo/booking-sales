@@ -27,6 +27,8 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
   const [canSeeManagement, setCanSeeManagement] = useState(false);
   const [canCreate, setCanCreate] = useState(false);
   const [csStaff, setCsStaff] = useState<{ id: string; name: string | null }[]>([]);
+  // 純後勤／純廠商員工只給看還沒有訂位代號的部分，而且不能操作（銷售/編輯要走轉需求，不是在這裡直接動）
+  const [restrictedView, setRestrictedView] = useState(false);
 
   // 銷售／收款 modal，跟現貨單看板同一套
   const [saleTarget, setSaleTarget] = useState<Booking | null>(null);
@@ -45,6 +47,9 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
         const roles: string[] = me.roles ?? [];
         setCanSeeManagement(roles.includes("vendor") || roles.includes("admin"));
         setCanCreate(roles.includes("customer_service") || roles.includes("admin") || roles.includes("vendor"));
+        const restricted = (roles.includes("logistics") || roles.includes("vendor_staff"))
+          && !roles.includes("admin") && !roles.includes("customer_service") && !roles.includes("vendor");
+        setRestrictedView(restricted);
       });
     fetch("/api/directory")
       .then((res) => res.json())
@@ -106,12 +111,14 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
     setSaleTarget(null);
   };
 
+  const visibleBookings = restrictedView ? bookings.filter((b) => !b.bookingCode) : bookings;
+
   return (
     <div className="erp-page">
       <div className="erp-page-header">
         <div>
           <h1 className="erp-page-title">{title}</h1>
-          <p className="erp-page-subtitle">目前可以銷售（未售出）的{category}，共 {loading ? "…" : bookings.length} 筆</p>
+          <p className="erp-page-subtitle">目前可以銷售（未售出）的{category}，共 {loading ? "…" : visibleBookings.length} 筆</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           {canCreate && (
@@ -145,7 +152,7 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
               {loading && (
                 <tr><td colSpan={11} style={{ textAlign: "center", color: "var(--gray-400)" }}>載入中...</td></tr>
               )}
-              {!loading && bookings.map((b) => (
+              {!loading && visibleBookings.map((b) => (
                 <tr key={b.id}>
                   <td>{b.bookingDate}</td>
                   <td>週{WEEKDAYS[parseDateOnly(b.bookingDate).getDay()]}</td>
@@ -158,15 +165,17 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
                   <td>{b.branch ?? "—"}</td>
                   <td>{b.note ?? "—"}</td>
                   <td>
-                    {b.bookingCode ? (
-                      <button onClick={() => handleOpenSale(b)} className="btn btn-primary" style={{ padding: "4px 10px", fontSize: 13 }}>銷售</button>
-                    ) : (
-                      <Link href={`/bookings/${b.id}/edit?from=${fromKey}`} className="btn btn-secondary" style={{ padding: "4px 10px", fontSize: 13 }}>編輯</Link>
+                    {!restrictedView && (
+                      b.bookingCode ? (
+                        <button onClick={() => handleOpenSale(b)} className="btn btn-primary" style={{ padding: "4px 10px", fontSize: 13 }}>銷售</button>
+                      ) : (
+                        <Link href={`/bookings/${b.id}/edit?from=${fromKey}`} className="btn btn-secondary" style={{ padding: "4px 10px", fontSize: 13 }}>編輯</Link>
+                      )
                     )}
                   </td>
                 </tr>
               ))}
-              {!loading && bookings.length === 0 && (
+              {!loading && visibleBookings.length === 0 && (
                 <tr><td colSpan={11} style={{ textAlign: "center", color: "var(--gray-400)" }}>目前沒有可以銷售的{category}</td></tr>
               )}
             </tbody>

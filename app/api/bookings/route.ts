@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { eq, inArray, desc } from 'drizzle-orm'
+import { eq, inArray, desc, or } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { bookings } from '@/lib/db/schema'
 import { auth } from '@/auth'
@@ -16,16 +16,19 @@ export async function GET() {
 
   // /api/bookings 只回傳「自己的」單據：
   //   vendor（含 admin+vendor）→ 只看 vendorId = 自己
-  //   廠商員工（無 vendor）→ 只看 vendorId = 所屬廠商，不然會掉到最後的分支看到全公司的單
+  //   廠商員工（無 vendor）→ 看所屬廠商的單，另外也看得到臨時單/預定單類別（不分廠商）——
+  //     這兩類常常還沒指定廠商，廠商員工要能在臨時單看板看到還沒訂位代號的部分
   //   純客服（無 vendor）→ 看全部
   //   純後勤（無 vendor）→ 看後勤類別
   //   純管理員（無 vendor）→ 看全部（管理員通常會走 /api/admin/bookings）
   const rows = isVendor
     ? await db.select().from(bookings).where(eq(bookings.vendorId, session.user.id)).orderBy(desc(bookings.bookingDate))
     : isVendorStaff
-      ? (session.user.employerVendorId
-          ? await db.select().from(bookings).where(eq(bookings.vendorId, session.user.employerVendorId)).orderBy(desc(bookings.bookingDate))
-          : [])
+      ? await db.select().from(bookings)
+          .where(session.user.employerVendorId
+            ? or(eq(bookings.vendorId, session.user.employerVendorId), inArray(bookings.category, [...LOGISTICS_CATEGORIES]))
+            : inArray(bookings.category, [...LOGISTICS_CATEGORIES]))
+          .orderBy(desc(bookings.bookingDate))
       : isLogistics
         ? await db.select().from(bookings).where(inArray(bookings.category, [...LOGISTICS_CATEGORIES])).orderBy(desc(bookings.bookingDate))
         : await db.select().from(bookings).orderBy(desc(bookings.bookingDate))

@@ -53,6 +53,11 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
+  // 臨時單看板：客服／管理員／後勤可以處理；廠商員工也能看，但只看得到還沒訂位代號的部分（頁面自己再篩一次）
+  if (pathname.startsWith('/dashboard/temp') && !isAdmin && !roles.includes('customer_service') && !isLogistics && !roles.includes('vendor_staff')) {
+    return NextResponse.redirect(new URL(fallback, req.url))
+  }
+
   // 廠商名單：廠商本人可管理，廠商員工可唯讀查看所屬廠商的名單
   if (pathname.startsWith('/roster') && !roles.includes('vendor') && !roles.includes('vendor_staff')) {
     return NextResponse.redirect(new URL(fallback, req.url))
