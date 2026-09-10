@@ -142,11 +142,27 @@ export function InStockBoard() {
         (b) => (b.customerName ?? "").toLowerCase().includes(q) || (b.customerPhone ?? "").includes(q)
       );
     }
+    // 合併單據要排在一起，不能各自照日期/時段散開；用「這組所有單據 id 排序後接起來」當群組 key，
+    // 同一組的人排序時一定會排到同一個 key，自然就會相鄰，群組本身用最早的日期/時段決定排在哪
+    const sortGroupOf = (b: Booking) => {
+      const siblings = mergeMap.get(b.id) ?? [];
+      if (siblings.length === 0) return { key: b.id, date: b.bookingDate, time: b.timeSlot ?? "" };
+      const allIds = [b.id, ...siblings].sort();
+      const members = allIds.map((id) => bookingsById.get(id)).filter((m): m is Booking => !!m);
+      const date = members.reduce((min, m) => (m.bookingDate < min ? m.bookingDate : min), b.bookingDate);
+      const time = members.reduce((min, m) => ((m.timeSlot ?? "") < min ? (m.timeSlot ?? "") : min), b.timeSlot ?? "");
+      return { key: allIds.join(","), date, time };
+    };
     return [...rows].sort((a, b) => {
-      const d = a.bookingDate.localeCompare(b.bookingDate);
-      return d !== 0 ? d : (a.timeSlot ?? "").localeCompare(b.timeSlot ?? "");
+      const ga = sortGroupOf(a);
+      const gb = sortGroupOf(b);
+      const dateCmp = ga.date.localeCompare(gb.date);
+      if (dateCmp !== 0) return dateCmp;
+      const timeCmp = ga.time.localeCompare(gb.time);
+      if (timeCmp !== 0) return timeCmp;
+      return ga.key.localeCompare(gb.key);
     });
-  }, [bookings, branchFilter, mealFilter, weekdayFilter, dateFilter, partyMin, search]);
+  }, [bookings, branchFilter, mealFilter, weekdayFilter, dateFilter, partyMin, search, mergeMap, bookingsById]);
 
   const toggleSelect = (id: string) =>
     setSelected((s) => {
