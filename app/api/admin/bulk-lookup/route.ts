@@ -42,6 +42,8 @@ export async function POST(req: NextRequest) {
     depositAmount: bookings.depositAmount,
     vendorId: bookings.vendorId,
     status: bookings.status,
+    isInline: bookings.isInline,
+    isEztable: bookings.isEztable,
   }).from(bookings).where(inArray(bookings.bookingCode, codes))
 
   const results = items.map((item) => {
