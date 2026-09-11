@@ -95,6 +95,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       salespersonId: body.salespersonId !== undefined ? (body.salespersonId || null) : existing.salespersonId,
       agencyFee: blankToNull(body.agencyFee ?? existing.agencyFee),
       soldCount: body.soldCount !== undefined ? (body.soldCount === '' || body.soldCount === null ? null : Number(body.soldCount)) : existing.soldCount,
+      platformFeeBase: roles.includes('admin') ? blankToNull(body.platformFeeBase ?? existing.platformFeeBase) : existing.platformFeeBase,
       info: body.info ?? existing.info,
       note: body.note ?? existing.note,
       updatedAt: new Date(),

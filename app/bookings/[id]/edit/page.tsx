@@ -66,6 +66,7 @@ export default function EditBookingPage() {
           collectedAmount: data.collectedAmount ?? "",
           account: data.account ?? "",
           agencyFee: data.agencyFee ?? "",
+          platformFeeBase: data.platformFeeBase ?? "",
           salespersonId: data.salespersonId ?? "",
           info: data.info ?? "",
           note: data.note ?? "",
@@ -264,6 +265,11 @@ export default function EditBookingPage() {
               <div className="erp-form-group">
                 <label className="erp-label">代訂費</label>
                 <input type="number" step="0.01" className="erp-input" value={form.agencyFee} onChange={set("agencyFee")} />
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">平台抽成基礎金額</label>
+                <input type="number" step="0.01" className="erp-input" placeholder="留空＝用代訂費全額算平台費" value={form.platformFeeBase} onChange={set("platformFeeBase")} />
+                <span style={{ fontSize: 12, color: "var(--gray-400)" }}>超過這個金額的部分不抽平台費，直接算給廠商</span>
               </div>
               <div className="erp-form-group">
                 <label className="erp-label">銷售人員</label>

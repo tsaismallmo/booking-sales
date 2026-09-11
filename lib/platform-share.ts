@@ -13,6 +13,7 @@ export type ShareBooking = {
   bookingDate: string
   partySize: number | null
   agencyFee: string | number | null
+  platformFeeBase?: string | number | null // 平台抽成的計費基礎金額，留空就用 agencyFee 全額
   salespersonId?: string | null
 }
 
@@ -36,7 +37,10 @@ export function computeShare(booking: ShareBooking, rates: PlatformRates): Share
   const actualFee = booking.agencyFee === null ? null : Number(booking.agencyFee)
   if (n <= 0 || actualFee === null || Number.isNaN(actualFee)) return null
 
-  const platformFee = Math.round(actualFee * rates.platformFeeRate / 100)
+  const feeBase = booking.platformFeeBase === null || booking.platformFeeBase === undefined
+    ? actualFee
+    : Number(booking.platformFeeBase)
+  const platformFee = Math.round(feeBase * rates.platformFeeRate / 100)
   const vendorProfit = actualFee - platformFee
   const csShare = Math.round(platformFee * rates.csShareOfPlatformRate / 100)
   const platformNet = platformFee - csShare
