@@ -56,7 +56,8 @@ export const bookings = pgTable('bookings', {
   soldCount: integer('sold_count'), // 實賣人數（若只賣出部分人數時填入，用於計算廠商利潤）
   platformFeeBase: numeric('platform_fee_base'), // 平台抽成的計費基礎金額（留空就用代訂費全額算平台費；
   // 填了的話，超過這個金額的部分不抽平台費、直接算給廠商，例如代訂費1200只想拿900去算平台費，剩下300全給廠商）
-  staffShareAmount: numeric('staff_share_amount'), // 廠商從自己的廠商利潤裡要分給旗下員工的金額（廠商/管理員自己填）
+  staffShareAmount: numeric('staff_share_amount'), // 廠商從自己的廠商利潤裡要分給「電話歸屬」（訂位電話/姓名所屬名單）那個人的金額（廠商/管理員自己填）
+  bookerShareAmount: numeric('booker_share_amount'), // 廠商從自己的廠商利潤裡要分給「實際訂位人員」（actualBooker）的金額（廠商/管理員自己填）
 
   // 其他
   info: text('info'), // 資訊（快速註記）

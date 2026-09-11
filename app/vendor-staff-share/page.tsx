@@ -19,7 +19,10 @@ type ShareBooking = {
   actualBooker: string | null;
   bookingCode: string | null;
   staffShareAmount: number | null;
+  bookerShareAmount: number | null;
 };
+
+type ShareField = "staffShareAmount" | "bookerShareAmount";
 
 type DetailReport = {
   mode: "detail";
@@ -48,6 +51,10 @@ function currentMonthStr() {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
 }
 
+function inputKey(bookingId: string, field: ShareField) {
+  return `${bookingId}:${field}`;
+}
+
 export default function VendorStaffSharePage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isVendor, setIsVendor] = useState(false);
@@ -60,8 +67,8 @@ export default function VendorStaffSharePage() {
   const [month, setMonth] = useState(currentMonthStr());
   const [report, setReport] = useState<DetailReport | null>(null);
   const [loading, setLoading] = useState(true);
-  const [staffShareInputs, setStaffShareInputs] = useState<Record<string, string>>({});
-  const [savingId, setSavingId] = useState<string | null>(null);
+  const [shareInputs, setShareInputs] = useState<Record<string, string>>({});
+  const [savingKey, setSavingKey] = useState<string | null>(null);
   const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>([]);
   const [rosterLists, setRosterLists] = useState<RosterList[]>([]);
 
@@ -118,7 +125,10 @@ export default function VendorStaffSharePage() {
       .then((res) => res.json())
       .then((data: DetailReport) => {
         setReport(data);
-        setStaffShareInputs(Object.fromEntries(data.bookings.map((b) => [b.id, b.staffShareAmount === null ? "" : String(b.staffShareAmount)])));
+        setShareInputs(Object.fromEntries(data.bookings.flatMap((b) => [
+          [inputKey(b.id, "staffShareAmount"), b.staffShareAmount === null ? "" : String(b.staffShareAmount)],
+          [inputKey(b.id, "bookerShareAmount"), b.bookerShareAmount === null ? "" : String(b.bookerShareAmount)],
+        ])));
         setLoading(false);
       });
   }, [activeVendorId, month]);
@@ -130,21 +140,22 @@ export default function VendorStaffSharePage() {
 
   const canEditStaffShare = isVendor || isAdmin;
 
-  const handleStaffShareBlur = (bookingId: string, value: string, previous: number | null) => {
+  const handleShareBlur = (bookingId: string, field: ShareField, value: string, previous: number | null) => {
     const amount = value === "" ? null : Number(value);
     if (amount === previous) return;
+    const key = inputKey(bookingId, field);
     // 先樂觀更新畫面，不等網路回應——PATCH 失敗才復原，避免每次都要等一趟才看到結果
-    setReport((r) => r && { ...r, bookings: r.bookings.map((b) => (b.id === bookingId ? { ...b, staffShareAmount: amount } : b)) });
-    setSavingId(bookingId);
+    setReport((r) => r && { ...r, bookings: r.bookings.map((b) => (b.id === bookingId ? { ...b, [field]: amount } : b)) });
+    setSavingKey(key);
     fetch(`/api/bookings/${bookingId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ staffShareAmount: value }),
+      body: JSON.stringify({ [field]: value }),
     }).then((res) => {
-      setSavingId(null);
+      setSavingKey(null);
       if (res.ok) return;
-      setReport((r) => r && { ...r, bookings: r.bookings.map((b) => (b.id === bookingId ? { ...b, staffShareAmount: previous } : b)) });
-      setStaffShareInputs((s) => ({ ...s, [bookingId]: previous === null ? "" : String(previous) }));
+      setReport((r) => r && { ...r, bookings: r.bookings.map((b) => (b.id === bookingId ? { ...b, [field]: previous } : b)) });
+      setShareInputs((s) => ({ ...s, [key]: previous === null ? "" : String(previous) }));
     });
   };
 
@@ -194,13 +205,34 @@ export default function VendorStaffSharePage() {
                   <th>實際訂位人員</th>
                   <th>實收代訂費</th>
                   <th>廠商利潤</th>
-                  <th>分給員工</th>
+                  <th>分給電話歸屬的人</th>
+                  <th>分給實際訂位人員</th>
                   <th>廠商淨利潤</th>
                 </tr>
               </thead>
               <tbody>
                 {report.bookings.map((b) => {
-                  const netProfit = b.vendorProfit - (b.staffShareAmount ?? 0);
+                  const netProfit = b.vendorProfit - (b.staffShareAmount ?? 0) - (b.bookerShareAmount ?? 0);
+                  const renderShareInput = (field: ShareField, previous: number | null) => {
+                    const key = inputKey(b.id, field);
+                    return canEditStaffShare ? (
+                      <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <input
+                          type="number"
+                          step="0.01"
+                          className="erp-input"
+                          style={{ width: 100 }}
+                          placeholder="0"
+                          value={shareInputs[key] ?? ""}
+                          onChange={(e) => setShareInputs((s) => ({ ...s, [key]: e.target.value }))}
+                          onBlur={(e) => handleShareBlur(b.id, field, e.target.value, previous)}
+                        />
+                        {savingKey === key && <span style={{ fontSize: 11, color: "var(--gray-400)" }}>儲存中...</span>}
+                      </span>
+                    ) : (
+                      formatCurrency(previous ?? 0)
+                    );
+                  };
                   return (
                     <tr key={b.id}>
                       <td>{b.bookingDate}</td>
@@ -213,31 +245,14 @@ export default function VendorStaffSharePage() {
                       <td>{b.actualBooker ?? "—"}</td>
                       <td>{formatCurrency(b.actualFee)}</td>
                       <td>{formatCurrency(b.vendorProfit)}</td>
-                      <td>
-                        {canEditStaffShare ? (
-                          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <input
-                              type="number"
-                              step="0.01"
-                              className="erp-input"
-                              style={{ width: 100 }}
-                              placeholder="0"
-                              value={staffShareInputs[b.id] ?? ""}
-                              onChange={(e) => setStaffShareInputs((s) => ({ ...s, [b.id]: e.target.value }))}
-                              onBlur={(e) => handleStaffShareBlur(b.id, e.target.value, b.staffShareAmount)}
-                            />
-                            {savingId === b.id && <span style={{ fontSize: 11, color: "var(--gray-400)" }}>儲存中...</span>}
-                          </span>
-                        ) : (
-                          formatCurrency(b.staffShareAmount ?? 0)
-                        )}
-                      </td>
+                      <td>{renderShareInput("staffShareAmount", b.staffShareAmount)}</td>
+                      <td>{renderShareInput("bookerShareAmount", b.bookerShareAmount)}</td>
                       <td>{formatCurrency(netProfit)}</td>
                     </tr>
                   );
                 })}
                 {report.bookings.length === 0 && (
-                  <tr><td colSpan={isVendorSide ? 12 : 11} style={{ textAlign: "center", color: "var(--gray-400)" }}>這個月沒有可計算的資料（要已售出、有填代訂費）</td></tr>
+                  <tr><td colSpan={isVendorSide ? 13 : 12} style={{ textAlign: "center", color: "var(--gray-400)" }}>這個月沒有可計算的資料（要已售出、有填代訂費）</td></tr>
                 )}
               </tbody>
               {report.bookings.length > 0 && (
@@ -247,7 +262,8 @@ export default function VendorStaffSharePage() {
                     <td>{formatCurrency(report.bookings.reduce((s, b) => s + b.actualFee, 0))}</td>
                     <td>{formatCurrency(report.totals.vendorProfit)}</td>
                     <td>{formatCurrency(report.bookings.reduce((s, b) => s + (b.staffShareAmount ?? 0), 0))}</td>
-                    <td>{formatCurrency(report.bookings.reduce((s, b) => s + (b.vendorProfit - (b.staffShareAmount ?? 0)), 0))}</td>
+                    <td>{formatCurrency(report.bookings.reduce((s, b) => s + (b.bookerShareAmount ?? 0), 0))}</td>
+                    <td>{formatCurrency(report.bookings.reduce((s, b) => s + (b.vendorProfit - (b.staffShareAmount ?? 0) - (b.bookerShareAmount ?? 0)), 0))}</td>
                   </tr>
                 </tfoot>
               )}
