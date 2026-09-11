@@ -4,8 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { WEEKDAYS, parseDateOnly } from "@/lib/quote";
 
-type Vendor = { id: string; name: string | null; email: string; roles: string[] };
-
 type ShareBooking = {
   id: string;
   category: string;
@@ -56,14 +54,10 @@ function inputKey(bookingId: string, field: ShareField) {
   return `${bookingId}:${field}`;
 }
 
+// 廠商員工分潤只有廠商本人自己看得到——廠商員工、管理員都不行，
+// 這是廠商自己要分給旗下員工用的內部資料，proxy.ts 也是這樣擋的。
 export default function VendorStaffSharePage() {
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isVendor, setIsVendor] = useState(false);
-  const [isVendorStaff, setIsVendorStaff] = useState(false);
   const [myId, setMyId] = useState("");
-
-  const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [selectedVendorId, setSelectedVendorId] = useState(""); // 管理員專用
 
   const [month, setMonth] = useState(currentMonthStr());
   const [report, setReport] = useState<DetailReport | null>(null);
@@ -76,36 +70,17 @@ export default function VendorStaffSharePage() {
   useEffect(() => {
     fetch("/api/me")
       .then((res) => res.json())
-      .then((me) => {
-        const roles: string[] = me.roles ?? [];
-        setIsAdmin(roles.includes("admin"));
-        setIsVendor(roles.includes("vendor"));
-        setIsVendorStaff(roles.includes("vendor_staff"));
-        setMyId(me.id);
-      });
+      .then((me) => setMyId(me.id));
   }, []);
 
   useEffect(() => {
-    if (!isAdmin) return;
-    fetch("/api/directory")
-      .then((res) => res.json())
-      .then((data) => setVendors((Array.isArray(data) ? data : []).filter((a: Vendor) => a.roles.includes("vendor"))));
-  }, [isAdmin]);
-
-  // 「電話歸屬」欄位：只有廠商本人／廠商員工看得到自己（或所屬廠商）的名單資料，
-  // 管理員選別的廠商時看不到（名單本來就是廠商自己的資料，管理員沒有存取權限）。
-  // 這只是顯示訂位電話/姓名是列在哪份名單裡（打電話當下報的身份），不代表誰真正去操作訂位——
-  // 真正的操作人員是 actualBooker（實際訂位人員）欄位，兩個是不同的資訊，都要留著。
-  const isVendorSide = isVendor || isVendorStaff;
-  useEffect(() => {
-    if (!isVendorSide) return;
     fetch("/api/roster")
       .then((res) => res.json())
       .then((data) => setRosterEntries(Array.isArray(data) ? data : []));
     fetch("/api/roster/lists")
       .then((res) => res.json())
       .then((data) => setRosterLists(Array.isArray(data) ? data : []));
-  }, [isVendorSide]);
+  }, []);
 
   const rosterListNameById = useMemo(() => new Map(rosterLists.map((l) => [l.id, l.name])), [rosterLists]);
 
@@ -115,13 +90,10 @@ export default function VendorStaffSharePage() {
     return rosterListNameById.get(hit.listId) ?? null;
   };
 
-  // 廠商本人跟廠商員工不用自己選，直接看自己（廠商員工看所屬廠商）的資料；管理員要自己選一個廠商
-  const activeVendorId = isVendor || isVendorStaff ? myId : selectedVendorId;
-
   useEffect(() => {
-    if (!activeVendorId) return;
+    if (!myId) return;
     const { from, to } = monthRange(month);
-    const qs = new URLSearchParams({ from, to, vendorId: activeVendorId });
+    const qs = new URLSearchParams({ from, to, vendorId: myId });
     fetch(`/api/platform-share/report?${qs.toString()}`)
       .then((res) => res.json())
       .then((data: DetailReport) => {
@@ -132,14 +104,12 @@ export default function VendorStaffSharePage() {
         ])));
         setLoading(false);
       });
-  }, [activeVendorId, month]);
+  }, [myId, month]);
 
   const monthLabel = useMemo(() => {
     const [y, m] = month.split("-");
     return `${y} 年 ${Number(m)} 月`;
   }, [month]);
-
-  const canEditStaffShare = isVendor || isAdmin;
 
   // 分潤總表：先各自照「電話歸屬」的名字、「實際訂位人員」的名字分別加總金額，
   // 兩邊名字如果剛好一樣（同一個人既是電話歸屬也親自訂位過），就把兩筆金額合併成這個人的總分潤，
@@ -148,7 +118,7 @@ export default function VendorStaffSharePage() {
     if (!report) return [];
     const map = new Map<string, { fromRoster: number; fromBooker: number }>();
     for (const b of report.bookings) {
-      const hit = isVendorSide ? rosterEntries.find((e) => (b.customerPhone && e.phone === b.customerPhone) || (b.customerName && e.name === b.customerName)) : undefined;
+      const hit = rosterEntries.find((e) => (b.customerPhone && e.phone === b.customerPhone) || (b.customerName && e.name === b.customerName));
       const rosterName = hit ? rosterListNameById.get(hit.listId) ?? null : null;
       if (rosterName && b.staffShareAmount) {
         const cur = map.get(rosterName) ?? { fromRoster: 0, fromBooker: 0 };
@@ -164,7 +134,7 @@ export default function VendorStaffSharePage() {
     return [...map.entries()]
       .map(([name, v]) => ({ name, fromRoster: v.fromRoster, fromBooker: v.fromBooker, total: v.fromRoster + v.fromBooker }))
       .sort((a, b) => b.total - a.total);
-  }, [report, isVendorSide, rosterEntries, rosterListNameById]);
+  }, [report, rosterEntries, rosterListNameById]);
 
   const handleShareBlur = (bookingId: string, field: ShareField, value: string, previous: number | null) => {
     const amount = value === "" ? null : Number(value);
@@ -199,22 +169,10 @@ export default function VendorStaffSharePage() {
       <div className="erp-card" style={{ marginBottom: 16 }}>
         <div className="erp-card-body" style={{ padding: "12px 16px", display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           <input type="month" className="erp-input" style={{ maxWidth: 160 }} value={month} onChange={(e) => setMonth(e.target.value)} />
-          {isAdmin && !isVendor && !isVendorStaff && (
-            <select className="erp-select" style={{ maxWidth: 220 }} value={selectedVendorId} onChange={(e) => setSelectedVendorId(e.target.value)}>
-              <option value="">請選擇廠商</option>
-              {vendors.map((v) => (
-                <option key={v.id} value={v.id}>{v.name || v.email}</option>
-              ))}
-            </select>
-          )}
         </div>
       </div>
 
-      {isAdmin && !isVendor && !isVendorStaff && !selectedVendorId && (
-        <div className="erp-card"><div className="erp-card-body" style={{ textAlign: "center", color: "var(--gray-400)" }}>請先選擇要看哪個廠商</div></div>
-      )}
-
-      {loading && activeVendorId && <div style={{ textAlign: "center", color: "var(--gray-400)", padding: 30 }}>載入中...</div>}
+      {loading && <div style={{ textAlign: "center", color: "var(--gray-400)", padding: 30 }}>載入中...</div>}
 
       {!loading && report && (
         <div className="erp-card">
@@ -227,7 +185,7 @@ export default function VendorStaffSharePage() {
               <thead>
                 <tr>
                   <th>日期</th><th>星期</th><th>分店</th><th>訂位代號</th><th>姓名</th><th>人數</th>
-                  {isVendorSide && <th>電話歸屬</th>}
+                  <th>電話歸屬</th>
                   <th>實際訂位人員</th>
                   <th>實收代訂費</th>
                   <th>廠商利潤</th>
@@ -241,7 +199,7 @@ export default function VendorStaffSharePage() {
                   const netProfit = b.vendorProfit - (b.staffShareAmount ?? 0) - (b.bookerShareAmount ?? 0);
                   const renderShareInput = (field: ShareField, previous: number | null) => {
                     const key = inputKey(b.id, field);
-                    return canEditStaffShare ? (
+                    return (
                       <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <input
                           type="number"
@@ -255,8 +213,6 @@ export default function VendorStaffSharePage() {
                         />
                         {savingKey === key && <span style={{ fontSize: 11, color: "var(--gray-400)" }}>儲存中...</span>}
                       </span>
-                    ) : (
-                      formatCurrency(previous ?? 0)
                     );
                   };
                   return (
@@ -267,7 +223,7 @@ export default function VendorStaffSharePage() {
                       <td className="font-mono">{b.bookingCode ?? "—"}</td>
                       <td>{b.customerName ?? "—"}</td>
                       <td>{b.partySize}</td>
-                      {isVendorSide && <td>{findRosterListName(b) ?? "—"}</td>}
+                      <td>{findRosterListName(b) ?? "—"}</td>
                       <td>{b.actualBooker ?? "—"}</td>
                       <td>{formatCurrency(b.actualFee)}</td>
                       <td>{formatCurrency(b.vendorProfit)}</td>
@@ -278,13 +234,13 @@ export default function VendorStaffSharePage() {
                   );
                 })}
                 {report.bookings.length === 0 && (
-                  <tr><td colSpan={isVendorSide ? 13 : 12} style={{ textAlign: "center", color: "var(--gray-400)" }}>這個月沒有可計算的資料（要已售出、有填代訂費）</td></tr>
+                  <tr><td colSpan={13} style={{ textAlign: "center", color: "var(--gray-400)" }}>這個月沒有可計算的資料（要已售出、有填代訂費）</td></tr>
                 )}
               </tbody>
               {report.bookings.length > 0 && (
                 <tfoot>
                   <tr style={{ fontWeight: 600 }}>
-                    <td colSpan={isVendorSide ? 8 : 7}>總計</td>
+                    <td colSpan={8}>總計</td>
                     <td>{formatCurrency(report.bookings.reduce((s, b) => s + b.actualFee, 0))}</td>
                     <td>{formatCurrency(report.totals.vendorProfit)}</td>
                     <td>{formatCurrency(report.bookings.reduce((s, b) => s + (b.staffShareAmount ?? 0), 0))}</td>

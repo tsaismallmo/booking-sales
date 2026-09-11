@@ -119,7 +119,7 @@ export function Sidebar({ roles }: { roles: Role[] }) {
             平台分潤
           </Link>
         )}
-        {(isVendor || isVendorStaff || isAdmin) && (
+        {isVendor && (
           <Link href="/vendor-staff-share" className={cn("erp-sidebar-item", pathname.startsWith("/vendor-staff-share") && "active")}>
             <Users size={15} />
             廠商員工分潤

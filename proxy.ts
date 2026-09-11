@@ -78,8 +78,8 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
-  // 廠商員工分潤：廠商本人、廠商員工、管理員都能看（這個是廠商要分給員工用的，員工本來就該看得到）
-  if (pathname.startsWith('/vendor-staff-share') && !roles.includes('vendor') && !roles.includes('vendor_staff') && !isAdmin) {
+  // 廠商員工分潤：只有廠商本人能看（廠商內部要分給員工多少的資料，員工跟管理員都不用看）
+  if (pathname.startsWith('/vendor-staff-share') && !roles.includes('vendor')) {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
