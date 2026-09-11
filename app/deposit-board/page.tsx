@@ -20,13 +20,21 @@ type Booking = {
 };
 
 type CheckField = "depositDisbursed" | "depositConfirmed";
+type TabKey = "notDisbursed" | "notConfirmed" | "bothDone";
 
 const statusLabel: Record<Booking["status"], string> = { unsold: "未售出", reserved: "訂", sold: "售", refunded: "退" };
+
+const TABS: { key: TabKey; label: string; filter: (b: Booking) => boolean }[] = [
+  { key: "notDisbursed", label: "已撥款未勾選", filter: (b) => !b.depositDisbursed },
+  { key: "notConfirmed", label: "確認收到款項未勾選", filter: (b) => !b.depositConfirmed },
+  { key: "bothDone", label: "兩個都已勾選", filter: (b) => b.depositDisbursed && b.depositConfirmed },
+];
 
 export default function DepositBoardPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [isVendorStaff, setIsVendorStaff] = useState(false);
+  const [tab, setTab] = useState<TabKey>("notDisbursed");
 
   useEffect(() => {
     fetch("/api/me")
@@ -40,7 +48,9 @@ export default function DepositBoardPage() {
       });
   }, []);
 
-  const total = bookings.reduce((s, b) => s + (b.depositAmount ? Number(b.depositAmount) : 0), 0);
+  const activeFilter = TABS.find((t) => t.key === tab)!.filter;
+  const filteredBookings = bookings.filter(activeFilter);
+  const total = filteredBookings.reduce((s, b) => s + (b.depositAmount ? Number(b.depositAmount) : 0), 0);
 
   const handleToggle = (bookingId: string, field: CheckField, value: boolean) => {
     // 先樂觀更新畫面，不等網路回應；PATCH 失敗才復原
@@ -66,9 +76,25 @@ export default function DepositBoardPage() {
         </div>
       </div>
 
+      <div className="erp-card" style={{ marginBottom: 16 }}>
+        <div className="erp-card-body" style={{ padding: "12px 16px" }}>
+          <div className="erp-tabs">
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                className={`erp-tab${tab === t.key ? " active" : ""}`}
+                onClick={() => setTab(t.key)}
+              >
+                {t.label}（{bookings.filter(t.filter).length}）
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <div className="erp-card">
         <div className="erp-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span className="erp-card-title">共 {bookings.length} 筆</span>
+          <span className="erp-card-title">共 {filteredBookings.length} 筆</span>
           <span style={{ fontSize: 14, fontWeight: 600, color: "var(--brand-700)" }}>訂金總額　{formatCurrency(total)}</span>
         </div>
         <div className="erp-table-wrap">
@@ -81,7 +107,7 @@ export default function DepositBoardPage() {
               </tr>
             </thead>
             <tbody>
-              {!loading && bookings.map((b) => (
+              {!loading && filteredBookings.map((b) => (
                 <tr key={b.id}>
                   <td>{b.bookingDate}</td>
                   <td>週{WEEKDAYS[parseDateOnly(b.bookingDate).getDay()]}</td>
@@ -109,8 +135,8 @@ export default function DepositBoardPage() {
                   </td>
                 </tr>
               ))}
-              {!loading && bookings.length === 0 && (
-                <tr><td colSpan={12} style={{ textAlign: "center", color: "var(--gray-400)" }}>目前沒有填訂金的單據</td></tr>
+              {!loading && filteredBookings.length === 0 && (
+                <tr><td colSpan={12} style={{ textAlign: "center", color: "var(--gray-400)" }}>這個分頁目前沒有符合的單據</td></tr>
               )}
               {loading && (
                 <tr><td colSpan={12} style={{ textAlign: "center", color: "var(--gray-400)" }}>載入中...</td></tr>
