@@ -15,7 +15,11 @@ type Booking = {
   status: "unsold" | "reserved" | "sold" | "refunded";
   depositAmount: string | number | null;
   depositPayer: string | null;
+  depositDisbursed: boolean;
+  depositConfirmed: boolean;
 };
+
+type CheckField = "depositDisbursed" | "depositConfirmed";
 
 const statusLabel: Record<Booking["status"], string> = { unsold: "未售出", reserved: "訂", sold: "售", refunded: "退" };
 
@@ -37,6 +41,19 @@ export default function DepositBoardPage() {
   }, []);
 
   const total = bookings.reduce((s, b) => s + (b.depositAmount ? Number(b.depositAmount) : 0), 0);
+
+  const handleToggle = (bookingId: string, field: CheckField, value: boolean) => {
+    // 先樂觀更新畫面，不等網路回應；PATCH 失敗才復原
+    setBookings((rows) => rows.map((b) => (b.id === bookingId ? { ...b, [field]: value } : b)));
+    fetch(`/api/bookings/${bookingId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [field]: value }),
+    }).then((res) => {
+      if (res.ok) return;
+      setBookings((rows) => rows.map((b) => (b.id === bookingId ? { ...b, [field]: !value } : b)));
+    });
+  };
 
   return (
     <div className="erp-page">
@@ -60,6 +77,7 @@ export default function DepositBoardPage() {
               <tr>
                 <th>日期</th><th>星期</th><th>分店</th><th>類別</th><th>訂位代號</th>
                 <th>姓名</th><th>電話</th><th>狀態</th><th>訂金</th><th>付款人員</th>
+                <th>已撥款</th><th>確認收到款項</th>
               </tr>
             </thead>
             <tbody>
@@ -75,13 +93,27 @@ export default function DepositBoardPage() {
                   <td>{statusLabel[b.status]}</td>
                   <td>{formatCurrency(b.depositAmount)}</td>
                   <td>{b.depositPayer ?? "—"}</td>
+                  <td style={{ textAlign: "center" }}>
+                    <input
+                      type="checkbox"
+                      checked={b.depositDisbursed}
+                      onChange={(e) => handleToggle(b.id, "depositDisbursed", e.target.checked)}
+                    />
+                  </td>
+                  <td style={{ textAlign: "center" }}>
+                    <input
+                      type="checkbox"
+                      checked={b.depositConfirmed}
+                      onChange={(e) => handleToggle(b.id, "depositConfirmed", e.target.checked)}
+                    />
+                  </td>
                 </tr>
               ))}
               {!loading && bookings.length === 0 && (
-                <tr><td colSpan={10} style={{ textAlign: "center", color: "var(--gray-400)" }}>目前沒有填訂金的單據</td></tr>
+                <tr><td colSpan={12} style={{ textAlign: "center", color: "var(--gray-400)" }}>目前沒有填訂金的單據</td></tr>
               )}
               {loading && (
-                <tr><td colSpan={10} style={{ textAlign: "center", color: "var(--gray-400)" }}>載入中...</td></tr>
+                <tr><td colSpan={12} style={{ textAlign: "center", color: "var(--gray-400)" }}>載入中...</td></tr>
               )}
             </tbody>
           </table>

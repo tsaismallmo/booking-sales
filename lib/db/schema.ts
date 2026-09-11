@@ -38,6 +38,8 @@ export const bookings = pgTable('bookings', {
   // 餐廳端金流
   depositAmount: numeric('deposit_amount'), // 訂金（廠商付給餐廳）
   depositPayer: text('deposit_payer'), // 付款人員（內部代繳訂金的人，通常是廠商本人）
+  depositDisbursed: boolean('deposit_disbursed').notNull().default(false), // 已撥款
+  depositConfirmed: boolean('deposit_confirmed').notNull().default(false), // 確認收到款項
   actualBooker: text('actual_booker'), // 實際訂位人員（實際打電話/訂位的內部人員，可能跟付款人員、銷售的客服都不同）
 
   // 客戶端資訊
