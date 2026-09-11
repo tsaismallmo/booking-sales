@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
     )
     const detail = rows.map((b) => {
       const r = results.find((x) => x.id === b.id)
-      return r ? { ...r, category: b.category, branch: b.branch, customerName: b.customerName, actualBooker: b.actualBooker, bookingCode: b.bookingCode, staffShareAmount: b.staffShareAmount === null ? null : Number(b.staffShareAmount) } : null
+      return r ? { ...r, category: b.category, branch: b.branch, customerName: b.customerName, customerPhone: b.customerPhone, actualBooker: b.actualBooker, bookingCode: b.bookingCode, staffShareAmount: b.staffShareAmount === null ? null : Number(b.staffShareAmount) } : null
     }).filter((r) => r !== null)
     // 查詢區間通常就是頁面選的那個月，直接把那個月的費率一起回傳，前端不用再一筆一筆列
     const platformFeeRate = vendorRateMap.get(`${vendorId}|${queryMonth}`) ?? DEFAULT_PLATFORM_RATES.platformFeeRate
