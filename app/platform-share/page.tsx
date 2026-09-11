@@ -12,6 +12,7 @@ type ShareBooking = {
   bookingDate: string;
   partySize: number;
   actualFee: number;
+  platformFeeBase: number | null;
   platformFeeRate: number;
   platformFee: number;
   vendorProfit: number;
@@ -205,7 +206,12 @@ export default function PlatformSharePage() {
                       <td>{b.customerName ?? "—"}</td>
                       <td>{b.partySize}</td>
                       <td>{formatCurrency(b.actualFee)}</td>
-                      <td>{formatCurrency(b.platformFee)}</td>
+                      <td>
+                        {formatCurrency(b.platformFee)}
+                        {b.platformFeeBase !== null && (
+                          <div style={{ fontSize: 11, color: "var(--brand-600)" }}>以 {formatCurrency(b.platformFeeBase)} 計費</div>
+                        )}
+                      </td>
                       <td>{formatCurrency(b.vendorProfit)}</td>
                     </tr>
                   );

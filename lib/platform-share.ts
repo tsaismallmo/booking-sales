@@ -22,6 +22,7 @@ export type ShareResult = {
   bookingDate: string
   partySize: number
   actualFee: number
+  platformFeeBase: number | null // 實際拿去算平台費的基礎金額；null 代表沒調整，用的是 actualFee 全額
   platformFeeRate: number
   platformFee: number
   vendorProfit: number
@@ -37,9 +38,8 @@ export function computeShare(booking: ShareBooking, rates: PlatformRates): Share
   const actualFee = booking.agencyFee === null ? null : Number(booking.agencyFee)
   if (n <= 0 || actualFee === null || Number.isNaN(actualFee)) return null
 
-  const feeBase = booking.platformFeeBase === null || booking.platformFeeBase === undefined
-    ? actualFee
-    : Number(booking.platformFeeBase)
+  const hasCustomBase = booking.platformFeeBase !== null && booking.platformFeeBase !== undefined
+  const feeBase = hasCustomBase ? Number(booking.platformFeeBase) : actualFee
   const platformFee = Math.round(feeBase * rates.platformFeeRate / 100)
   const vendorProfit = actualFee - platformFee
   const csShare = Math.round(platformFee * rates.csShareOfPlatformRate / 100)
@@ -50,6 +50,7 @@ export function computeShare(booking: ShareBooking, rates: PlatformRates): Share
     bookingDate: booking.bookingDate,
     partySize: n,
     actualFee,
+    platformFeeBase: hasCustomBase ? feeBase : null,
     platformFeeRate: rates.platformFeeRate,
     platformFee,
     vendorProfit,
