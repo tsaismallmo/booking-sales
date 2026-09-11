@@ -22,8 +22,12 @@ const statusLabel: Record<Booking["status"], string> = { unsold: "未售出", re
 export default function DepositBoardPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isVendorStaff, setIsVendorStaff] = useState(false);
 
   useEffect(() => {
+    fetch("/api/me")
+      .then((res) => res.json())
+      .then((me) => setIsVendorStaff((me.roles ?? []).includes("vendor_staff") && !(me.roles ?? []).includes("vendor")));
     fetch("/api/deposit-board")
       .then((res) => res.json())
       .then((data) => {
@@ -39,7 +43,9 @@ export default function DepositBoardPage() {
       <div className="erp-page-header">
         <div>
           <h1 className="erp-page-title">訂金付款看板</h1>
-          <p className="erp-page-subtitle">列出底下全部有填訂金的單據，方便盤點訂金付款狀況</p>
+          <p className="erp-page-subtitle">
+            {isVendorStaff ? "列出付款人員是自己的單據，方便盤點自己的訂金付款狀況" : "列出底下全部有填訂金的單據，方便盤點訂金付款狀況"}
+          </p>
         </div>
       </div>
 
