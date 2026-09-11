@@ -108,7 +108,7 @@ export default function VendorStaffSharePage() {
       <div className="erp-card" style={{ marginBottom: 16 }}>
         <div className="erp-card-body" style={{ padding: "12px 16px", display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           <input type="month" className="erp-input" style={{ maxWidth: 160 }} value={month} onChange={(e) => setMonth(e.target.value)} />
-          {isAdmin && (
+          {isAdmin && !isVendor && !isVendorStaff && (
             <select className="erp-select" style={{ maxWidth: 220 }} value={selectedVendorId} onChange={(e) => setSelectedVendorId(e.target.value)}>
               <option value="">請選擇廠商</option>
               {vendors.map((v) => (
@@ -119,7 +119,7 @@ export default function VendorStaffSharePage() {
         </div>
       </div>
 
-      {isAdmin && !selectedVendorId && (
+      {isAdmin && !isVendor && !isVendorStaff && !selectedVendorId && (
         <div className="erp-card"><div className="erp-card-body" style={{ textAlign: "center", color: "var(--gray-400)" }}>請先選擇要看哪個廠商</div></div>
       )}
 
