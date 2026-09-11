@@ -27,7 +27,8 @@ type DetailReport = {
 };
 
 type RosterEntry = { name: string; phone: string | null; listId: string };
-type RosterList = { id: string; name: string };
+type RosterList = { id: string; name: string; ownerEmail: string | null };
+type TeamMember = { id: string; name: string | null; email: string };
 
 function pad2(n: number) {
   return String(n).padStart(2, "0");
@@ -60,6 +61,7 @@ export default function VendorStaffSharePage() {
   const [loading, setLoading] = useState(true);
   const [rosterEntries, setRosterEntries] = useState<RosterEntry[]>([]);
   const [rosterLists, setRosterLists] = useState<RosterList[]>([]);
+  const [team, setTeam] = useState<TeamMember[]>([]);
 
   useEffect(() => {
     fetch("/api/me")
@@ -80,8 +82,9 @@ export default function VendorStaffSharePage() {
       .then((data) => setVendors((Array.isArray(data) ? data : []).filter((a: Vendor) => a.roles.includes("vendor"))));
   }, [isAdmin]);
 
-  // 「所屬名單」欄位：只有廠商本人／廠商員工看得到自己（或所屬廠商）的名單資料，
-  // 管理員選別的廠商時看不到（名單本來就是廠商自己的資料，管理員沒有存取權限）
+  // 「所屬名單」「負責員工」欄位：只有廠商本人／廠商員工看得到自己（或所屬廠商）的名單資料，
+  // 管理員選別的廠商時看不到（名單本來就是廠商自己的資料，管理員沒有存取權限）。
+  // 名單的「帳號歸屬」（ownerEmail）標記這份名單算誰的，用來判斷這通電話訂位算哪個員工的業績。
   const isVendorSide = isVendor || isVendorStaff;
   useEffect(() => {
     if (!isVendorSide) return;
@@ -91,14 +94,20 @@ export default function VendorStaffSharePage() {
     fetch("/api/roster/lists")
       .then((res) => res.json())
       .then((data) => setRosterLists(Array.isArray(data) ? data : []));
+    fetch("/api/roster/team")
+      .then((res) => res.json())
+      .then((data) => setTeam(Array.isArray(data) ? data : []));
   }, [isVendorSide]);
 
-  const rosterListNameById = useMemo(() => new Map(rosterLists.map((l) => [l.id, l.name])), [rosterLists]);
+  const rosterListById = useMemo(() => new Map(rosterLists.map((l) => [l.id, l])), [rosterLists]);
+  const teamNameByEmail = useMemo(() => new Map(team.map((m) => [m.email, m.name || m.email])), [team]);
 
-  const findRosterList = (b: ShareBooking): string | null => {
+  const findRosterMatch = (b: ShareBooking): { listName: string; ownerName: string | null } | null => {
     const hit = rosterEntries.find((e) => (b.customerPhone && e.phone === b.customerPhone) || (b.customerName && e.name === b.customerName));
     if (!hit) return null;
-    return rosterListNameById.get(hit.listId) ?? null;
+    const list = rosterListById.get(hit.listId);
+    if (!list) return null;
+    return { listName: list.name, ownerName: list.ownerEmail ? teamNameByEmail.get(list.ownerEmail) ?? list.ownerEmail : null };
   };
 
   // 廠商本人跟廠商員工不用自己選，直接看自己（廠商員工看所屬廠商）的資料；管理員要自己選一個廠商
@@ -164,32 +173,37 @@ export default function VendorStaffSharePage() {
                 <tr>
                   <th>日期</th><th>星期</th><th>分店</th><th>訂位代號</th><th>姓名</th><th>人數</th>
                   {isVendorSide && <th>所屬名單</th>}
+                  {isVendorSide && <th>負責員工</th>}
                   <th>實收代訂費</th>
                   <th>廠商利潤</th>
                 </tr>
               </thead>
               <tbody>
-                {report.bookings.map((b) => (
-                  <tr key={b.id}>
-                    <td>{b.bookingDate}</td>
-                    <td>週{WEEKDAYS[parseDateOnly(b.bookingDate).getDay()]}</td>
-                    <td>{b.branch ?? "—"}</td>
-                    <td className="font-mono">{b.bookingCode ?? "—"}</td>
-                    <td>{b.customerName ?? "—"}</td>
-                    <td>{b.partySize}</td>
-                    {isVendorSide && <td>{findRosterList(b) ?? "—"}</td>}
-                    <td>{formatCurrency(b.actualFee)}</td>
-                    <td>{formatCurrency(b.vendorProfit)}</td>
-                  </tr>
-                ))}
+                {report.bookings.map((b) => {
+                  const match = isVendorSide ? findRosterMatch(b) : null;
+                  return (
+                    <tr key={b.id}>
+                      <td>{b.bookingDate}</td>
+                      <td>週{WEEKDAYS[parseDateOnly(b.bookingDate).getDay()]}</td>
+                      <td>{b.branch ?? "—"}</td>
+                      <td className="font-mono">{b.bookingCode ?? "—"}</td>
+                      <td>{b.customerName ?? "—"}</td>
+                      <td>{b.partySize}</td>
+                      {isVendorSide && <td>{match?.listName ?? "—"}</td>}
+                      {isVendorSide && <td>{match?.ownerName ?? "—"}</td>}
+                      <td>{formatCurrency(b.actualFee)}</td>
+                      <td>{formatCurrency(b.vendorProfit)}</td>
+                    </tr>
+                  );
+                })}
                 {report.bookings.length === 0 && (
-                  <tr><td colSpan={isVendorSide ? 9 : 8} style={{ textAlign: "center", color: "var(--gray-400)" }}>這個月沒有可計算的資料（要已售出、有填代訂費）</td></tr>
+                  <tr><td colSpan={isVendorSide ? 10 : 8} style={{ textAlign: "center", color: "var(--gray-400)" }}>這個月沒有可計算的資料（要已售出、有填代訂費）</td></tr>
                 )}
               </tbody>
               {report.bookings.length > 0 && (
                 <tfoot>
                   <tr style={{ fontWeight: 600 }}>
-                    <td colSpan={isVendorSide ? 7 : 6}>總計</td>
+                    <td colSpan={isVendorSide ? 8 : 6}>總計</td>
                     <td>{formatCurrency(report.bookings.reduce((s, b) => s + b.actualFee, 0))}</td>
                     <td>{formatCurrency(report.totals.vendorProfit)}</td>
                   </tr>
