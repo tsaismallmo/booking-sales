@@ -68,6 +68,11 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
+  // 訂金付款看板：廠商本人跟廠商員工都能看
+  if (pathname.startsWith('/deposit-board') && !roles.includes('vendor') && !roles.includes('vendor_staff')) {
+    return NextResponse.redirect(new URL(fallback, req.url))
+  }
+
   // 平台分潤：只有廠商本人跟管理員能看，廠商員工不行
   if (pathname.startsWith('/platform-share') && !roles.includes('vendor') && !isAdmin) {
     return NextResponse.redirect(new URL(fallback, req.url))
@@ -83,8 +88,8 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
-  // 分潤設定、批次退訂、每月金流總覽、批次標記平台：只有管理員能看
-  if ((pathname.startsWith('/admin/rates') || pathname.startsWith('/admin/bulk-refund') || pathname.startsWith('/admin/monthly-summary') || pathname.startsWith('/admin/bulk-tag-platform')) && !isAdmin) {
+  // 分潤設定、批次退訂、每月金流總覽、批次標記平台、資料備份：只有管理員能看
+  if ((pathname.startsWith('/admin/rates') || pathname.startsWith('/admin/bulk-refund') || pathname.startsWith('/admin/monthly-summary') || pathname.startsWith('/admin/bulk-tag-platform') || pathname.startsWith('/admin/backups')) && !isAdmin) {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 

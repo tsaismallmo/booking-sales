@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { ClipboardList, Users, LogOut, MapPinned, Wrench, Package, Clock3, CalendarClock, BookUser, CalendarDays, PieChart, BellRing, BadgeCheck, TableProperties, HandCoins, RotateCcw, Landmark, Tags } from "lucide-react";
+import { ClipboardList, Users, LogOut, MapPinned, Wrench, Package, Clock3, CalendarClock, BookUser, CalendarDays, PieChart, BellRing, BadgeCheck, TableProperties, HandCoins, RotateCcw, Landmark, Tags, Archive, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/types/next-auth";
 
@@ -101,6 +101,10 @@ export function Sidebar({ roles }: { roles: Role[] }) {
               <CalendarDays size={15} />
               訂位看板
             </Link>
+            <Link href="/deposit-board" className={cn("erp-sidebar-item", pathname.startsWith("/deposit-board") && "active")}>
+              <Wallet size={15} />
+              訂金付款看板
+            </Link>
           </>
         )}
         {(isVendor || isVendorStaff) && (
@@ -171,6 +175,10 @@ export function Sidebar({ roles }: { roles: Role[] }) {
             <Link href="/branch-aliases" className={cn("erp-sidebar-item", pathname.startsWith("/branch-aliases") && "active")}>
               <MapPinned size={15} />
               分店對應表
+            </Link>
+            <Link href="/admin/backups" className={cn("erp-sidebar-item", pathname.startsWith("/admin/backups") && "active")}>
+              <Archive size={15} />
+              資料備份
             </Link>
           </>
         )}

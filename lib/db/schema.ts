@@ -152,3 +152,13 @@ export const smsLogs = pgTable('sms_logs', {
   createdById: uuid('created_by_id').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
+
+// 資料備份：管理員手動建立，把業務資料（不含帳號，避免還原時把自己的登入身份改掉）
+// 整包存成一筆 JSON 快照，之後可以整包還原回去。
+export const backups = pgTable('backups', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  label: text('label'), // 備份備注（例如「改分潤設定前」），可留空
+  data: jsonb('data').notNull(), // 快照內容：{ bookings: [...], bookingRequests: [...], ... }
+  createdById: uuid('created_by_id').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
