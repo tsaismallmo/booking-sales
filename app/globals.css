@@ -107,21 +107,10 @@ button { font-family: var(--font-ui); cursor: pointer; }
   overflow-y: auto;
   overflow-x: hidden;
   z-index: 40;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,.15) transparent;
+  scrollbar-width: none;
 }
 .erp-sidebar::-webkit-scrollbar {
-  width: 6px;
-}
-.erp-sidebar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.erp-sidebar::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,.15);
-  border-radius: 4px;
-}
-.erp-sidebar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,.3);
+  display: none;
 }
 
 .erp-sidebar-logo {
