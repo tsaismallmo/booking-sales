@@ -101,17 +101,22 @@ export default function VendorStaffSharePage() {
 
   const canEditStaffShare = isVendor || isAdmin;
 
-  const handleStaffShareBlur = async (bookingId: string, value: string) => {
+  const handleStaffShareBlur = (bookingId: string, value: string, previous: number | null) => {
+    const amount = value === "" ? null : Number(value);
+    if (amount === previous) return;
+    // 先樂觀更新畫面，不等網路回應——PATCH 失敗才復原，避免每次都要等一趟才看到結果
+    setReport((r) => r && { ...r, bookings: r.bookings.map((b) => (b.id === bookingId ? { ...b, staffShareAmount: amount } : b)) });
     setSavingId(bookingId);
-    const res = await fetch(`/api/bookings/${bookingId}`, {
+    fetch(`/api/bookings/${bookingId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ staffShareAmount: value }),
+    }).then((res) => {
+      setSavingId(null);
+      if (res.ok) return;
+      setReport((r) => r && { ...r, bookings: r.bookings.map((b) => (b.id === bookingId ? { ...b, staffShareAmount: previous } : b)) });
+      setStaffShareInputs((s) => ({ ...s, [bookingId]: previous === null ? "" : String(previous) }));
     });
-    setSavingId(null);
-    if (!res.ok) return;
-    const amount = value === "" ? null : Number(value);
-    setReport((r) => r && { ...r, bookings: r.bookings.map((b) => (b.id === bookingId ? { ...b, staffShareAmount: amount } : b)) });
   };
 
   return (
@@ -179,17 +184,19 @@ export default function VendorStaffSharePage() {
                       <td>{formatCurrency(b.vendorProfit)}</td>
                       <td>
                         {canEditStaffShare ? (
-                          <input
-                            type="number"
-                            step="0.01"
-                            className="erp-input"
-                            style={{ width: 100 }}
-                            placeholder="0"
-                            value={staffShareInputs[b.id] ?? ""}
-                            onChange={(e) => setStaffShareInputs((s) => ({ ...s, [b.id]: e.target.value }))}
-                            onBlur={(e) => handleStaffShareBlur(b.id, e.target.value)}
-                            disabled={savingId === b.id}
-                          />
+                          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="erp-input"
+                              style={{ width: 100 }}
+                              placeholder="0"
+                              value={staffShareInputs[b.id] ?? ""}
+                              onChange={(e) => setStaffShareInputs((s) => ({ ...s, [b.id]: e.target.value }))}
+                              onBlur={(e) => handleStaffShareBlur(b.id, e.target.value, b.staffShareAmount)}
+                            />
+                            {savingId === b.id && <span style={{ fontSize: 11, color: "var(--gray-400)" }}>儲存中...</span>}
+                          </span>
                         ) : (
                           formatCurrency(b.staffShareAmount ?? 0)
                         )}
