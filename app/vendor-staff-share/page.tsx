@@ -100,7 +100,7 @@ export default function VendorStaffSharePage() {
         <div>
           <h1 className="erp-page-title">廠商員工分潤</h1>
           <p className="erp-page-subtitle">
-            列出已售出現貨單的廠商利潤（實收代訂費扣掉平台費後的金額），方便廠商自己再分給旗下員工。依「售出日期」算月份（不是訂位日期）
+            列出已售出訂單的廠商利潤（實收代訂費扣掉平台費後的金額），方便廠商自己再分給旗下員工。依「售出日期」算月份（不是訂位日期）
           </p>
         </div>
       </div>
@@ -131,9 +131,6 @@ export default function VendorStaffSharePage() {
             <span className="erp-card-title">{monthLabel}　已售 {report.bookings.length} 筆</span>
             <span style={{ fontSize: 14, fontWeight: 600, color: "var(--brand-700)" }}>廠商利潤總額　{formatCurrency(report.totals.vendorProfit)}</span>
           </div>
-          <p style={{ padding: "0 16px", margin: "8px 0 0", fontSize: 12, color: "var(--gray-400)" }}>
-            臨時單不抽平台費、廠商利潤是全額，一樣列出來但不計入上面的總額
-          </p>
           <div className="erp-table-wrap">
             <table className="erp-table">
               <thead>
@@ -144,33 +141,27 @@ export default function VendorStaffSharePage() {
                 </tr>
               </thead>
               <tbody>
-                {report.bookings.map((b) => {
-                  const isTemp = b.category !== "現貨單";
-                  return (
-                    <tr key={b.id} style={isTemp ? { color: "var(--gray-400)" } : undefined}>
-                      <td>
-                        {isTemp && <span className="badge badge-gray" style={{ fontSize: 11, marginRight: 4 }}>臨時單</span>}
-                        {b.bookingDate}
-                      </td>
-                      <td>週{WEEKDAYS[parseDateOnly(b.bookingDate).getDay()]}</td>
-                      <td>{b.branch ?? "—"}</td>
-                      <td className="font-mono">{b.bookingCode ?? "—"}</td>
-                      <td>{b.customerName ?? "—"}</td>
-                      <td>{b.partySize}</td>
-                      <td>{formatCurrency(b.actualFee)}</td>
-                      <td>{formatCurrency(b.vendorProfit)}</td>
-                    </tr>
-                  );
-                })}
+                {report.bookings.map((b) => (
+                  <tr key={b.id}>
+                    <td>{b.bookingDate}</td>
+                    <td>週{WEEKDAYS[parseDateOnly(b.bookingDate).getDay()]}</td>
+                    <td>{b.branch ?? "—"}</td>
+                    <td className="font-mono">{b.bookingCode ?? "—"}</td>
+                    <td>{b.customerName ?? "—"}</td>
+                    <td>{b.partySize}</td>
+                    <td>{formatCurrency(b.actualFee)}</td>
+                    <td>{formatCurrency(b.vendorProfit)}</td>
+                  </tr>
+                ))}
                 {report.bookings.length === 0 && (
-                  <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--gray-400)" }}>這個月沒有可計算的資料（要現貨單、已售出、有填代訂費）</td></tr>
+                  <tr><td colSpan={8} style={{ textAlign: "center", color: "var(--gray-400)" }}>這個月沒有可計算的資料（要已售出、有填代訂費）</td></tr>
                 )}
               </tbody>
               {report.bookings.length > 0 && (
                 <tfoot>
                   <tr style={{ fontWeight: 600 }}>
-                    <td colSpan={6}>總計（不含臨時單）</td>
-                    <td>{formatCurrency(report.bookings.filter((b) => b.category === "現貨單").reduce((s, b) => s + b.actualFee, 0))}</td>
+                    <td colSpan={6}>總計</td>
+                    <td>{formatCurrency(report.bookings.reduce((s, b) => s + b.actualFee, 0))}</td>
                     <td>{formatCurrency(report.totals.vendorProfit)}</td>
                   </tr>
                 </tfoot>

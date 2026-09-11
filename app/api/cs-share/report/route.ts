@@ -8,16 +8,15 @@ import { getCsShareRate, getVendorPlatformFeeRatesForMonths } from '@/lib/platfo
 
 // 客服分潤不是一筆一筆單獨算的，是先算出一個獎金池，每個客服再照自己賣出量佔全部客服賣出量的
 // 比例（成交率）去分這個池子：
-//   1. 獎金池 = 這個月「全部廠商」現貨單的平台費總和 × 客服分潤比例（月）
-//   2. 成交率 = 這個客服賣出的單量 ÷ 全部客服賣出的單量（現貨單＋臨時單都算，臨時單本身
-//      沒有平台費可以分，但賣出的量還是算業績）
+//   1. 獎金池 = 這個月「全部廠商」現貨單＋臨時單的平台費總和 × 客服分潤比例（月）
+//   2. 成交率 = 這個客服賣出的單量 ÷ 全部客服賣出的單量（現貨單＋臨時單都算）
 //   3. 這個客服分到的錢 = 獎金池 × 成交率
 // 依「售出日期」篩選期間，不是訂位日期，原因同 platform-share。
 
-// 這個月全部廠商的現貨單平台費總和（不分廠商），拿來當客服分潤獎金池的基礎
+// 這個月全部廠商的平台費總和（現貨單＋臨時單、不分廠商），拿來當客服分潤獎金池的基礎
 async function computeTotalPlatformFee(from: string, to: string) {
   const rows = await db.select().from(bookings).where(and(
-    eq(bookings.category, '現貨單'),
+    inArray(bookings.category, ['現貨單', '臨時單']),
     eq(bookings.status, 'sold'),
     gte(bookings.soldDate, from),
     lte(bookings.soldDate, to)
