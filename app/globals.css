@@ -107,6 +107,18 @@ button { font-family: var(--font-ui); cursor: pointer; }
   overflow-y: auto;
   overflow-x: hidden;
   z-index: 40;
+  scrollbar-width: thin;
+  scrollbar-color: var(--brand-600) transparent;
+}
+.erp-sidebar::-webkit-scrollbar {
+  width: 8px;
+}
+.erp-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.erp-sidebar::-webkit-scrollbar-thumb {
+  background: var(--brand-600);
+  border-radius: 4px;
 }
 
 .erp-sidebar-logo {
