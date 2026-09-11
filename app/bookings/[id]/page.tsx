@@ -19,6 +19,15 @@ type BookingRequest = {
   status: "pending" | "resolved";
 };
 
+type RosterHit = {
+  entryId: string;
+  name: string;
+  phone: string | null;
+  listId: string;
+  listName: string;
+  matchedBy: ("phone" | "name")[];
+};
+
 const statusLabel: Record<string, string> = { unsold: "未售出", reserved: "訂", sold: "售", refunded: "退" };
 const smsTypeLabel: Record<SmsLog["type"], string> = { booking_notice: "付款通知簡訊", payment_completion: "付款完成簡訊" };
 
@@ -47,6 +56,7 @@ export default function BookingDetailPage() {
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [requestForm, setRequestForm] = useState({ note: "", proposedBranch: "", proposedBookingDate: "", proposedTimeSlot: "", proposedPartySize: "" });
   const [submittingRequest, setSubmittingRequest] = useState(false);
+  const [rosterHits, setRosterHits] = useState<RosterHit[]>([]);
 
   const loadPendingRequest = () => {
     fetch(`/api/booking-requests?bookingId=${params.id}&status=pending`)
@@ -76,6 +86,21 @@ export default function BookingDetailPage() {
         setCanCreateRequest((r.includes("customer_service") || r.includes("admin")) && !r.includes("vendor"));
       });
   }, [params.id]);
+
+  const isVendorSide = roles.includes("vendor") || roles.includes("vendor_staff");
+
+  useEffect(() => {
+    if (!booking || !isVendorSide) return;
+    const phone = booking.customerPhone ? String(booking.customerPhone) : "";
+    const name = booking.customerName ? String(booking.customerName) : "";
+    if (!phone && !name) return;
+    const qs = new URLSearchParams();
+    if (phone) qs.set("phone", phone);
+    if (name) qs.set("name", name);
+    fetch(`/api/roster/lookup?${qs.toString()}`)
+      .then((res) => res.json())
+      .then((data) => setRosterHits(Array.isArray(data) ? data : []));
+  }, [booking, isVendorSide]);
 
   const pureCustomerService = roles.includes("customer_service") && !roles.includes("vendor") && !roles.includes("admin");
   const isRefunded = booking?.status === "refunded";
@@ -212,6 +237,18 @@ export default function BookingDetailPage() {
           <Row label="電話" value={booking.customerPhone} />
           <Row label="來源" value={booking.source} />
           <Row label="訂位平台" value={[booking.isInline ? "Inline" : null, booking.isEztable ? "EZTABLE" : null].filter(Boolean).join("、") || null} />
+          {isVendorSide && (
+            <Row
+              label="所屬名單"
+              value={
+                rosterHits.length === 0
+                  ? "沒有比對到廠商名單"
+                  : rosterHits
+                      .map((h) => `${h.listName}（${h.name}・${h.matchedBy.includes("phone") && h.matchedBy.includes("name") ? "電話+姓名相符" : h.matchedBy.includes("phone") ? "電話相符" : "姓名相符"}）`)
+                      .join("、")
+              }
+            />
+          )}
         </div>
       </div>
 
