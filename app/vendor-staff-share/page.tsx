@@ -33,6 +33,7 @@ type DetailReport = {
 
 type RosterEntry = { name: string; phone: string | null; listId: string };
 type RosterList = { id: string; name: string };
+type PersonShare = { name: string; fromRoster: number; fromBooker: number; total: number };
 
 function pad2(n: number) {
   return String(n).padStart(2, "0");
@@ -139,6 +140,31 @@ export default function VendorStaffSharePage() {
   }, [month]);
 
   const canEditStaffShare = isVendor || isAdmin;
+
+  // 分潤總表：先各自照「電話歸屬」的名字、「實際訂位人員」的名字分別加總金額，
+  // 兩邊名字如果剛好一樣（同一個人既是電話歸屬也親自訂位過），就把兩筆金額合併成這個人的總分潤，
+  // 並列出這筆總分潤裡有多少是來自電話歸屬、多少來自實際訂位，方便對照。
+  const personShares: PersonShare[] = useMemo(() => {
+    if (!report) return [];
+    const map = new Map<string, { fromRoster: number; fromBooker: number }>();
+    for (const b of report.bookings) {
+      const hit = isVendorSide ? rosterEntries.find((e) => (b.customerPhone && e.phone === b.customerPhone) || (b.customerName && e.name === b.customerName)) : undefined;
+      const rosterName = hit ? rosterListNameById.get(hit.listId) ?? null : null;
+      if (rosterName && b.staffShareAmount) {
+        const cur = map.get(rosterName) ?? { fromRoster: 0, fromBooker: 0 };
+        cur.fromRoster += b.staffShareAmount;
+        map.set(rosterName, cur);
+      }
+      if (b.actualBooker && b.bookerShareAmount) {
+        const cur = map.get(b.actualBooker) ?? { fromRoster: 0, fromBooker: 0 };
+        cur.fromBooker += b.bookerShareAmount;
+        map.set(b.actualBooker, cur);
+      }
+    }
+    return [...map.entries()]
+      .map(([name, v]) => ({ name, fromRoster: v.fromRoster, fromBooker: v.fromBooker, total: v.fromRoster + v.fromBooker }))
+      .sort((a, b) => b.total - a.total);
+  }, [report, isVendorSide, rosterEntries, rosterListNameById]);
 
   const handleShareBlur = (bookingId: string, field: ShareField, value: string, previous: number | null) => {
     const amount = value === "" ? null : Number(value);
@@ -267,6 +293,45 @@ export default function VendorStaffSharePage() {
                   </tr>
                 </tfoot>
               )}
+            </table>
+          </div>
+        </div>
+      )}
+
+      {!loading && report && personShares.length > 0 && (
+        <div className="erp-card" style={{ marginTop: 16 }}>
+          <div className="erp-card-header"><span className="erp-card-title">{monthLabel}　分潤總表（依人員）</span></div>
+          <p style={{ padding: "0 16px", margin: "8px 0 0", fontSize: 12, color: "var(--gray-400)" }}>
+            電話歸屬跟實際訂位人員如果剛好是同一個名字，會自動合併成這個人的總分潤
+          </p>
+          <div className="erp-table-wrap">
+            <table className="erp-table">
+              <thead>
+                <tr>
+                  <th>姓名</th>
+                  <th>來自電話歸屬</th>
+                  <th>來自實際訂位</th>
+                  <th>總分潤</th>
+                </tr>
+              </thead>
+              <tbody>
+                {personShares.map((p) => (
+                  <tr key={p.name}>
+                    <td>{p.name}</td>
+                    <td>{formatCurrency(p.fromRoster)}</td>
+                    <td>{formatCurrency(p.fromBooker)}</td>
+                    <td style={{ fontWeight: 600 }}>{formatCurrency(p.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr style={{ fontWeight: 600 }}>
+                  <td>總計</td>
+                  <td>{formatCurrency(personShares.reduce((s, p) => s + p.fromRoster, 0))}</td>
+                  <td>{formatCurrency(personShares.reduce((s, p) => s + p.fromBooker, 0))}</td>
+                  <td>{formatCurrency(personShares.reduce((s, p) => s + p.total, 0))}</td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
