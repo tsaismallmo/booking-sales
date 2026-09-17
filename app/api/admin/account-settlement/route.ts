@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     ))
 
   if (rows.length === 0) {
-    return NextResponse.json({ holders: [], totals: { vendorProfitTotal: 0, platformFeeTotal: 0, count: 0, vendorTotals: [] } })
+    return NextResponse.json({ holders: [], netSettlements: [], totals: { vendorProfitTotal: 0, platformFeeTotal: 0, count: 0, vendorTotals: [] } })
   }
 
   const vendorIds = [...new Set(rows.map((b) => b.vendorId).filter((v): v is string => !!v))]
@@ -115,6 +115,30 @@ export async function GET(req: NextRequest) {
     transfers: [...group.transfers.values()].sort((a, b) => b.amount - a.amount),
   })).sort((a, b) => a.holder.localeCompare(b.holder))
 
+  // 淨額結算：同一對人之間如果兩個方向都有轉帳（例如婉亭要給雅婷 20500，雅婷也要給婉亭 10240），
+  // 互相抵銷成一筆淨額（婉亭 → 雅婷 10260），這樣每一對人只要轉一次錢，不用來回轉兩次。
+  const pairAmounts = new Map<string, number>() // key: "A|B" 表示 A 要轉給 B 的（未抵銷）金額
+  for (const group of holderMap.values()) {
+    for (const line of group.transfers.values()) {
+      const key = `${group.holder}|${line.to}`
+      pairAmounts.set(key, (pairAmounts.get(key) ?? 0) + line.amount)
+    }
+  }
+  const seenPairs = new Set<string>()
+  const netSettlements: { from: string; to: string; amount: number }[] = []
+  for (const key of pairAmounts.keys()) {
+    const [a, b] = key.split('|')
+    const pairKey = [a, b].sort().join('|')
+    if (seenPairs.has(pairKey)) continue
+    seenPairs.add(pairKey)
+    const aToB = pairAmounts.get(`${a}|${b}`) ?? 0
+    const bToA = pairAmounts.get(`${b}|${a}`) ?? 0
+    const net = aToB - bToA
+    if (net > 0) netSettlements.push({ from: a, to: b, amount: net })
+    else if (net < 0) netSettlements.push({ from: b, to: a, amount: -net })
+  }
+  netSettlements.sort((a, b) => b.amount - a.amount)
+
   const totals = detail.reduce(
     (acc, d) => ({ vendorProfitTotal: acc.vendorProfitTotal + d.vendorProfit, platformFeeTotal: acc.platformFeeTotal + d.platformFee, count: acc.count + 1 }),
     { vendorProfitTotal: 0, platformFeeTotal: 0, count: 0 }
@@ -131,5 +155,5 @@ export async function GET(req: NextRequest) {
   }
   const vendorTotals = [...grandVendorMap.values()].sort((a, b) => b.amount - a.amount)
 
-  return NextResponse.json({ holders, totals: { ...totals, vendorTotals } })
+  return NextResponse.json({ holders, netSettlements, totals: { ...totals, vendorTotals } })
 }
