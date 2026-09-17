@@ -7,6 +7,7 @@ import {
   csShareRates, vendorPlatformRates, branchAliases, smsLogs,
 } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
+import { createSafetyBackup } from '@/lib/backup'
 
 type Snapshot = {
   bookings: (typeof bookings.$inferSelect)[]
@@ -45,32 +46,6 @@ function chunk<T>(rows: T[], size: number): T[][] {
 // 對總資料量/查詢數有隱性限制），所以改成一個一個 table 依序執行、每個 table 內分批
 // insert（避免單一 SQL 語句參數太多）。這樣沒辦法做到「全部成功或全部失敗」的保證，
 // 所以還原前一定先自動存一份「安全快照」，萬一還原中途失敗，還能用那份自動快照復原。
-async function snapshotAllTables() {
-  const [
-    bookingsRows, bookingRequestsRows, vendorRosterListsRows, vendorRosterEntriesRows,
-    csShareRatesRows, vendorPlatformRatesRows, branchAliasesRows, smsLogsRows,
-  ] = await Promise.all([
-    db.select().from(bookings),
-    db.select().from(bookingRequests),
-    db.select().from(vendorRosterLists),
-    db.select().from(vendorRosterEntries),
-    db.select().from(csShareRates),
-    db.select().from(vendorPlatformRates),
-    db.select().from(branchAliases),
-    db.select().from(smsLogs),
-  ])
-  return {
-    bookings: bookingsRows,
-    bookingRequests: bookingRequestsRows,
-    vendorRosterLists: vendorRosterListsRows,
-    vendorRosterEntries: vendorRosterEntriesRows,
-    csShareRates: csShareRatesRows,
-    vendorPlatformRates: vendorPlatformRatesRows,
-    branchAliases: branchAliasesRows,
-    smsLogs: smsLogsRows,
-  }
-}
-
 const CHUNK_SIZE = 300
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -84,11 +59,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const snapshot = row.data as Snapshot
 
   // 還原前自動存一份現在的狀態，當作安全網
-  const safetyData = await snapshotAllTables()
-  const [safetyBackup] = await db
-    .insert(backups)
-    .values({ label: `還原前自動備份（即將還原到「${row.label || row.id}」）`, data: safetyData, createdById: session.user.id })
-    .returning({ id: backups.id })
+  const safetyBackupId = await createSafetyBackup(`還原前自動備份（即將還原到「${row.label || row.id}」）`)
 
   // 刪除順序：先刪有外鍵指向別的備份資料表的那邊（子表）
   await db.delete(smsLogs)
@@ -128,7 +99,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   return NextResponse.json({
     ok: true,
-    safetyBackupId: safetyBackup.id,
+    safetyBackupId,
     counts: {
       bookings: snapshot.bookings.length,
       bookingRequests: snapshot.bookingRequests.length,

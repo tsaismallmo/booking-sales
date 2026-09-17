@@ -126,9 +126,12 @@ export default function AccountsPage() {
     load();
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("確定要移除這個帳號嗎？移除後該帳號將無法登入。")) return;
-    const res = await fetch(`/api/accounts/${id}`, { method: "DELETE" });
+  const handleDelete = async (a: Account) => {
+    const warning = a.roles.includes("vendor")
+      ? `確定要移除「${a.name || a.email}」這個帳號嗎？\n\n這個帳號是廠商身份，移除後會連帶刪除這個廠商底下「全部」的單據、廠商名單、費率設定，且無法復原（系統會先自動備份一份，需要的話事後可以到「資料備份」還原）。`
+      : `確定要移除「${a.name || a.email}」這個帳號嗎？移除後該帳號將無法登入，相關的建立/處理紀錄也會一併清掉。`;
+    if (!confirm(warning)) return;
+    const res = await fetch(`/api/accounts/${a.id}`, { method: "DELETE" });
     if (res.ok) load();
   };
 
@@ -218,7 +221,7 @@ export default function AccountsPage() {
                       >
                         儲存
                       </button>
-                      <button onClick={() => handleDelete(a.id)} className="btn btn-ghost" style={{ color: "var(--color-danger)", padding: "4px 10px", fontSize: 13 }}>移除</button>
+                      <button onClick={() => handleDelete(a)} className="btn btn-ghost" style={{ color: "var(--color-danger)", padding: "4px 10px", fontSize: 13 }}>移除</button>
                     </td>
                   </tr>
                 );
