@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     ))
 
   if (rows.length === 0) {
-    return NextResponse.json({ accounts: [], totals: { vendorProfitTotal: 0, platformFeeTotal: 0, count: 0 } })
+    return NextResponse.json({ accounts: [], totals: { vendorProfitTotal: 0, platformFeeTotal: 0, count: 0, vendorTotals: [] } })
   }
 
   const vendorIds = [...new Set(rows.map((b) => b.vendorId).filter((v): v is string => !!v))]
@@ -99,5 +99,16 @@ export async function GET(req: NextRequest) {
     { vendorProfitTotal: 0, platformFeeTotal: 0, count: 0 }
   )
 
-  return NextResponse.json({ accounts, totals })
+  // 全月總計：不分帳戶，把同一個廠商在各個帳戶底下的廠商利潤加總成一個數字，
+  // 跟平台費總額（歸雅婷）一起列成「總計轉帳指示」
+  const grandVendorMap = new Map<string, { vendorName: string; amount: number }>()
+  for (const d of detail) {
+    const vKey = d.vendorId ?? 'none'
+    const vTotal = grandVendorMap.get(vKey) ?? { vendorName: d.vendorName, amount: 0 }
+    vTotal.amount += d.vendorProfit
+    grandVendorMap.set(vKey, vTotal)
+  }
+  const vendorTotals = [...grandVendorMap.values()].sort((a, b) => b.amount - a.amount)
+
+  return NextResponse.json({ accounts, totals: { ...totals, vendorTotals } })
 }

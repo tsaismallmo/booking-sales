@@ -26,7 +26,7 @@ type AccountGroup = {
 
 type Report = {
   accounts: AccountGroup[];
-  totals: { vendorProfitTotal: number; platformFeeTotal: number; count: number };
+  totals: { vendorProfitTotal: number; platformFeeTotal: number; count: number; vendorTotals: { vendorName: string; amount: number }[] };
 };
 
 function pad2(n: number) {
@@ -89,11 +89,20 @@ export default function AccountSettlementPage() {
       {!loading && report && (
         <>
           <div className="erp-card" style={{ marginBottom: 16 }}>
-            <div className="erp-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div className="erp-card-header">
               <span className="erp-card-title">{monthLabel}　總計 {report.totals.count} 筆</span>
-              <div style={{ display: "flex", gap: 20 }}>
-                <span style={{ fontSize: 14, fontWeight: 600, color: "var(--brand-700)" }}>廠商利潤總額　{formatCurrency(report.totals.vendorProfitTotal)}</span>
-                <span style={{ fontSize: 14, fontWeight: 600, color: "var(--brand-700)" }}>平台費總額（歸雅婷）　{formatCurrency(report.totals.platformFeeTotal)}</span>
+            </div>
+            <div style={{ padding: "10px 16px" }}>
+              <div style={{ fontSize: 12, color: "var(--gray-400)", marginBottom: 6 }}>本月總計轉帳指示（不分帳戶）</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {report.totals.vendorTotals.map((v) => (
+                  <span key={v.vendorName} style={{ fontSize: 14 }}>
+                    → <strong>{v.vendorName}</strong>：{formatCurrency(v.amount)}
+                  </span>
+                ))}
+                <span style={{ fontSize: 14 }}>
+                  → <strong>雅婷</strong>（平台費）：{formatCurrency(report.totals.platformFeeTotal)}
+                </span>
               </div>
             </div>
           </div>
@@ -142,6 +151,14 @@ export default function AccountSettlementPage() {
                       </tr>
                     ))}
                   </tbody>
+                  <tfoot>
+                    <tr style={{ fontWeight: 600 }}>
+                      <td colSpan={5}>小計</td>
+                      <td>{formatCurrency(group.bookings.reduce((s, b) => s + b.actualFee, 0))}</td>
+                      <td>{formatCurrency(group.bookings.reduce((s, b) => s + b.vendorProfit, 0))}</td>
+                      <td>{formatCurrency(group.platformFeeTotal)}</td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             </div>
