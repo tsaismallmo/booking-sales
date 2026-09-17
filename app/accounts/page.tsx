@@ -99,7 +99,10 @@ export default function AccountsPage() {
   };
 
   const handleSaveRoles = async (id: string) => {
-    const roles = editingRoles[id];
+    // 用跟畫面顯示一樣的邏輯算目前角色：只改了「所屬廠商」下拉選單、沒動角色勾選框時，
+    // editingRoles[id] 會是 undefined，這時候要 fallback 回這筆帳號原本的角色，
+    // 不能直接當作「沒有角色」而整個不存（之前的 bug 就是這樣，按了儲存沒反應）。
+    const roles = editingRoles[id] ?? accounts.find((a) => a.id === id)?.roles;
     if (!roles || roles.length === 0) return;
     const employerVendorId = editingEmployer[id] ?? accounts.find((a) => a.id === id)?.employerVendorId ?? "";
     if (roles.includes("vendor_staff") && !employerVendorId) { setError("廠商員工要選所屬廠商"); return; }
