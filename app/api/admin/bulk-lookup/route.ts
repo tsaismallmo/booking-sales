@@ -52,20 +52,23 @@ export async function POST(req: NextRequest) {
     // 逐步縮窄：每個欄位有值才過濾，取命中最多條件的結果
     if (item.code) pool = pool.filter((r) => r.bookingCode === item.code)
 
-    // 用日期／分店／時段／人數／姓名／訂金／訂單歸屬一起比對；哪個欄位有提供就用哪個
-    const byAll = pool.filter((r) => {
+    // 訂單歸屬（vendorId）是確定知道的事實，不是用來猜的軟條件，先強制縮窄，
+    // 不然退回代號比對時會把別的廠商剛好用了相同訂位代號的單一起列出來、選錯廠商
+    const vendorScopedPool = item.vendorId ? pool.filter((r) => r.vendorId === item.vendorId) : pool
+
+    // 用日期／分店／時段／人數／姓名／訂金一起比對；哪個欄位有提供就用哪個
+    const byAll = vendorScopedPool.filter((r) => {
       if (item.date && r.bookingDate !== item.date) return false
       if (item.branch && r.branch !== item.branch) return false
       if (item.timeSlot && normaliseTime(r.timeSlot ?? '') !== normaliseTime(item.timeSlot)) return false
       if (item.partySize && r.partySize !== null && Number(item.partySize) !== r.partySize) return false
       if (item.customerRaw && r.customerName && !item.customerRaw.includes(r.customerName)) return false
       if (item.deposit && r.depositAmount !== null && !amountsMatch(item.deposit, r.depositAmount)) return false
-      if (item.vendorId && r.vendorId !== item.vendorId) return false
       return true
     })
 
-    // 如果多條件命中有結果就用，否則退回只用代號的結果
-    const matches = byAll.length > 0 ? byAll : pool
+    // 如果多條件命中有結果就用，否則退回只用代號的結果（但還是限定在同一個廠商底下）
+    const matches = byAll.length > 0 ? byAll : vendorScopedPool
 
     return {
       code: item.code ?? '',
