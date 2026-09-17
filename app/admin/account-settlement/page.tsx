@@ -17,15 +17,16 @@ type SettlementBooking = {
   platformFee: number;
 };
 
-type AccountGroup = {
-  account: string;
+type TransferLine = { to: string; amount: number };
+
+type HolderGroup = {
+  holder: string;
   bookings: SettlementBooking[];
-  vendorTotals: { vendorName: string; amount: number }[];
-  platformFeeTotal: number;
+  transfers: TransferLine[];
 };
 
 type Report = {
-  accounts: AccountGroup[];
+  holders: HolderGroup[];
   totals: { vendorProfitTotal: number; platformFeeTotal: number; count: number; vendorTotals: { vendorName: string; amount: number }[] };
 };
 
@@ -73,7 +74,7 @@ export default function AccountSettlementPage() {
         <div>
           <h1 className="erp-page-title">帳務對帳</h1>
           <p className="erp-page-subtitle">
-            依「帳戶」分組列出賣出單據的錢要轉給誰：收款帳戶要把廠商利潤（代訂費扣平台費後）轉給這張單的廠商，平台費轉給雅婷。依「售出日期」算月份
+            依「帳戶」欄位反查出實際收款的人，列出誰要轉給誰：廠商利潤（代訂費扣平台費後）轉給這張單的廠商，平台費轉給雅婷。同一個人自己的單據不算轉帳。依「售出日期」算月份
           </p>
         </div>
       </div>
@@ -93,7 +94,7 @@ export default function AccountSettlementPage() {
               <span className="erp-card-title">{monthLabel}　總計 {report.totals.count} 筆</span>
             </div>
             <div style={{ padding: "10px 16px" }}>
-              <div style={{ fontSize: 12, color: "var(--gray-400)", marginBottom: 6 }}>本月總計轉帳指示（不分帳戶）</div>
+              <div style={{ fontSize: 12, color: "var(--gray-400)", marginBottom: 6 }}>本月總計轉帳指示（不分收款人，同一個廠商全部加總）</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {report.totals.vendorTotals.map((v) => (
                   <span key={v.vendorName} style={{ fontSize: 14 }}>
@@ -107,33 +108,34 @@ export default function AccountSettlementPage() {
             </div>
           </div>
 
-          {report.accounts.length === 0 && (
+          {report.holders.length === 0 && (
             <div className="erp-card"><div className="erp-card-body" style={{ textAlign: "center", color: "var(--gray-400)" }}>這個月沒有可計算的資料（要已售出、有填帳戶）</div></div>
           )}
 
-          {report.accounts.map((group) => (
-            <div key={group.account} className="erp-card" style={{ marginBottom: 16 }}>
+          {report.holders.map((group) => (
+            <div key={group.holder} className="erp-card" style={{ marginBottom: 16 }}>
               <div className="erp-card-header">
-                <span className="erp-card-title">帳戶：{group.account}　{group.bookings.length} 筆</span>
+                <span className="erp-card-title">收款人：{group.holder}　{group.bookings.length} 筆</span>
               </div>
               <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--gray-200)" }}>
                 <div style={{ fontSize: 12, color: "var(--gray-400)", marginBottom: 6 }}>轉帳指示</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  {group.vendorTotals.map((v) => (
-                    <span key={v.vendorName} style={{ fontSize: 13 }}>
-                      {group.account} → <strong>{v.vendorName}</strong>：{formatCurrency(v.amount)}
-                    </span>
-                  ))}
-                  <span style={{ fontSize: 13 }}>
-                    {group.account} → <strong>雅婷</strong>（平台費）：{formatCurrency(group.platformFeeTotal)}
-                  </span>
-                </div>
+                {group.transfers.length === 0 ? (
+                  <span style={{ fontSize: 13, color: "var(--gray-400)" }}>不用轉帳（單據都是自己的）</span>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {group.transfers.map((t) => (
+                      <span key={t.to} style={{ fontSize: 13 }}>
+                        {group.holder} → <strong>{t.to}</strong>：{formatCurrency(t.amount)}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="erp-table-wrap">
                 <table className="erp-table">
                   <thead>
                     <tr>
-                      <th>日期</th><th>星期</th><th>分店</th><th>訂位代號</th><th>廠商</th>
+                      <th>日期</th><th>星期</th><th>分店</th><th>訂位代號</th><th>帳戶</th><th>廠商</th>
                       <th>實收代訂費</th><th>廠商利潤</th><th>平台費</th>
                     </tr>
                   </thead>
@@ -144,6 +146,7 @@ export default function AccountSettlementPage() {
                         <td>週{WEEKDAYS[parseDateOnly(b.bookingDate).getDay()]}</td>
                         <td>{b.branch ?? "—"}</td>
                         <td className="font-mono">{b.bookingCode ?? "—"}</td>
+                        <td>{b.account}</td>
                         <td>{b.vendorName}</td>
                         <td>{formatCurrency(b.actualFee)}</td>
                         <td>{formatCurrency(b.vendorProfit)}</td>
@@ -153,10 +156,10 @@ export default function AccountSettlementPage() {
                   </tbody>
                   <tfoot>
                     <tr style={{ fontWeight: 600 }}>
-                      <td colSpan={5}>小計</td>
+                      <td colSpan={6}>小計</td>
                       <td>{formatCurrency(group.bookings.reduce((s, b) => s + b.actualFee, 0))}</td>
                       <td>{formatCurrency(group.bookings.reduce((s, b) => s + b.vendorProfit, 0))}</td>
-                      <td>{formatCurrency(group.platformFeeTotal)}</td>
+                      <td>{formatCurrency(group.bookings.reduce((s, b) => s + b.platformFee, 0))}</td>
                     </tr>
                   </tfoot>
                 </table>

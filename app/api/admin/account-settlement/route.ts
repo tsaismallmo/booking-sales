@@ -6,9 +6,14 @@ import { requireRole } from '@/lib/auth-guard'
 import { computeShare, DEFAULT_PLATFORM_RATES } from '@/lib/platform-share'
 import { getVendorPlatformFeeRatesForMonths } from '@/lib/platform-settings'
 
-// 帳務對帳：依「帳戶」欄位分組，列出每個帳戶底下賣出的單據，錢要怎麼分——
-// 廠商利潤（代訂費扣平台費後）歸這張單的廠商，平台費固定歸「雅婷」。
-// 這是全部廠商彙總的報表，只有管理員看得到；依「售出日期」算月份，理由同其他分潤報表。
+const PLATFORM_FEE_RECIPIENT = '雅婷'
+
+// 帳務對帳：「帳戶」欄位存的其實是「人名+銀行」（例如「雅婷國泰」「婉亭中信」），
+// 同一個人常常有好幾個不同銀行的帳戶。如果直接照帳戶原始文字分組，同一個人的錢會被
+// 拆散成好幾組，看不出「誰要轉給誰」這種人與人之間的關係（例如婉亭要給雅婷、
+// 雅婷也要給婉亭，這兩個方向要分開列出來，不能互相抵銷成一個淨額）。
+// 所以先把帳戶文字反查出「實際收款的人」（比對已知的廠商名字是不是這個帳戶文字的開頭），
+// 再依這個人分組；同一個人自己的單據（錢本來就是自己的）不算轉帳，跳過不列。
 export async function GET(req: NextRequest) {
   const session = await requireRole('admin')
   if (!session) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
@@ -29,16 +34,24 @@ export async function GET(req: NextRequest) {
     ))
 
   if (rows.length === 0) {
-    return NextResponse.json({ accounts: [], totals: { vendorProfitTotal: 0, platformFeeTotal: 0, count: 0, vendorTotals: [] } })
+    return NextResponse.json({ holders: [], totals: { vendorProfitTotal: 0, platformFeeTotal: 0, count: 0, vendorTotals: [] } })
   }
 
   const vendorIds = [...new Set(rows.map((b) => b.vendorId).filter((v): v is string => !!v))]
   const months = [...new Set(rows.map((b) => b.soldDate?.slice(0, 7)).filter((m): m is string => !!m))]
-  const [vendorRateMap, vendorList] = await Promise.all([
+  const allVendors = await db.select({ id: users.id, name: users.name, email: users.email }).from(users)
+  const [vendorRateMap] = await Promise.all([
     getVendorPlatformFeeRatesForMonths(vendorIds, months),
-    vendorIds.length > 0 ? db.select({ id: users.id, name: users.name, email: users.email }).from(users).where(inArray(users.id, vendorIds)) : Promise.resolve([]),
   ])
-  const vendorNameById = new Map(vendorList.map((v) => [v.id, v.name || v.email]))
+  const vendorNameById = new Map(allVendors.map((v) => [v.id, v.name || v.email]))
+
+  // 用來反查帳戶文字開頭是哪個人：只比對有名字的帳號，由長到短比對，
+  // 避免短名字誤判（例如某人名字剛好是另一個人名字的前綴）
+  const knownNames = [...new Set(allVendors.map((v) => v.name).filter((n): n is string => !!n))].sort((a, b) => b.length - a.length)
+  function extractHolder(account: string): string {
+    const hit = knownNames.find((n) => account.startsWith(n))
+    return hit ?? account
+  }
 
   type SettlementRow = {
     id: string
@@ -73,33 +86,41 @@ export async function GET(req: NextRequest) {
     }
   }).filter((r): r is SettlementRow => r !== null)
 
-  // 依帳戶分組，組內再依廠商彙總廠商利潤；平台費固定歸雅婷，組內加總成一個數字
-  type AccountGroup = { bookings: SettlementRow[]; vendorTotals: Map<string, { vendorName: string; amount: number }>; platformFeeTotal: number }
-  const accountMap = new Map<string, AccountGroup>()
+  // 依「收款人」分組（不是依帳戶原始文字），組內列出要轉給誰、多少錢——
+  // 自己轉給自己的（收款人剛好就是這張單的廠商，或收款人剛好就是雅婷本人）不算轉帳，跳過。
+  type TransferLine = { to: string; amount: number }
+  type HolderGroup = { holder: string; bookings: SettlementRow[]; transfers: Map<string, TransferLine> }
+  const holderMap = new Map<string, HolderGroup>()
   for (const d of detail) {
-    const group: AccountGroup = accountMap.get(d.account) ?? { bookings: [], vendorTotals: new Map(), platformFeeTotal: 0 }
+    const holder = extractHolder(d.account)
+    const group: HolderGroup = holderMap.get(holder) ?? { holder, bookings: [], transfers: new Map() }
     group.bookings.push(d)
-    group.platformFeeTotal += d.platformFee
-    const vKey = d.vendorId ?? 'none'
-    const vTotal = group.vendorTotals.get(vKey) ?? { vendorName: d.vendorName, amount: 0 }
-    vTotal.amount += d.vendorProfit
-    group.vendorTotals.set(vKey, vTotal)
-    accountMap.set(d.account, group)
+
+    if (d.vendorName !== holder && d.vendorProfit !== 0) {
+      const line = group.transfers.get(d.vendorName) ?? { to: d.vendorName, amount: 0 }
+      line.amount += d.vendorProfit
+      group.transfers.set(d.vendorName, line)
+    }
+    if (holder !== PLATFORM_FEE_RECIPIENT && d.platformFee !== 0) {
+      const line = group.transfers.get(PLATFORM_FEE_RECIPIENT) ?? { to: PLATFORM_FEE_RECIPIENT, amount: 0 }
+      line.amount += d.platformFee
+      group.transfers.set(PLATFORM_FEE_RECIPIENT, line)
+    }
+    holderMap.set(holder, group)
   }
 
-  const accounts = [...accountMap.entries()].map(([account, group]) => ({
-    account,
+  const holders = [...holderMap.values()].map((group) => ({
+    holder: group.holder,
     bookings: group.bookings.sort((a, b) => b.bookingDate.localeCompare(a.bookingDate)),
-    vendorTotals: [...group.vendorTotals.values()].sort((a, b) => b.amount - a.amount),
-    platformFeeTotal: group.platformFeeTotal,
-  })).sort((a, b) => a.account.localeCompare(b.account))
+    transfers: [...group.transfers.values()].sort((a, b) => b.amount - a.amount),
+  })).sort((a, b) => a.holder.localeCompare(b.holder))
 
   const totals = detail.reduce(
     (acc, d) => ({ vendorProfitTotal: acc.vendorProfitTotal + d.vendorProfit, platformFeeTotal: acc.platformFeeTotal + d.platformFee, count: acc.count + 1 }),
     { vendorProfitTotal: 0, platformFeeTotal: 0, count: 0 }
   )
 
-  // 全月總計：不分帳戶，把同一個廠商在各個帳戶底下的廠商利潤加總成一個數字，
+  // 全月總計：不分帳戶/收款人，把同一個廠商全部加總成一個數字，
   // 跟平台費總額（歸雅婷）一起列成「總計轉帳指示」
   const grandVendorMap = new Map<string, { vendorName: string; amount: number }>()
   for (const d of detail) {
@@ -110,5 +131,5 @@ export async function GET(req: NextRequest) {
   }
   const vendorTotals = [...grandVendorMap.values()].sort((a, b) => b.amount - a.amount)
 
-  return NextResponse.json({ accounts, totals: { ...totals, vendorTotals } })
+  return NextResponse.json({ holders, totals: { ...totals, vendorTotals } })
 }
