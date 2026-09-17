@@ -88,8 +88,8 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
-  // 分潤設定、批次退訂、每月金流總覽、批次標記平台、資料備份：只有管理員能看
-  if ((pathname.startsWith('/admin/rates') || pathname.startsWith('/admin/bulk-refund') || pathname.startsWith('/admin/monthly-summary') || pathname.startsWith('/admin/bulk-tag-platform') || pathname.startsWith('/admin/backups')) && !isAdmin) {
+  // 分潤設定、批次退訂、每月金流總覽、批次標記平台、資料備份、帳務對帳：只有管理員能看
+  if ((pathname.startsWith('/admin/rates') || pathname.startsWith('/admin/bulk-refund') || pathname.startsWith('/admin/monthly-summary') || pathname.startsWith('/admin/bulk-tag-platform') || pathname.startsWith('/admin/backups') || pathname.startsWith('/admin/account-settlement')) && !isAdmin) {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
