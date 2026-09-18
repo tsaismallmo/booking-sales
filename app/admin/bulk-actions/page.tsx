@@ -67,6 +67,7 @@ type ColMap = {
   agencyFee: number;
   soldCount: number;
   note: number;
+  cancelDeadline: number;
 };
 
 type ParsedRow = {
@@ -90,6 +91,7 @@ type ParsedRow = {
   agencyFee: string;
   soldCount: string;
   note: string;
+  cancelDeadline: string;
   // resolved
   lookupResult: LookupResult | null;
   selectedBookingId: string;
@@ -113,7 +115,7 @@ const HEADER_ALIASES: Record<keyof ColMap, string[]> = {
   customerRaw:     ["姓名+電話", "姓名電話", "電話+姓名", "customer"],
   customerName:    ["姓名", "name"],
   customerPhone:   ["電話", "手機", "phone"],
-  deposit:         ["訂金", "deposit"],
+  deposit:         ["餐廳訂金", "訂金", "deposit"],
   vendorRaw:       ["訂單歸屬", "廠商", "vendor"],
   status:          ["狀態", "status"],
   platform:        ["資料來源", "來源", "platform", "source"],
@@ -124,6 +126,7 @@ const HEADER_ALIASES: Record<keyof ColMap, string[]> = {
   agencyFee:       ["代訂費", "agency fee"],
   soldCount:       ["實賣人數", "實售", "sold count"],
   note:            ["備註", "退訂原因", "note"],
+  cancelDeadline:  ["退訂期限", "退訂截止", "cancel deadline"],
 };
 
 // 沒有標題列時的預設欄位位置（比對用 A–H 固定，姓名電話合併在 G 欄；
@@ -131,7 +134,7 @@ const HEADER_ALIASES: Record<keyof ColMap, string[]> = {
 const DEFAULT_MAP: ColMap = {
   vendorRaw: 0, branch: 1, bookingDate: 2, timeSlot: 3, partySize: 4, bookingCode: 5, customerRaw: 6, deposit: 7,
   customerName: -1, customerPhone: -1,
-  status: -1, platform: -1, soldDate: -1, collectedAmount: -1, account: -1, salespersonRaw: -1, agencyFee: -1, soldCount: -1, note: -1,
+  status: -1, platform: -1, soldDate: -1, collectedAmount: -1, account: -1, salespersonRaw: -1, agencyFee: -1, soldCount: -1, note: -1, cancelDeadline: -1,
 };
 
 function detectColMap(headerCols: string[]): Partial<ColMap> {
@@ -233,6 +236,7 @@ export default function BulkActionsPage() {
         agencyFee:   get(cols, finalMap.agencyFee),
         soldCount:   get(cols, finalMap.soldCount),
         note:        get(cols, finalMap.note),
+        cancelDeadline: normaliseDate(get(cols, finalMap.cancelDeadline)),
         lookupResult: null,
         selectedBookingId: "",
         vendorId: resolveByName(vendors, vendorRaw),
@@ -294,6 +298,8 @@ export default function BulkActionsPage() {
       salespersonId:   r.salespersonId || null,
       agencyFee:       r.agencyFee ? stripCommas(r.agencyFee) : undefined,
       soldCount:       r.soldCount ? Number(stripCommas(r.soldCount)) : undefined,
+      depositAmount:   r.deposit ? stripCommas(r.deposit) : undefined,
+      cancelDeadline:  r.cancelDeadline || undefined,
     };
     if (r.vendorId) body.vendorId = r.vendorId;
 
@@ -384,10 +390,10 @@ export default function BulkActionsPage() {
                   <span style={{ color: "var(--gray-400)" }}>比對用：</span>分店、訂位代號、日期、時段、人數、姓名、電話、訂單歸屬
                 </div>
                 <div style={{ fontSize: 12 }}>
-                  <span style={{ color: "var(--gray-400)" }}>更新用：</span>狀態（售／退／空白）、資料來源（EZTABLE／INLINE）、訂單歸屬、售出日期、收款金額、帳戶、銷售人員、代訂費、備註
+                  <span style={{ color: "var(--gray-400)" }}>更新用：</span>狀態（售／退／空白）、資料來源（EZTABLE／INLINE）、訂單歸屬、售出日期、收款金額、帳戶、銷售人員、代訂費、餐廳訂金、退訂期限、備註
                 </div>
                 <div style={{ fontSize: 12 }}>
-                  <span style={{ color: "var(--gray-400)" }}>略過：</span>星期、訂金 等其他欄位
+                  <span style={{ color: "var(--gray-400)" }}>略過：</span>星期 等其他欄位
                 </div>
               </div>
               <p style={{ marginTop: 6 }}>
@@ -444,6 +450,8 @@ export default function BulkActionsPage() {
                   <th style={{ minWidth: 120 }}>銷售人員</th>
                   <th style={{ minWidth: 90 }}>代訂費（全座）</th>
                   <th style={{ minWidth: 80 }}>實賣人數</th>
+                  <th style={{ minWidth: 100 }}>餐廳訂金</th>
+                  <th style={{ minWidth: 120 }}>退訂期限</th>
                   <th style={{ minWidth: 160 }}>備註</th>
                   <th style={{ width: 50 }}>結果</th>
                 </tr>
@@ -554,6 +562,14 @@ export default function BulkActionsPage() {
                       <td>
                         <input type="number" min={1} className="erp-input" style={{ fontSize: 13 }} placeholder="全售可不填"
                           value={r.soldCount} onChange={(e) => updateRow(r.lineNo, { soldCount: e.target.value })} />
+                      </td>
+                      <td>
+                        <input type="number" className="erp-input" style={{ fontSize: 13 }} placeholder="0"
+                          value={r.deposit} onChange={(e) => updateRow(r.lineNo, { deposit: e.target.value })} />
+                      </td>
+                      <td>
+                        <input type="date" className="erp-input" style={{ fontSize: 13 }}
+                          value={r.cancelDeadline} onChange={(e) => updateRow(r.lineNo, { cancelDeadline: e.target.value })} />
                       </td>
                       <td>
                         <input className="erp-input" style={{ fontSize: 13 }} placeholder="退訂原因等（選填）"
