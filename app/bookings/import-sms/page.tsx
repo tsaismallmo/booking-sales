@@ -35,6 +35,7 @@ export default function ImportSmsPage() {
     paymentDeadline: "",
     depositAmount: "",
     depositPayer: "",
+    actualBooker: "",
     customerName: "",
     customerPhone: "",
   });
@@ -250,6 +251,10 @@ export default function ImportSmsPage() {
               <div className="erp-form-group">
                 <label className="erp-label">付款人員</label>
                 <input className="erp-input" value={form.depositPayer} onChange={set("depositPayer")} />
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">實際訂位人員</label>
+                <input className="erp-input" value={form.actualBooker} onChange={set("actualBooker")} />
               </div>
               <div className="erp-form-group">
                 <label className="erp-label">訂位姓名 <span className="required">*</span></label>
