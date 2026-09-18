@@ -43,13 +43,18 @@ const PLATFORM_OPTIONS: { value: PlatformValue; label: string }[] = [
   { value: "inline", label: "INLINE" },
 ];
 
-// 一次貼上就同時比對單據 + 更新所有欄位（狀態、資料來源、售出資訊都在同一批資料裡）
+// 一次貼上就同時比對單據 + 更新所有欄位（狀態、資料來源、售出資訊都在同一批資料裡）。
+// 唯一鍵是「分店＋訂位代號＋日期＋時段＋人數＋姓名＋電話」七個欄位一起精準比對，
+// 姓名／電話一定要是分開的欄位才能做嚴格比對；customerRaw 是姓名電話合併在同一欄的舊格式，
+// 只能拿來做「包含」的模糊比對，兩者都支援，優先用分開的姓名／電話。
 type ColMap = {
   bookingCode: number;
   bookingDate: number;
   branch: number;
   timeSlot: number;
   partySize: number;
+  customerName: number;
+  customerPhone: number;
   customerRaw: number;
   deposit: number;
   vendorRaw: number;
@@ -71,6 +76,8 @@ type ParsedRow = {
   branch: string;
   timeSlot: string;
   partySize: string;
+  customerName: string;
+  customerPhone: string;
   customerRaw: string;
   deposit: string;
   vendorRaw: string;
@@ -95,14 +102,17 @@ type ParsedRow = {
 
 type Phase = "input" | "preview" | "done";
 
-// 標題關鍵字對應欄位名稱
+// 標題關鍵字對應欄位名稱。customerRaw（姓名電話合併欄）要放在 customerName 前面比對，
+// 不然像「姓名+電話」這種標題會先被 customerName 的「姓名」關鍵字誤判掉
 const HEADER_ALIASES: Record<keyof ColMap, string[]> = {
   bookingCode:     ["訂位代號", "booking code", "code"],
   bookingDate:     ["日期", "用餐日期", "booking date"],
   branch:          ["分店", "branch"],
   timeSlot:        ["時段", "time slot", "timeslot"],
   partySize:       ["人數", "party size"],
-  customerRaw:     ["姓名", "customer", "name"],
+  customerRaw:     ["姓名+電話", "姓名電話", "電話+姓名", "customer"],
+  customerName:    ["姓名", "name"],
+  customerPhone:   ["電話", "手機", "phone"],
   deposit:         ["訂金", "deposit"],
   vendorRaw:       ["訂單歸屬", "廠商", "vendor"],
   status:          ["狀態", "status"],
@@ -116,10 +126,11 @@ const HEADER_ALIASES: Record<keyof ColMap, string[]> = {
   note:            ["備註", "退訂原因", "note"],
 };
 
-// 沒有標題列時的預設欄位位置（比對用 A–H 固定，其他更新用欄位要有標題列才會被抓到，
-// 「狀態」「資料來源」在原始表格裡位置常常不固定，沒有標題列時不猜，直接不更新）
+// 沒有標題列時的預設欄位位置（比對用 A–H 固定，姓名電話合併在 G 欄；
+// 姓名／電話分開的獨立欄位、「狀態」「資料來源」等其他更新用欄位都要有標題列才會被抓到）
 const DEFAULT_MAP: ColMap = {
   vendorRaw: 0, branch: 1, bookingDate: 2, timeSlot: 3, partySize: 4, bookingCode: 5, customerRaw: 6, deposit: 7,
+  customerName: -1, customerPhone: -1,
   status: -1, platform: -1, soldDate: -1, collectedAmount: -1, account: -1, salespersonRaw: -1, agencyFee: -1, soldCount: -1, note: -1,
 };
 
@@ -208,6 +219,8 @@ export default function BulkActionsPage() {
         branch:      get(cols, finalMap.branch),
         timeSlot:    get(cols, finalMap.timeSlot),
         partySize:   get(cols, finalMap.partySize),
+        customerName: get(cols, finalMap.customerName),
+        customerPhone: get(cols, finalMap.customerPhone),
         customerRaw: get(cols, finalMap.customerRaw),
         deposit:     get(cols, finalMap.deposit),
         vendorRaw,
@@ -236,6 +249,8 @@ export default function BulkActionsPage() {
       branch:      r.branch || undefined,
       timeSlot:    r.timeSlot || undefined,
       partySize:   r.partySize || undefined,
+      customerName: r.customerName || undefined,
+      customerPhone: r.customerPhone || undefined,
       customerRaw: r.customerRaw || undefined,
       deposit:     r.deposit || undefined,
       vendorId:    r.vendorId || undefined,
@@ -366,20 +381,23 @@ export default function BulkActionsPage() {
               <p><strong>直接貼入含標題列的試算表</strong>（推薦），系統會自動偵測標題列，識別以下欄位（欄位順序不限）：</p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", marginLeft: 12, marginBottom: 8 }}>
                 <div style={{ fontSize: 12 }}>
-                  <span style={{ color: "var(--gray-400)" }}>比對用：</span>訂位代號、分店、日期、時段、人數、姓名+電話、訂金、訂單歸屬
+                  <span style={{ color: "var(--gray-400)" }}>比對用：</span>分店、訂位代號、日期、時段、人數、姓名、電話、訂單歸屬
                 </div>
                 <div style={{ fontSize: 12 }}>
                   <span style={{ color: "var(--gray-400)" }}>更新用：</span>狀態（售／退／空白）、資料來源（EZTABLE／INLINE）、訂單歸屬、售出日期、收款金額、帳戶、銷售人員、代訂費、備註
                 </div>
                 <div style={{ fontSize: 12 }}>
-                  <span style={{ color: "var(--gray-400)" }}>略過：</span>星期 等其他欄位
+                  <span style={{ color: "var(--gray-400)" }}>略過：</span>星期、訂金 等其他欄位
                 </div>
               </div>
               <p style={{ marginTop: 6 }}>
+                · <strong>唯一鍵是「分店＋訂位代號＋日期＋時段＋人數＋姓名＋電話」七個欄位一起</strong>——這七欄都有值的話，
+                會要求這七個欄位完全一致才算同一筆單據，不會模糊比對；找不到完全一致的就是真的找不到，不會退回去猜。
+                姓名、電話要是分開的兩個欄位（標題分別叫「姓名」「電話」），不能合併成一欄，不然沒辦法嚴格比對<br />
                 · 日期可用 <code>2026-04-05</code>、<code>4/5</code> 或 <code>4月5日</code><br />
                 · 「狀態」欄位填「售」會標記為已售出、「退」會標記為退訂、留空白會標記為未售出——三種值都會覆蓋掉原本的狀態，欄位整個不存在（沒偵測到標題）才會不更新狀態<br />
                 · 「資料來源」欄位填「EZTABLE」或「INLINE」會標記對應的平台，不會清掉另一個平台的勾選<br />
-                · 訂單歸屬／銷售人員填名字，系統自動比對帳號；沒有標題列時，只有比對用的 A–H 欄會被讀到，其他更新用欄位（含狀態、資料來源）需要有標題列才能被偵測到
+                · 訂單歸屬／銷售人員填名字，系統自動比對帳號；沒有標題列時，只有比對用的 A–H 欄會被讀到（姓名電話合併成一欄），其他欄位（含分開的姓名/電話、狀態、資料來源）需要有標題列才能被偵測到
               </p>
             </div>
           </div>

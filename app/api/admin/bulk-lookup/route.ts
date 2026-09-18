@@ -10,7 +10,9 @@ type Item = {
   branch?: string
   timeSlot?: string
   partySize?: string
-  customerRaw?: string // 姓名+電話合併欄位，比對時看是否包含資料庫的姓名
+  customerName?: string   // 姓名（跟電話分開的獨立欄位，用於嚴格比對）
+  customerPhone?: string  // 電話（跟姓名分開的獨立欄位，用於嚴格比對）
+  customerRaw?: string    // 舊格式相容：姓名+電話合併在同一欄，姓名/電話沒分開時的備援比對（用 includes，不是精準比對）
   deposit?: string
   vendorId?: string // 訂單歸屬解析出來的廠商 id，避免不同廠商剛好用了相同訂位代號互相比對錯
 }
@@ -56,6 +58,31 @@ export async function POST(req: NextRequest) {
     // 不然退回代號比對時會把別的廠商剛好用了相同訂位代號的單一起列出來、選錯廠商
     const vendorScopedPool = item.vendorId ? pool.filter((r) => r.vendorId === item.vendorId) : pool
 
+    // 唯一鍵是「分店＋訂位代號＋日期＋時段＋人數＋姓名＋電話」七個欄位一起——
+    // 訂位代號單獨並不是唯一的（不同廠商、甚至同一廠商不同天都可能重複用到同一個代號），
+    // 這七個欄位齊全時要求「完全相等」才算同一筆，不做模糊比對；
+    // 找不到就是真的找不到（不退回去用比較鬆的條件比對，避免選到別筆單據）。
+    const hasFullKey = !!(item.branch && item.date && item.timeSlot && item.partySize && item.customerName && item.customerPhone)
+    if (hasFullKey) {
+      const strict = vendorScopedPool.filter((r) =>
+        r.branch === item.branch &&
+        r.bookingDate === item.date &&
+        normaliseTime(r.timeSlot ?? '') === normaliseTime(item.timeSlot!) &&
+        r.partySize === Number(item.partySize) &&
+        r.customerName === item.customerName &&
+        r.customerPhone === item.customerPhone
+      )
+      return {
+        code: item.code ?? '',
+        date: item.date ?? null,
+        branch: item.branch ?? null,
+        timeSlot: item.timeSlot ?? null,
+        matches: strict,
+        exactMatch: strict.length === 1,
+      }
+    }
+
+    // 七個關鍵欄位沒有齊全（舊格式、姓名電話合併在同一欄等情況）：退回原本比較寬鬆的比對，
     // 用日期／分店／時段／人數／姓名／訂金一起比對；哪個欄位有提供就用哪個
     const byAll = vendorScopedPool.filter((r) => {
       if (item.date && r.bookingDate !== item.date) return false
