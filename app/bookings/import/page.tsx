@@ -3,8 +3,23 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+type StatusValue = "unsold" | "sold" | "refunded";
+type PlatformValue = "" | "eztable" | "inline";
+
+const STATUS_OPTIONS: { value: StatusValue; label: string }[] = [
+  { value: "unsold", label: "空白（未售出）" },
+  { value: "sold", label: "售" },
+  { value: "refunded", label: "退" },
+];
+const PLATFORM_OPTIONS: { value: PlatformValue; label: string }[] = [
+  { value: "", label: "— 無 —" },
+  { value: "eztable", label: "EZTABLE" },
+  { value: "inline", label: "INLINE" },
+];
+
 type ParsedRow = {
   vendorName: string;
+  status: StatusValue;
   branch: string;
   bookingDate: string;
   timeSlot: string;
@@ -15,7 +30,92 @@ type ParsedRow = {
   depositAmount: string;
   depositPayer: string;
   cancelDeadline: string;
+  platform: PlatformValue;
+  soldDate: string;
+  collectedAmount: string;
+  account: string;
+  salespersonName: string;
+  agencyFee: string;
 };
+
+type ColMap = {
+  vendorRaw: number;
+  status: number;
+  branch: number;
+  bookingDate: number;
+  timeSlot: number;
+  partySize: number;
+  bookingCode: number;
+  customerRaw: number;
+  customerName: number;
+  customerPhone: number;
+  deposit: number;
+  depositPayer: number;
+  cancelDeadline: number;
+  platform: number;
+  soldDate: number;
+  collectedAmount: number;
+  account: number;
+  salespersonRaw: number;
+  agencyFee: number;
+};
+
+// 標題關鍵字對應欄位名稱。customerRaw（姓名電話合併欄）要放在 customerName 前面比對，
+// 不然像「姓名+電話」這種標題會先被 customerName 的「姓名」關鍵字誤判掉
+const HEADER_ALIASES: Record<keyof ColMap, string[]> = {
+  vendorRaw:       ["訂單歸屬", "廠商", "vendor"],
+  status:          ["狀態", "status"],
+  branch:          ["分店", "branch"],
+  bookingDate:     ["日期", "用餐日期", "booking date"],
+  timeSlot:        ["時段", "time slot", "timeslot"],
+  partySize:       ["人數", "party size"],
+  bookingCode:     ["訂位代號", "booking code", "code"],
+  customerRaw:     ["姓名+電話", "姓名電話", "電話+姓名", "customer"],
+  customerName:    ["姓名", "name"],
+  customerPhone:   ["電話", "手機", "phone"],
+  deposit:         ["訂金", "deposit"],
+  depositPayer:    ["付款人", "depositor"],
+  cancelDeadline:  ["退訂期限", "退訂截止", "cancel deadline"],
+  platform:        ["資料來源", "來源", "platform", "source"],
+  soldDate:        ["售出日期", "sold date"],
+  collectedAmount: ["收款金額", "收款"],
+  account:         ["帳戶", "account"],
+  salespersonRaw:  ["銷售人員", "銷售", "salesperson"],
+  agencyFee:       ["代訂費", "agency fee"],
+};
+
+// 沒有標題列時的舊格式：固定 10 欄，姓名電話合併在同一欄；其他新欄位都要有標題列才能被抓到
+const DEFAULT_MAP: ColMap = {
+  vendorRaw: 0, branch: 1, bookingDate: 2, timeSlot: 3, partySize: 4, bookingCode: 5, customerRaw: 6, deposit: 7, depositPayer: 8, cancelDeadline: 9,
+  status: -1, customerName: -1, customerPhone: -1, platform: -1, soldDate: -1, collectedAmount: -1, account: -1, salespersonRaw: -1, agencyFee: -1,
+};
+
+function detectColMap(headerCols: string[]): Partial<ColMap> {
+  const map: Partial<ColMap> = {};
+  headerCols.forEach((h, i) => {
+    const norm = h.trim().toLowerCase();
+    for (const [field, aliases] of Object.entries(HEADER_ALIASES)) {
+      if (aliases.some((a) => norm.includes(a.toLowerCase()))) {
+        (map as Record<string, number>)[field] = i;
+        break;
+      }
+    }
+  });
+  return map;
+}
+
+function normaliseStatus(cell: string): StatusValue {
+  if (cell === "售") return "sold";
+  if (cell === "退") return "refunded";
+  return "unsold";
+}
+function normalisePlatform(colIdx: number, cell: string): PlatformValue {
+  if (colIdx < 0) return "";
+  const up = cell.toUpperCase();
+  if (up.includes("EZTABLE")) return "eztable";
+  if (up.includes("INLINE")) return "inline";
+  return "";
+}
 
 // 日期正規化，支援：2026/4/5、4/5、4/5 週三、4月5日 → 2026-04-05
 function normalizeDate(raw: string): string {
@@ -36,44 +136,52 @@ function normalizeDate(raw: string): string {
 //   "林澤晉"             → name=林澤晉, phone=""
 function splitNamePhone(raw: string): { name: string; phone: string } {
   const s = raw.trim();
-  // 電話：09xxxxxxxx，10位數字，前面可以有空白或換行
   const m = s.match(/^([\s\S]*?)\s*(09\d{8})\s*$/);
   if (m) return { name: m[1].trim(), phone: m[2] };
   return { name: s, phone: "" };
 }
 
-// 欄位順序（共 10 欄）：
-// 0 訂單歸屬 | 1 分店 | 2 日期 | 3 時段 | 4 人數 | 5 訂位代號
-// 6 姓名+電話（合併）| 7 訂金 | 8 付款人員 | 9 退訂期限
 function parseTsv(raw: string): ParsedRow[] {
-  const lines = raw.trim().split(/\r?\n/);
-  const results: ParsedRow[] = [];
+  const lines = raw.trim().split(/\r?\n/).filter(Boolean);
+  if (lines.length === 0) return [];
 
-  for (const line of lines) {
-    if (!line.trim()) continue;
-    const cols = line.split("\t").map((c) => c.trim());
-    // 跳過標題列
-    if (cols[0] === "訂單歸屬" || cols[0] === "廠商") continue;
+  const firstCols = lines[0].split("\t");
+  const colMap = detectColMap(firstCols);
+  const hasHeader = Object.keys(colMap).length >= 3; // 至少對應到 3 個已知欄位才算標題列
+  const dataLines = hasHeader ? lines.slice(1) : lines;
+  const finalMap: ColMap = hasHeader ? { ...DEFAULT_MAP, ...colMap } : DEFAULT_MAP;
 
-    const namePhone   = cols[6] ?? "";
-    const { name: customerName, phone: customerPhone } = splitNamePhone(namePhone);
+  const get = (cols: string[], idx: number) => (idx >= 0 ? (cols[idx] ?? "").trim() : "");
 
-    results.push({
-      vendorName:    cols[0] ?? "",
-      branch:        cols[1] ?? "",
-      bookingDate:   normalizeDate(cols[2] ?? ""),
-      timeSlot:      cols[3] ?? "",
-      partySize:     cols[4] ?? "",
-      bookingCode:   cols[5] ?? "",
+  return dataLines.filter((l) => l.trim()).map((line) => {
+    const cols = line.split("\t");
+
+    const customerRaw = get(cols, finalMap.customerRaw);
+    const split = customerRaw ? splitNamePhone(customerRaw) : { name: "", phone: "" };
+    const customerName = get(cols, finalMap.customerName) || split.name;
+    const customerPhone = get(cols, finalMap.customerPhone) || split.phone;
+
+    return {
+      vendorName:      get(cols, finalMap.vendorRaw),
+      status:          normaliseStatus(get(cols, finalMap.status)),
+      branch:          get(cols, finalMap.branch),
+      bookingDate:     normalizeDate(get(cols, finalMap.bookingDate)),
+      timeSlot:        get(cols, finalMap.timeSlot),
+      partySize:       get(cols, finalMap.partySize),
+      bookingCode:     get(cols, finalMap.bookingCode),
       customerName,
       customerPhone,
-      depositAmount: cols[7] ?? "",
-      depositPayer:  cols[8] ?? "",
-      cancelDeadline:normalizeDate(cols[9] ?? ""),
-    });
-  }
-
-  return results;
+      depositAmount:   get(cols, finalMap.deposit),
+      depositPayer:    get(cols, finalMap.depositPayer),
+      cancelDeadline:  normalizeDate(get(cols, finalMap.cancelDeadline)),
+      platform:        normalisePlatform(finalMap.platform, get(cols, finalMap.platform)),
+      soldDate:        normalizeDate(get(cols, finalMap.soldDate)),
+      collectedAmount: get(cols, finalMap.collectedAmount),
+      account:         get(cols, finalMap.account),
+      salespersonName: get(cols, finalMap.salespersonRaw),
+      agencyFee:       get(cols, finalMap.agencyFee),
+    };
+  });
 }
 
 export default function ImportBookingsPage() {
@@ -90,6 +198,9 @@ export default function ImportBookingsPage() {
     setParsed(true);
     setResult(null);
   };
+
+  const updateRow = (i: number, patch: Partial<ParsedRow>) =>
+    setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
 
   const handleImport = async () => {
     setImporting(true);
@@ -119,8 +230,10 @@ export default function ImportBookingsPage() {
       <div className="erp-card" style={{ marginBottom: 20 }}>
         <div className="erp-card-header"><span className="erp-card-title">貼上 Google Sheets 資料</span></div>
         <div className="erp-card-body">
-          <p style={{ fontSize: 13, color: "var(--gray-500)", marginBottom: 10 }}>
-            欄位順序（共 10 欄）：訂單歸屬、分店、日期、時段、人數、訂位代號、姓名+電話（同一格）、訂金、付款人員、退訂期限
+          <p style={{ fontSize: 13, color: "var(--gray-500)", marginBottom: 10, lineHeight: 1.8 }}>
+            <strong>直接貼入含標題列的試算表</strong>（推薦），系統會自動偵測標題列，識別以下欄位（欄位順序不限）：
+            訂單歸屬、狀態、分店、日期、時段、人數、訂位代號、姓名+電話（或分開的姓名／電話）、訂金、付款人、退訂期限、資料來源、售出日期、收款金額、帳戶、銷售、代訂費。<br />
+            沒有標題列時，只支援舊格式固定 10 欄：訂單歸屬、分店、日期、時段、人數、訂位代號、姓名+電話（同一格）、訂金、付款人員、退訂期限。
           </p>
           <textarea
             className="erp-textarea"
@@ -147,12 +260,13 @@ export default function ImportBookingsPage() {
             <div className="erp-card-header">
               <span className="erp-card-title">預覽（共 {rows.length} 筆）</span>
             </div>
-            <div className="erp-table-wrap">
-              <table className="erp-table">
+            <div className="erp-table-wrap" style={{ overflowX: "auto" }}>
+              <table className="erp-table" style={{ minWidth: 1600 }}>
                 <thead>
                   <tr>
                     <th>#</th>
                     <th>訂單歸屬</th>
+                    <th>狀態</th>
                     <th>分店</th>
                     <th>日期</th>
                     <th>時段</th>
@@ -163,6 +277,12 @@ export default function ImportBookingsPage() {
                     <th>訂金</th>
                     <th>付款人員</th>
                     <th>退訂期限</th>
+                    <th>資料來源</th>
+                    <th>售出日期</th>
+                    <th>收款金額</th>
+                    <th>帳戶</th>
+                    <th>銷售人員</th>
+                    <th>代訂費</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -170,6 +290,13 @@ export default function ImportBookingsPage() {
                     <tr key={i}>
                       <td>{i + 1}</td>
                       <td>{r.vendorName || <span style={{ color: "var(--gray-400)" }}>—</span>}</td>
+                      <td>
+                        <select className="erp-select" style={{ fontSize: 13 }}
+                          value={r.status}
+                          onChange={(e) => updateRow(i, { status: e.target.value as StatusValue })}>
+                          {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      </td>
                       <td>{r.branch || <span style={{ color: "var(--gray-400)" }}>—</span>}</td>
                       <td>{r.bookingDate}</td>
                       <td>{r.timeSlot}</td>
@@ -180,6 +307,18 @@ export default function ImportBookingsPage() {
                       <td>{r.depositAmount || "—"}</td>
                       <td>{r.depositPayer || "—"}</td>
                       <td>{r.cancelDeadline || "—"}</td>
+                      <td>
+                        <select className="erp-select" style={{ fontSize: 13 }}
+                          value={r.platform}
+                          onChange={(e) => updateRow(i, { platform: e.target.value as PlatformValue })}>
+                          {PLATFORM_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      </td>
+                      <td>{r.soldDate || "—"}</td>
+                      <td>{r.collectedAmount || "—"}</td>
+                      <td>{r.account || "—"}</td>
+                      <td>{r.salespersonName || <span style={{ color: "var(--gray-400)" }}>—</span>}</td>
+                      <td>{r.agencyFee || "—"}</td>
                     </tr>
                   ))}
                 </tbody>

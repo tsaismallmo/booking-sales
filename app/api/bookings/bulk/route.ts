@@ -6,6 +6,7 @@ import { auth } from '@/auth'
 
 type ImportRow = {
   vendorName: string
+  status: string // '' | 'unsold' | 'sold' | 'refunded'
   branch: string
   bookingDate: string
   timeSlot: string
@@ -16,6 +17,12 @@ type ImportRow = {
   depositAmount: string
   depositPayer: string
   cancelDeadline: string
+  platform: string // '' | 'eztable' | 'inline'
+  soldDate: string
+  collectedAmount: string
+  account: string
+  salespersonName: string
+  agencyFee: string
 }
 
 function normalizeDate(raw: string): string {
@@ -32,6 +39,12 @@ function normalizeDate(raw: string): string {
   const chinese = s.match(/^(\d{1,2})月(\d{1,2})日$/)
   if (chinese) return `2026-${chinese[1].padStart(2, '0')}-${chinese[2].padStart(2, '0')}`
   return ''
+}
+
+// 只接受純數字（含小數），其餘視為無效
+function parseAmount(raw: string): string | null {
+  const s = raw?.trim() ?? ''
+  return s && /^\d+(\.\d+)?$/.test(s) ? s : null
 }
 
 export async function POST(req: NextRequest) {
@@ -61,6 +74,14 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // 銷售人員（客服）用姓名比對帳號，不限角色，跟填名字建單的邏輯一樣
+    const salespersonNames = [...new Set(rows.map((r) => r.salespersonName).filter(Boolean))]
+    let salespersonMap = new Map<string, string>()
+    if (salespersonNames.length > 0) {
+      const spRows = await db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.name, salespersonNames))
+      salespersonMap = new Map(spRows.filter((v): v is { id: string; name: string } => v.name !== null).map((v) => [v.name, v.id]))
+    }
+
     const errors: string[] = []
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const values: any[] = []
@@ -86,12 +107,30 @@ export async function POST(req: NextRequest) {
         continue
       }
 
-      // 只接受純數字（含小數）的 depositAmount，其餘當作 null 並留警告
-      const rawDeposit = r.depositAmount?.trim() ?? ''
-      const depositAmount = rawDeposit && /^\d+(\.\d+)?$/.test(rawDeposit) ? rawDeposit : null
-      if (rawDeposit && !depositAmount) {
-        errors.push(`第 ${rowNum} 行（${r.bookingDate} ${r.bookingCode}）：訂金「${rawDeposit}」非數字，已略過`)
+      const depositAmount = parseAmount(r.depositAmount)
+      if (r.depositAmount?.trim() && !depositAmount) {
+        errors.push(`第 ${rowNum} 行（${r.bookingDate} ${r.bookingCode}）：訂金「${r.depositAmount}」非數字，已略過`)
       }
+
+      const collectedAmount = parseAmount(r.collectedAmount)
+      if (r.collectedAmount?.trim() && !collectedAmount) {
+        errors.push(`第 ${rowNum} 行（${r.bookingDate} ${r.bookingCode}）：收款金額「${r.collectedAmount}」非數字，已略過`)
+      }
+
+      const agencyFee = parseAmount(r.agencyFee)
+      if (r.agencyFee?.trim() && !agencyFee) {
+        errors.push(`第 ${rowNum} 行（${r.bookingDate} ${r.bookingCode}）：代訂費「${r.agencyFee}」非數字，已略過`)
+      }
+
+      let salespersonId: string | null = null
+      if (r.salespersonName) {
+        salespersonId = salespersonMap.get(r.salespersonName) ?? null
+        if (!salespersonId) {
+          errors.push(`第 ${rowNum} 行：找不到銷售人員「${r.salespersonName}」`)
+        }
+      }
+
+      const status = r.status === 'sold' || r.status === 'refunded' ? r.status : 'unsold'
 
       values.push({
         vendorId,
@@ -106,7 +145,14 @@ export async function POST(req: NextRequest) {
         depositAmount,
         depositPayer: r.depositPayer || null,
         cancelDeadline: normalizeDate(r.cancelDeadline) || null,
-        status: 'unsold' as const,
+        status,
+        isEztable: r.platform === 'eztable',
+        isInline: r.platform === 'inline',
+        soldDate: normalizeDate(r.soldDate) || null,
+        collectedAmount,
+        account: r.account || null,
+        salespersonId,
+        agencyFee,
       })
     }
 
