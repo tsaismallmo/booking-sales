@@ -84,10 +84,12 @@ const HEADER_ALIASES: Record<keyof ColMap, string[]> = {
   agencyFee:       ["代訂費", "agency fee"],
 };
 
-// 沒有標題列時的舊格式：固定 10 欄，姓名電話合併在同一欄；其他新欄位都要有標題列才能被抓到
+// 沒有標題列時的固定欄位順序（新版）：訂單歸屬、狀態、分店、日期、時段、人數、訂位代號、
+// 姓名+電話（合併在同一欄）、訂金、付款人員、退訂期限、資料來源（選填，可以沒有這欄）；
+// 姓名/電話分開、售出日期、收款金額、帳戶、銷售人員、代訂費這些欄位沒有位置可以固定對應，只有有標題列時才抓得到
 const DEFAULT_MAP: ColMap = {
-  vendorRaw: 0, branch: 1, bookingDate: 2, timeSlot: 3, partySize: 4, bookingCode: 5, customerRaw: 6, deposit: 7, depositPayer: 8, cancelDeadline: 9,
-  status: -1, customerName: -1, customerPhone: -1, platform: -1, soldDate: -1, collectedAmount: -1, account: -1, salespersonRaw: -1, agencyFee: -1,
+  vendorRaw: 0, status: 1, branch: 2, bookingDate: 3, timeSlot: 4, partySize: 5, bookingCode: 6, customerRaw: 7, deposit: 8, depositPayer: 9, cancelDeadline: 10, platform: 11,
+  customerName: -1, customerPhone: -1, soldDate: -1, collectedAmount: -1, account: -1, salespersonRaw: -1, agencyFee: -1,
 };
 
 function detectColMap(headerCols: string[]): Partial<ColMap> {
@@ -233,7 +235,7 @@ export default function ImportBookingsPage() {
           <p style={{ fontSize: 13, color: "var(--gray-500)", marginBottom: 10, lineHeight: 1.8 }}>
             <strong>直接貼入含標題列的試算表</strong>（推薦），系統會自動偵測標題列，識別以下欄位（欄位順序不限）：
             訂單歸屬、狀態、分店、日期、時段、人數、訂位代號、姓名+電話（或分開的姓名／電話）、訂金、付款人、退訂期限、資料來源、售出日期、收款金額、帳戶、銷售、代訂費。<br />
-            沒有標題列時，只支援舊格式固定 10 欄：訂單歸屬、分店、日期、時段、人數、訂位代號、姓名+電話（同一格）、訂金、付款人員、退訂期限。
+            沒有標題列時，固定欄位順序：訂單歸屬、狀態、分店、日期、時段、人數、訂位代號、姓名+電話（同一格）、訂金、付款人員、退訂期限、資料來源（最後一欄可省略）；其餘欄位（分開的姓名／電話、售出日期、收款金額、帳戶、銷售人員、代訂費）沒有標題列時無法對應，要用才需要貼標題列。
           </p>
           <textarea
             className="erp-textarea"
