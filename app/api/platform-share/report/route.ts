@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { and, eq, gte, inArray, lte } from 'drizzle-orm'
+import { and, eq, gte, inArray, lte, asc } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { bookings, users } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
@@ -20,6 +20,9 @@ async function getVendorBookings(vendorId: string, from: string, to: string) {
       gte(bookings.soldDate, from),
       lte(bookings.soldDate, to)
     ))
+    // 沒有 orderBy 的話 Postgres 不保證回傳順序，每次查詢（包括存檔後）順序都可能不一樣，
+    // 畫面上的列表看起來就會亂跳——固定用訂位日期＋時段排序，順序才會穩定
+    .orderBy(asc(bookings.bookingDate), asc(bookings.timeSlot))
 }
 
 // 平台費率、客服分潤比例都是按「售出月份」設定的，同一份報表裡的單據可能是不同月份賣出的，
