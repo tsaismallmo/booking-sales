@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { eq, and, inArray, arrayOverlaps } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { bookings, bookingRequests, users } from '@/lib/db/schema'
+import { bookings, bookingRequests, users, smsLogs } from '@/lib/db/schema'
 import { auth } from '@/auth'
 import type { Role } from '@/types/next-auth'
 import { LOGISTICS_CATEGORIES } from '@/lib/roles'
@@ -127,6 +127,9 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: '客服不能刪除現貨單' }, { status: 403 })
   }
 
+  // 簡訊留存紀錄外鍵指向這筆單據，刪單據前要先解除關聯（簡訊原文本身還是留著，
+  // 只是不再連到已經刪掉的單據），不然會因為外鍵限制整個刪除失敗
+  await db.update(smsLogs).set({ bookingId: null }).where(eq(smsLogs.bookingId, id))
   await db.delete(bookings).where(eq(bookings.id, id))
   return NextResponse.json({ ok: true })
 }
