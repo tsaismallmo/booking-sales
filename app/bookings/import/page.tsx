@@ -85,11 +85,13 @@ const HEADER_ALIASES: Record<keyof ColMap, string[]> = {
 };
 
 // 沒有標題列時的固定欄位順序（新版）：訂單歸屬、狀態、分店、日期、時段、人數、訂位代號、
-// 姓名+電話（合併在同一欄）、訂金、付款人員、退訂期限、資料來源（選填，可以沒有這欄）；
-// 姓名/電話分開、售出日期、收款金額、帳戶、銷售人員、代訂費這些欄位沒有位置可以固定對應，只有有標題列時才抓得到
+// 姓名+電話（合併在同一欄）、訂金、付款人員、退訂期限、資料來源、售出日期、收款金額、帳戶、銷售人員、代訂費
+// （最後幾欄如果整批資料都用不到，Excel 複製時常常會被裁掉，留空也沒關係）；
+// 姓名/電話分開這種格式沒有固定位置可以對應，只有貼標題列才抓得到
 const DEFAULT_MAP: ColMap = {
   vendorRaw: 0, status: 1, branch: 2, bookingDate: 3, timeSlot: 4, partySize: 5, bookingCode: 6, customerRaw: 7, deposit: 8, depositPayer: 9, cancelDeadline: 10, platform: 11,
-  customerName: -1, customerPhone: -1, soldDate: -1, collectedAmount: -1, account: -1, salespersonRaw: -1, agencyFee: -1,
+  soldDate: 12, collectedAmount: 13, account: 14, salespersonRaw: 15, agencyFee: 16,
+  customerName: -1, customerPhone: -1,
 };
 
 function detectColMap(headerCols: string[]): Partial<ColMap> {
@@ -235,7 +237,7 @@ export default function ImportBookingsPage() {
           <p style={{ fontSize: 13, color: "var(--gray-500)", marginBottom: 10, lineHeight: 1.8 }}>
             <strong>直接貼入含標題列的試算表</strong>（推薦），系統會自動偵測標題列，識別以下欄位（欄位順序不限）：
             訂單歸屬、狀態、分店、日期、時段、人數、訂位代號、姓名+電話（或分開的姓名／電話）、訂金、付款人、退訂期限、資料來源、售出日期、收款金額、帳戶、銷售、代訂費。<br />
-            沒有標題列時，固定欄位順序：訂單歸屬、狀態、分店、日期、時段、人數、訂位代號、姓名+電話（同一格）、訂金、付款人員、退訂期限、資料來源（最後一欄可省略）；其餘欄位（分開的姓名／電話、售出日期、收款金額、帳戶、銷售人員、代訂費）沒有標題列時無法對應，要用才需要貼標題列。
+            沒有標題列時，固定欄位順序：訂單歸屬、狀態、分店、日期、時段、人數、訂位代號、姓名+電話（同一格）、訂金、付款人員、退訂期限、資料來源、售出日期、收款金額、帳戶、銷售人員、代訂費（後面用不到的欄位可以不用貼，留空也沒關係）；只有「姓名／電話分開」這種格式沒有固定位置可以對應，要用才需要貼標題列。
           </p>
           <textarea
             className="erp-textarea"
