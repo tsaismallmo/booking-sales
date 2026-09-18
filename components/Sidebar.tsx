@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { ClipboardList, Users, LogOut, MapPinned, Wrench, Package, Clock3, CalendarClock, BookUser, CalendarDays, PieChart, BellRing, BadgeCheck, TableProperties, HandCoins, RotateCcw, Landmark, Tags, Archive, Wallet, Scale } from "lucide-react";
+import { ClipboardList, Users, LogOut, MapPinned, Wrench, Package, Clock3, CalendarClock, BookUser, CalendarDays, PieChart, BellRing, BadgeCheck, TableProperties, HandCoins, Landmark, Archive, Wallet, Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/types/next-auth";
 
@@ -148,17 +148,9 @@ export function Sidebar({ roles }: { roles: Role[] }) {
               <ClipboardList size={15} />
               所有單據
             </Link>
-            <Link href="/admin/bulk-update" className={cn("erp-sidebar-item", pathname.startsWith("/admin/bulk-update") && "active")}>
+            <Link href="/admin/bulk-actions" className={cn("erp-sidebar-item", pathname.startsWith("/admin/bulk-actions") && "active")}>
               <TableProperties size={15} />
-              批次更新
-            </Link>
-            <Link href="/admin/bulk-refund" className={cn("erp-sidebar-item", pathname.startsWith("/admin/bulk-refund") && "active")}>
-              <RotateCcw size={15} />
-              批次退訂
-            </Link>
-            <Link href="/admin/bulk-tag-platform" className={cn("erp-sidebar-item", pathname.startsWith("/admin/bulk-tag-platform") && "active")}>
-              <Tags size={15} />
-              批次標記平台
+              批次作業
             </Link>
             <Link href="/admin/rates" className={cn("erp-sidebar-item", pathname.startsWith("/admin/rates") && "active")}>
               <PieChart size={15} />
