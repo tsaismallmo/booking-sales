@@ -18,7 +18,19 @@ type Booking = {
   customerPhone: string | null;
   collectedAmount: string | null;
   depositAmount: string | null;
+  depositPayer: string | null;
+  actualBooker: string | null;
+  agencyFee: string | null;
+  account: string | null;
+  soldDate: string | null;
 };
+
+// 把逗號、雙引號、換行的欄位用雙引號包起來，裡面的雙引號變成兩個雙引號，符合 CSV 標準格式
+function csvCell(value: string | number | null | undefined): string {
+  const s = value === null || value === undefined ? "" : String(value);
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
 
 type Vendor = { id: string; name: string | null };
 
@@ -75,6 +87,45 @@ export default function AdminBookingsPage() {
     });
   }, [bookings, statusFilter, vendorFilter, q]);
 
+  const handleExportCsv = () => {
+    const headers = [
+      "廠商", "狀態", "類別", "分店", "訂位日期", "時段", "人數", "訂位代號",
+      "姓名", "電話", "訂金", "付款人員", "收款金額", "代訂費", "帳戶", "售出日期", "實際訂位人員",
+    ];
+    const lines = [headers.map(csvCell).join(",")];
+    for (const b of filtered) {
+      lines.push([
+        b.vendorId ? (vendorMap.get(b.vendorId) ?? "") : "",
+        statusLabel[b.status],
+        b.category,
+        b.branch,
+        b.bookingDate,
+        b.timeSlot,
+        b.partySize,
+        b.bookingCode,
+        b.customerName,
+        b.customerPhone,
+        b.depositAmount,
+        b.depositPayer,
+        b.collectedAmount,
+        b.agencyFee,
+        b.account,
+        b.soldDate,
+        b.actualBooker,
+      ].map(csvCell).join(","));
+    }
+    // 加 BOM 避免 Excel 打開中文變亂碼
+    const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `單據匯出_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="erp-page">
       <div className="erp-page-header">
@@ -82,6 +133,9 @@ export default function AdminBookingsPage() {
           <h1 className="erp-page-title">所有單據（管理員）</h1>
           <p className="erp-page-subtitle">現貨單，顯示 {filtered.length} / {bookings.length} 筆</p>
         </div>
+        <button onClick={handleExportCsv} disabled={filtered.length === 0} className="btn btn-secondary">
+          匯出 CSV（目前篩選的 {filtered.length} 筆）
+        </button>
       </div>
 
       <div className="erp-card" style={{ marginBottom: 16 }}>
