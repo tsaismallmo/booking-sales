@@ -147,9 +147,11 @@ export default function VendorStaffSharePage() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ [field]: value }),
-    }).then((res) => {
+    }).then(async (res) => {
       setSavingKey(null);
       if (res.ok) return;
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || "儲存失敗");
       setReport((r) => r && { ...r, bookings: r.bookings.map((b) => (b.id === bookingId ? { ...b, [field]: previous } : b)) });
       setShareInputs((s) => ({ ...s, [key]: previous === null ? "" : String(previous) }));
     });

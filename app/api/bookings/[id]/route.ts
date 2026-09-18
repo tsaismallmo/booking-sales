@@ -5,6 +5,8 @@ import { bookings, bookingRequests, users, smsLogs } from '@/lib/db/schema'
 import { auth } from '@/auth'
 import type { Role } from '@/types/next-auth'
 import { LOGISTICS_CATEGORIES } from '@/lib/roles'
+import { computeShare } from '@/lib/platform-share'
+import { getRatesForVendorMonth } from '@/lib/platform-settings'
 
 // 日期/數字欄位如果表單留空，前端送的是空字串 ''，但資料庫的 date/numeric 欄位不接受空字串，要轉成 null
 function blankToNull<T>(v: T): T | null {
@@ -67,6 +69,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // 純客服（沒有廠商/管理員身份）只能改狀態、銷售/收款，不能碰分店/日期/金流/訂位資訊等基本資訊，
   // 那些要走「轉需求」讓後勤人員處理
   const pureCustomerService = roles.includes('customer_service') && !roles.includes('vendor') && !roles.includes('admin')
+
+  // 分給電話歸屬的人／分給實際訂位人員 兩欄相加不能超過這筆單的廠商利潤，只有改到其中一欄才需要檢查
+  if ((roles.includes('vendor') || roles.includes('admin')) && (body.staffShareAmount !== undefined || body.bookerShareAmount !== undefined)) {
+    const newStaffShare = body.staffShareAmount !== undefined ? blankToNull(body.staffShareAmount) : existing.staffShareAmount
+    const newBookerShare = body.bookerShareAmount !== undefined ? blankToNull(body.bookerShareAmount) : existing.bookerShareAmount
+    const sum = (Number(newStaffShare) || 0) + (Number(newBookerShare) || 0)
+    if (sum > 0 && existing.vendorId) {
+      const month = (existing.soldDate ?? existing.bookingDate).slice(0, 7)
+      const rates = await getRatesForVendorMonth(existing.vendorId, month)
+      const share = computeShare(existing, rates)
+      if (share && sum > share.vendorProfit) {
+        return NextResponse.json({ error: `分潤總額（${sum}）超過這筆單的廠商利潤（${share.vendorProfit}）` }, { status: 400 })
+      }
+    }
+  }
 
   const [row] = await db
     .update(bookings)
