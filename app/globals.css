@@ -89,6 +89,11 @@ button { font-family: var(--font-ui); cursor: pointer; }
 
 .erp-main {
   flex: 1;
+  /* flex item 預設 min-width 是 auto（不會縮小到比內容還窄），寬表格（例如廠商員工分潤）
+     沒有這行的話，整個 main 會被撐開超出畫面寬度，導致整頁橫向捲動、
+     固定定位的側邊欄蓋住捲出去的內容——不管怎麼縮小瀏覽器畫面都一樣，因為問題不是空間不夠，
+     是 .erp-table-wrap 自己的橫向捲軸根本沒機會生效。設成 0 讓它能正常縮小，捲動就會侷限在表格自己裡面。 */
+  min-width: 0;
   margin-left: var(--sidebar-width);
   min-height: 100vh;
   display: flex;
