@@ -70,10 +70,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // 那些要走「轉需求」讓後勤人員處理
   const pureCustomerService = roles.includes('customer_service') && !roles.includes('vendor') && !roles.includes('admin')
 
-  // 分給電話歸屬的人／分給實際訂位人員 兩欄相加不能超過這筆單的廠商利潤，只有改到其中一欄才需要檢查
+  // 分給電話歸屬的人／分給實際訂位人員：不能填負數，兩欄相加也不能超過這筆單的廠商利潤，只有改到其中一欄才需要檢查
   if ((roles.includes('vendor') || roles.includes('admin')) && (body.staffShareAmount !== undefined || body.bookerShareAmount !== undefined)) {
     const newStaffShare = body.staffShareAmount !== undefined ? blankToNull(body.staffShareAmount) : existing.staffShareAmount
     const newBookerShare = body.bookerShareAmount !== undefined ? blankToNull(body.bookerShareAmount) : existing.bookerShareAmount
+    if (Number(newStaffShare) < 0 || Number(newBookerShare) < 0) {
+      return NextResponse.json({ error: '分潤金額不能是負數' }, { status: 400 })
+    }
     const sum = (Number(newStaffShare) || 0) + (Number(newBookerShare) || 0)
     if (sum > 0 && existing.vendorId) {
       const month = (existing.soldDate ?? existing.bookingDate).slice(0, 7)
