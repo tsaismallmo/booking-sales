@@ -72,6 +72,7 @@ export default function BookingsPage() {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <Link href="/bookings/import-sms" className="btn btn-secondary">📩 解析簡訊</Link>
+          <Link href="/bookings/import-sms-bulk" className="btn btn-secondary">📩 大量解析簡訊</Link>
           <Link href="/bookings/import" className="btn btn-secondary">⬆ 大量匯入</Link>
           <Link href="/bookings/new?category=現貨單" className="btn btn-primary">＋ 新增單據</Link>
         </div>
