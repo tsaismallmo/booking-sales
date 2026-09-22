@@ -206,11 +206,16 @@ export default function VendorStaffSharePage() {
                         <input
                           type="number"
                           step="0.01"
+                          min="0"
                           className="erp-input"
                           style={{ width: 100 }}
                           placeholder="0"
                           value={shareInputs[key] ?? ""}
-                          onChange={(e) => setShareInputs((s) => ({ ...s, [key]: e.target.value }))}
+                          onChange={(e) => {
+                            // 不給打負數：直接擋掉開頭是「-」的輸入，不等存檔才發現
+                            if (e.target.value.trim().startsWith("-")) return;
+                            setShareInputs((s) => ({ ...s, [key]: e.target.value }));
+                          }}
                           onBlur={(e) => handleShareBlur(b.id, field, e.target.value, previous)}
                         />
                         {savingKey === key && <span style={{ fontSize: 11, color: "var(--gray-400)" }}>儲存中...</span>}
