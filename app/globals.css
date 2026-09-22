@@ -253,7 +253,9 @@ button { font-family: var(--font-ui); cursor: pointer; }
 .erp-page {
   flex: 1;
   padding: 28px;
-  max-width: 1200px;
+  /* 原本 1200px 在寬螢幕上會留一大塊空白（欄位多的表格反而因此更常要橫向捲動），
+     放寬到 1600px 讓寬螢幕有更多空間可以用，螢幕本來就比較窄時 width:100% 還是會正常縮小 */
+  max-width: 1600px;
   width: 100%;
 }
 
