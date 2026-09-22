@@ -544,6 +544,11 @@ button { font-family: var(--font-ui); cursor: pointer; }
 /* ---------- Table ---------- */
 .erp-table-wrap {
   overflow-x: auto;
+  /* 欄位多的表格橫向捲軸本來就在，但列數一多（例如這個月賣了 100+ 筆），
+     表格整個被撐得很高，橫向捲軸就被推到畫面外面，實際上根本捲不到、看起來就像內容被蓋住。
+     限制高度＋允許直向捲動，讓橫向捲軸永遠留在看得到、按得到的地方。 */
+  overflow-y: auto;
+  max-height: 65vh;
   scrollbar-width: thin;
   scrollbar-color: var(--gray-300) transparent;
 }
@@ -574,6 +579,11 @@ button { font-family: var(--font-ui); cursor: pointer; }
   color: var(--gray-400);
   border-bottom: 1px solid var(--gray-200);
   white-space: nowrap;
+  /* 現在 wrap 本身會直向捲動，標題列跟著黏在頂端，捲的時候才知道每欄是什麼 */
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 1;
 }
 
 .erp-table td {
