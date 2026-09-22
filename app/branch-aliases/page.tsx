@@ -13,6 +13,10 @@ export default function BranchAliasesPage() {
   const [aliases, setAliases] = useState<Alias[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Record<string, string>>({});
+  const [newRaw, setNewRaw] = useState("");
+  const [newCanonical, setNewCanonical] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState("");
 
   const load = () => {
     fetch("/api/branch-aliases")
@@ -24,6 +28,26 @@ export default function BranchAliasesPage() {
   };
 
   useEffect(load, []);
+
+  const handleAdd = async () => {
+    if (!newRaw.trim() || !newCanonical.trim()) return;
+    setAdding(true);
+    setAddError("");
+    const res = await fetch("/api/branch-aliases", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rawText: newRaw.trim(), canonicalBranch: newCanonical.trim() }),
+    });
+    setAdding(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setAddError(data.error || "新增失敗");
+      return;
+    }
+    setNewRaw("");
+    setNewCanonical("");
+    load();
+  };
 
   const handleSave = async (id: string) => {
     const canonicalBranch = editing[id];
@@ -52,7 +76,25 @@ export default function BranchAliasesPage() {
       <div className="erp-page-header">
         <div>
           <h1 className="erp-page-title">分店對應表</h1>
-          <p className="erp-page-subtitle">解析付款完成簡訊時，簡訊裡的分店文字會自動代換成這裡設定的名稱</p>
+          <p className="erp-page-subtitle">解析簡訊時，簡訊裡的分店文字會自動代換成這裡設定的名稱；第一次遇到沒對應過的文字，會用原文，等你在解析簡訊頁面手動改成正確分店並送出後才會自動記住——也可以直接在這裡先新增，不用等簡訊觸發</p>
+        </div>
+      </div>
+
+      <div className="erp-card" style={{ marginBottom: 16 }}>
+        <div className="erp-card-header"><span className="erp-card-title">新增對應</span></div>
+        <div className="erp-card-body" style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+          <div className="erp-form-group" style={{ minWidth: 240 }}>
+            <label className="erp-label">簡訊原文</label>
+            <input className="erp-input" placeholder="例如：漢來美食-島語-台中洲際店" value={newRaw} onChange={(e) => setNewRaw(e.target.value)} />
+          </div>
+          <div className="erp-form-group" style={{ minWidth: 200 }}>
+            <label className="erp-label">對應到的分店名稱</label>
+            <input className="erp-input" placeholder="例如：台中洲際" value={newCanonical} onChange={(e) => setNewCanonical(e.target.value)} />
+          </div>
+          <button onClick={handleAdd} disabled={adding || !newRaw.trim() || !newCanonical.trim()} className="btn btn-primary">
+            {adding ? "新增中..." : "新增"}
+          </button>
+          {addError && <span style={{ fontSize: 12, color: "var(--color-danger)" }}>{addError}</span>}
         </div>
       </div>
 
