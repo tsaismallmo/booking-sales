@@ -6,6 +6,8 @@ import { parseSms } from "@/lib/sms-parser";
 import { formatCurrency } from "@/lib/utils";
 import { VendorSelect } from "@/components/VendorSelect";
 
+type PhoneCandidate = { phone: string; source: "roster" | "booking"; label: string };
+
 type ExistingBooking = {
   id: string;
   branch: string | null;
@@ -31,6 +33,7 @@ type NoticeRow = {
   actualBooker: string;
   customerName: string;
   customerPhone: string;
+  phoneCandidates: PhoneCandidate[]; // 用姓名查到不只一支電話時列出來讓使用者選
   status: "idle" | "saving" | "ok" | "error";
   message: string;
 };
@@ -112,6 +115,40 @@ export default function ImportSmsBulkPage() {
     return { ...row, matchState: "notfound", matched: null };
   };
 
+  const fetchPhones = async (name: string): Promise<PhoneCandidate[]> => {
+    if (!name.trim()) return [];
+    const res = await fetch(`/api/customer-phones?name=${encodeURIComponent(name.trim())}`);
+    const data = res.ok ? await res.json() : [];
+    return Array.isArray(data) ? data : [];
+  };
+
+  // 只有一支電話就直接帶入（不蓋掉已經填的），多支就留著讓使用者選
+  const applyPhones = (r: NoticeRow, list: PhoneCandidate[]): NoticeRow =>
+    list.length === 1
+      ? { ...r, customerPhone: r.customerPhone || list[0].phone, phoneCandidates: [] }
+      : { ...r, phoneCandidates: list };
+
+  const lookupPhonesForRows = async (rows: NoticeRow[]) => {
+    const names = [...new Set(rows.map((r) => r.customerName.trim()).filter(Boolean))];
+    const byName = new Map<string, PhoneCandidate[]>();
+    for (let i = 0; i < names.length; i += LOOKUP_CONCURRENCY) {
+      const chunk = names.slice(i, i + LOOKUP_CONCURRENCY);
+      const lists = await Promise.all(chunk.map(fetchPhones));
+      chunk.forEach((n, j) => byName.set(n, lists[j]));
+    }
+    setNoticeRows((rs) => rs.map((r) => {
+      const list = byName.get(r.customerName.trim());
+      return list ? applyPhones(r, list) : r;
+    }));
+  };
+
+  const handleNameBlur = async (key: string) => {
+    const row = noticeRows.find((r) => r.key === key);
+    if (!row || row.customerPhone) return;
+    const list = await fetchPhones(row.customerName);
+    setNoticeRows((rs) => rs.map((r) => (r.key === key ? applyPhones(r, list) : r)));
+  };
+
   const runLookupsInBatches = async (rows: CompletionRow[]) => {
     let result = rows;
     for (let i = 0; i < result.length; i += LOOKUP_CONCURRENCY) {
@@ -161,8 +198,9 @@ export default function ImportSmsBulkPage() {
           depositAmount: "",
           depositPayer: "",
           actualBooker: "",
-          customerName: "",
+          customerName: r.customerName ?? "",
           customerPhone: "",
+          phoneCandidates: [],
           status: "idle",
           message: "",
         });
@@ -196,7 +234,10 @@ export default function ImportSmsBulkPage() {
     setParsed(true);
     setParsing(false);
 
-    if (completions.length > 0) await runLookupsInBatches(completions);
+    await Promise.all([
+      notices.length > 0 ? lookupPhonesForRows(notices) : null,
+      completions.length > 0 ? runLookupsInBatches(completions) : null,
+    ]);
   };
 
   const updateNotice = (key: string, patch: Partial<NoticeRow>) =>
@@ -378,8 +419,23 @@ export default function ImportSmsBulkPage() {
                     <td><input type="number" className="erp-input" style={{ width: 80, fontSize: 13 }} value={r.depositAmount} onChange={(e) => updateNotice(r.key, { depositAmount: e.target.value })} /></td>
                     <td><input className="erp-input" style={{ width: 90, fontSize: 13 }} value={r.depositPayer} onChange={(e) => updateNotice(r.key, { depositPayer: e.target.value })} /></td>
                     <td><input className="erp-input" style={{ width: 90, fontSize: 13 }} value={r.actualBooker} onChange={(e) => updateNotice(r.key, { actualBooker: e.target.value })} /></td>
-                    <td><input className="erp-input" style={{ width: 90, fontSize: 13 }} value={r.customerName} onChange={(e) => updateNotice(r.key, { customerName: e.target.value })} /></td>
-                    <td><input className="erp-input" style={{ width: 110, fontSize: 13 }} value={r.customerPhone} onChange={(e) => updateNotice(r.key, { customerPhone: e.target.value })} /></td>
+                    <td><input className="erp-input" style={{ width: 90, fontSize: 13 }} value={r.customerName} onChange={(e) => updateNotice(r.key, { customerName: e.target.value })} onBlur={() => handleNameBlur(r.key)} /></td>
+                    <td>
+                      <input className="erp-input" style={{ width: 110, fontSize: 13 }} value={r.customerPhone} onChange={(e) => updateNotice(r.key, { customerPhone: e.target.value })} />
+                      {r.phoneCandidates.length > 1 && (
+                        <select
+                          className="erp-select"
+                          style={{ width: 110, fontSize: 12, marginTop: 4 }}
+                          value=""
+                          onChange={(e) => updateNotice(r.key, { customerPhone: e.target.value })}
+                        >
+                          <option value="">同名 {r.phoneCandidates.length} 支電話…</option>
+                          {r.phoneCandidates.map((c) => (
+                            <option key={c.phone} value={c.phone}>{c.phone}（{c.label}）</option>
+                          ))}
+                        </select>
+                      )}
+                    </td>
                     <td style={{ textAlign: "center", fontSize: 12 }}>
                       {r.status === "ok" && <span style={{ color: "var(--color-success)", fontWeight: 600 }}>✓</span>}
                       {r.status === "error" && <span style={{ color: "var(--color-danger)" }} title={r.message}>✗</span>}

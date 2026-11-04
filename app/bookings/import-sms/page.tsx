@@ -6,6 +6,8 @@ import { parseSms, type ParsedSms } from "@/lib/sms-parser";
 import { formatCurrency } from "@/lib/utils";
 import { VendorSelect } from "@/components/VendorSelect";
 
+type PhoneCandidate = { phone: string; source: "roster" | "booking"; label: string };
+
 type ExistingBooking = {
   id: string;
   branch: string | null;
@@ -39,6 +41,19 @@ export default function ImportSmsPage() {
     customerName: "",
     customerPhone: "",
   });
+
+  // 用訂位姓名查到的電話（廠商名單＋以前的單據）；只有一支就直接帶入，多支讓使用者點選
+  const [phoneCandidates, setPhoneCandidates] = useState<PhoneCandidate[]>([]);
+
+  const lookupPhone = async (name: string) => {
+    setPhoneCandidates([]);
+    if (!name.trim()) return;
+    const res = await fetch(`/api/customer-phones?name=${encodeURIComponent(name.trim())}`);
+    const data = res.ok ? await res.json() : [];
+    const list: PhoneCandidate[] = Array.isArray(data) ? data : [];
+    if (list.length === 1) setForm((f) => (f.customerPhone ? f : { ...f, customerPhone: list[0].phone }));
+    else setPhoneCandidates(list);
+  };
 
   // 付款完成 → 比對到的既有單據
   const [matched, setMatched] = useState<ExistingBooking | null | undefined>(undefined);
@@ -100,8 +115,11 @@ export default function ImportSmsPage() {
         partySize: result.partySize?.toString() ?? "",
         bookingCode: result.bookingCode ?? "",
         paymentDeadline: result.paymentDeadline ?? "",
+        customerName: result.customerName ?? "",
+        customerPhone: "",
       }));
       setRawBranch(result.branch ?? "");
+      if (result.customerName) await lookupPhone(result.customerName);
     }
 
     if (result.type === "payment_completion" && result.bookingCode) {
@@ -258,11 +276,32 @@ export default function ImportSmsPage() {
               </div>
               <div className="erp-form-group">
                 <label className="erp-label">訂位姓名 <span className="required">*</span></label>
-                <input className="erp-input" value={form.customerName} onChange={set("customerName")} />
+                <input
+                  className="erp-input"
+                  value={form.customerName}
+                  onChange={set("customerName")}
+                  onBlur={() => { if (!form.customerPhone) lookupPhone(form.customerName); }}
+                />
               </div>
               <div className="erp-form-group">
                 <label className="erp-label">訂位電話 <span className="required">*</span></label>
                 <input className="erp-input" value={form.customerPhone} onChange={set("customerPhone")} />
+                {phoneCandidates.length > 1 && (
+                  <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    <span style={{ fontSize: 12, color: "var(--gray-400)", width: "100%" }}>同名有多支電話，點選帶入：</span>
+                    {phoneCandidates.map((c) => (
+                      <button
+                        key={c.phone}
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{ fontSize: 12, padding: "2px 8px" }}
+                        onClick={() => setForm((f) => ({ ...f, customerPhone: c.phone }))}
+                      >
+                        {c.phone}（{c.label}）
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             <div style={{ marginTop: 16 }}>
