@@ -509,7 +509,8 @@ button { font-family: var(--font-ui); cursor: pointer; }
   padding: 10px 12px;
   background: var(--gray-50);
 }
-.erp-person-card.avail { border-color: var(--accent-300); background: var(--accent-100); }
+.erp-person-card.avail { border-color: #b4c8d9; background: #e4edf5; }
+.erp-person-card.avail:hover { border-color: #8aaec8; background: #d8e6f0; cursor: pointer; }
 
 .erp-excl-item {
   display: flex;

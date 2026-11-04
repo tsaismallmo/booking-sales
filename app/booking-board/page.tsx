@@ -803,12 +803,12 @@ function CalendarTab() {
                           <div style={{ fontSize: 13, fontWeight: 600, color: "var(--gray-800)" }}>{p.name || "（無姓名）"}</div>
                           <div style={{ fontSize: 12, color: "var(--gray-500)" }}>{p.phone ?? "—"}</div>
                           {p.totalCount > 0 && (
-                            <div style={{ fontSize: 11, color: "var(--accent-500)", marginTop: 3 }}>
+                            <div style={{ fontSize: 11, color: "#4a7fa5", marginTop: 3 }}>
                               共 {p.totalCount} 筆　當月 {p.monthCount} 筆
                             </div>
                           )}
                           {isExpanded && (
-                            <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid var(--accent-300)", display: "flex", flexDirection: "column", gap: 2 }}>
+                            <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid #b4c8d9", display: "flex", flexDirection: "column", gap: 2 }}>
                               {p.bookings.map((b) => (
                                 <div key={b.id} style={{ fontSize: 11, color: "var(--gray-600)" }}>
                                   {shortDate(b.bookingDate)}　{b.branch ?? "—"}　{b.timeSlot ?? "—"}
@@ -847,6 +847,7 @@ function CalendarTab() {
       </div>
       </div>
     </div>
+  </div>
   );
 }
 
