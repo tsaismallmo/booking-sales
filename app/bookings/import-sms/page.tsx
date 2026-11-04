@@ -7,6 +7,7 @@ import { formatCurrency } from "@/lib/utils";
 import { VendorSelect } from "@/components/VendorSelect";
 
 type PhoneCandidate = { phone: string; source: "roster" | "booking"; label: string };
+type CustomerCandidate = { name: string; phone: string; source: "roster" | "booking"; label: string };
 
 type ExistingBooking = {
   id: string;
@@ -44,6 +45,30 @@ export default function ImportSmsPage() {
 
   // 用訂位姓名查到的電話（廠商名單＋以前的單據）；只有一支就直接帶入，多支讓使用者點選
   const [phoneCandidates, setPhoneCandidates] = useState<PhoneCandidate[]>([]);
+
+  // 客人搜尋（模糊搜尋，同時帶入姓名+電話）
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [customerResults, setCustomerResults] = useState<CustomerCandidate[]>([]);
+  const [customerSearchTimer, setCustomerSearchTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleCustomerSearchChange = (q: string) => {
+    setCustomerSearch(q);
+    if (customerSearchTimer) clearTimeout(customerSearchTimer);
+    if (!q.trim()) { setCustomerResults([]); return; }
+    const t = setTimeout(async () => {
+      const res = await fetch(`/api/customer-search?q=${encodeURIComponent(q.trim())}`);
+      const data = res.ok ? await res.json() : [];
+      setCustomerResults(Array.isArray(data) ? data : []);
+    }, 250);
+    setCustomerSearchTimer(t);
+  };
+
+  const pickCustomer = (c: CustomerCandidate) => {
+    setForm((f) => ({ ...f, customerName: c.name, customerPhone: c.phone }));
+    setCustomerSearch("");
+    setCustomerResults([]);
+    setPhoneCandidates([]);
+  };
 
   const lookupPhone = async (name: string) => {
     setPhoneCandidates([]);
@@ -273,6 +298,44 @@ export default function ImportSmsPage() {
               <div className="erp-form-group">
                 <label className="erp-label">實際訂位人員</label>
                 <input className="erp-input" value={form.actualBooker} onChange={set("actualBooker")} />
+              </div>
+              <div className="erp-form-group" style={{ gridColumn: "1 / -1" }}>
+                <label className="erp-label">搜尋客人（點選帶入姓名＋電話）</label>
+                <div style={{ position: "relative" }}>
+                  <input
+                    className="erp-input"
+                    placeholder="輸入姓名關鍵字..."
+                    value={customerSearch}
+                    onChange={(e) => handleCustomerSearchChange(e.target.value)}
+                    autoComplete="off"
+                  />
+                  {customerResults.length > 0 && (
+                    <div style={{
+                      position: "absolute", top: "100%", left: 0, right: 0, zIndex: 20,
+                      background: "#fff", border: "1px solid var(--gray-200)", borderRadius: 6,
+                      boxShadow: "0 4px 12px rgba(0,0,0,.12)", marginTop: 2, maxHeight: 240, overflowY: "auto",
+                    }}>
+                      {customerResults.map((c, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => pickCustomer(c)}
+                          style={{
+                            display: "flex", justifyContent: "space-between", alignItems: "center",
+                            width: "100%", padding: "8px 12px", background: "none", border: "none",
+                            cursor: "pointer", textAlign: "left", fontSize: 13,
+                            borderBottom: i < customerResults.length - 1 ? "1px solid var(--gray-100)" : "none",
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--gray-50)")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+                        >
+                          <span style={{ fontWeight: 600, color: "var(--gray-800)" }}>{c.name}</span>
+                          <span style={{ color: "var(--gray-400)", fontSize: 12 }}>{c.phone}　{c.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="erp-form-group">
                 <label className="erp-label">訂位姓名 <span className="required">*</span></label>
