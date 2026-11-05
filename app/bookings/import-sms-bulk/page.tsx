@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { parseSms } from "@/lib/sms-parser";
 import { formatCurrency } from "@/lib/utils";
@@ -98,14 +98,6 @@ export default function ImportSmsBulkPage() {
   const [unknownRows, setUnknownRows] = useState<UnknownRow[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [summary, setSummary] = useState("");
-  // 按送出時缺欄位的付款通知，列在按鈕下面，點了捲到那一列
-  const [submitErrors, setSubmitErrors] = useState<{ key: string; n: number; label: string; fields: string }[]>([]);
-  const errorKeys = new Set(submitErrors.map((e) => e.key));
-
-  // 錯誤框在頁面最底下，按了送出被擋時自動捲過去，不然看起來像按了沒反應
-  useEffect(() => {
-    if (submitErrors.length > 0) document.getElementById("submit-errors")?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [submitErrors]);
 
   const resolveBranchAlias = async (raw: string) => {
     if (!raw) return "";
@@ -193,7 +185,6 @@ export default function ImportSmsBulkPage() {
   const handleParse = async () => {
     setParsing(true);
     setSummary("");
-    setSubmitErrors([]);
     const blocks = splitSmsBlocks(text);
 
     const rawBranches = new Set<string>();
@@ -289,21 +280,40 @@ export default function ImportSmsBulkPage() {
 
   const noticeReady = (r: NoticeRow) => !!(r.bookingDate && r.customerName && r.customerPhone);
 
-  const handleSubmitAll = async () => {
-    // 付款通知一定要有姓名＋電話才能建單，有缺的話整批都不送，先報錯讓使用者補
-    const missing = noticeRows
+  const noticeLabel = (r: NoticeRow) =>
+    [r.branch, r.bookingDate, r.timeSlot, r.bookingCode && `代號 ${r.bookingCode}`, r.customerName].filter(Boolean).join("　");
+
+  // 解析完就即時檢查：付款通知一定要有日期＋姓名＋電話、付款完成不能比對到不只一筆，
+  // 只要任一筆有錯，整批都不能送出（按鈕停用），錯誤直接列在按鈕下面
+  const missingRows = noticeRows
       .map((r, i) => ({ r, n: i + 1 }))
       .filter(({ r }) => r.status !== "ok" && !noticeReady(r))
       .map(({ r, n }) => ({
         key: r.key,
         n,
-        label: [r.branch, r.bookingDate, r.timeSlot, r.bookingCode && `代號 ${r.bookingCode}`, r.customerName].filter(Boolean).join("　"),
+        label: noticeLabel(r),
         fields: [!r.bookingDate && "日期", !r.customerName && "姓名", !r.customerPhone && "電話"].filter(Boolean).join("、"),
       }));
-    setSubmitErrors(missing);
-    if (missing.length > 0) return;
+  const missingKeys = new Set(missingRows.map((e) => e.key));
+  const ambiguousRows = completionRows
+    .map((r, i) => ({ r, n: i + 1 }))
+    .filter(({ r }) => r.status !== "ok" && r.matchState === "ambiguous")
+    .map(({ r, n }) => ({ key: r.key, n, label: [r.matchBranch, r.bookingDate, r.timeSlot, r.bookingCode && `代號 ${r.bookingCode}`].filter(Boolean).join("　") }));
+  const checkingCompletions = completionRows.some((r) => r.matchState === "checking");
+  const errorLines = [
+    ...missingRows.map((e) => `付款通知第 ${e.n} 筆　${e.label}　缺${e.fields}`),
+    ...ambiguousRows.map((e) => `付款完成第 ${e.n} 筆　${e.label}　對到不只一筆單據，請修正分店後重新比對`),
+  ];
+
+  const handleSubmitAll = async () => {
+    if (errorLines.length > 0) {
+      alert(`有 ${errorLines.length} 筆有錯誤，整批都不會送出：\n\n` + errorLines.join("\n"));
+      return;
+    }
     setSubmitting(true);
 
+    // 送出後失敗的筆數，最後一次跳出來
+    const failures: string[] = [];
     let noticeOk = 0, noticeFail = 0;
     for (const r of noticeRows) {
       if (r.status === "ok") continue;
@@ -331,7 +341,9 @@ export default function ImportSmsBulkPage() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        updateNotice(r.key, { status: "error", message: data.error || `HTTP ${res.status}` });
+        const message = data.error || `HTTP ${res.status}`;
+        updateNotice(r.key, { status: "error", message });
+        failures.push(`付款通知第 ${noticeRows.indexOf(r) + 1} 筆　${noticeLabel(r)}：${message}`);
         noticeFail++;
         continue;
       }
@@ -363,7 +375,9 @@ export default function ImportSmsBulkPage() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        updateCompletion(r.key, { status: "error", message: data.error || `HTTP ${res.status}` });
+        const message = data.error || `HTTP ${res.status}`;
+        updateCompletion(r.key, { status: "error", message });
+        failures.push(`付款完成第 ${completionRows.indexOf(r) + 1} 筆　代號 ${r.bookingCode ?? "—"}：${message}`);
         compFail++;
         continue;
       }
@@ -380,6 +394,7 @@ export default function ImportSmsBulkPage() {
       (compFail > 0 ? `、失敗 ${compFail} 筆` : "") +
       (compSkipped > 0 ? `、比對不明確跳過 ${compSkipped} 筆` : "")
     );
+    if (failures.length > 0) alert(`送出後有 ${failures.length} 筆失敗：\n\n` + failures.join("\n"));
   };
 
   const totalParsed = noticeRows.length + completionRows.length + unknownRows.length;
@@ -391,7 +406,7 @@ export default function ImportSmsBulkPage() {
       <div className="erp-page-header">
         <div>
           <h1 className="erp-page-title">大量解析簡訊</h1>
-          <p className="erp-page-subtitle">一次貼上多則簡訊（每則之間留一行空白分隔），自動解析並批次建立/留存</p>
+          <p className="erp-page-subtitle">一次貼上多則簡訊（連著貼或用空白行分隔都可以），自動解析並批次建立/留存；任一筆有錯就整批不能送出</p>
         </div>
         <button onClick={() => router.push("/bookings")} className="btn btn-secondary">返回單據管理</button>
       </div>
@@ -453,8 +468,8 @@ export default function ImportSmsBulkPage() {
               <tbody>
                 {noticeRows.map((r, i) => (
                   <tr key={r.key} id={`notice-row-${r.key}`} style={{
-                    background: r.status === "ok" ? "rgba(34,197,94,.06)" : r.status === "error" || (errorKeys.has(r.key) && !noticeReady(r)) ? "rgba(239,68,68,.12)" : !noticeReady(r) ? "rgba(239,68,68,.03)" : undefined,
-                    boxShadow: errorKeys.has(r.key) && !noticeReady(r) ? "inset 3px 0 0 var(--color-danger)" : undefined,
+                    background: r.status === "ok" ? "rgba(34,197,94,.06)" : r.status === "error" || missingKeys.has(r.key) ? "rgba(239,68,68,.12)" : undefined,
+                    boxShadow: missingKeys.has(r.key) ? "inset 3px 0 0 var(--color-danger)" : undefined,
                   }}>
                     <td>{i + 1}</td>
                     <td><input className="erp-input" style={{ width: 110, fontSize: 13 }} value={r.branch} onChange={(e) => updateNotice(r.key, { branch: e.target.value })} /></td>
@@ -519,8 +534,9 @@ export default function ImportSmsBulkPage() {
               </thead>
               <tbody>
                 {completionRows.map((r, i) => (
-                  <tr key={r.key} style={{
-                    background: r.status === "ok" ? "rgba(34,197,94,.06)" : r.status === "error" ? "rgba(239,68,68,.06)" : r.matchState === "ambiguous" ? "rgba(239,68,68,.03)" : undefined,
+                  <tr key={r.key} id={`completion-row-${r.key}`} style={{
+                    background: r.status === "ok" ? "rgba(34,197,94,.06)" : r.status === "error" || r.matchState === "ambiguous" ? "rgba(239,68,68,.12)" : undefined,
+                    boxShadow: r.status !== "ok" && r.matchState === "ambiguous" ? "inset 3px 0 0 var(--color-danger)" : undefined,
                   }}>
                     <td>{i + 1}</td>
                     <td><input className="erp-input" style={{ width: 110, fontSize: 13 }} value={r.matchBranch} onChange={(e) => updateCompletion(r.key, { matchBranch: e.target.value })} /></td>
@@ -559,29 +575,32 @@ export default function ImportSmsBulkPage() {
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
               <button
                 onClick={handleSubmitAll}
-                disabled={submitting || (allNoticeDone && allCompletionDone)}
+                disabled={submitting || checkingCompletions || errorLines.length > 0 || (allNoticeDone && allCompletionDone)}
                 className="btn btn-primary"
+                title={errorLines.length > 0 ? "還有錯誤沒修正，整批不能送出" : undefined}
               >
                 {submitting ? "送出中..." : "確認送出全部"}
               </button>
-              {summary && submitErrors.length === 0 && <span style={{ fontSize: 13, color: "var(--gray-600)" }}>{summary}</span>}
+              {errorLines.length > 0 && <span style={{ fontSize: 13, color: "var(--color-danger)", fontWeight: 600 }}>還有 {errorLines.length} 筆錯誤，修正後才能送出</span>}
+              {errorLines.length === 0 && checkingCompletions && <span style={{ fontSize: 13, color: "var(--gray-500)" }}>付款完成比對中...</span>}
+              {summary && errorLines.length === 0 && <span style={{ fontSize: 13, color: "var(--gray-600)" }}>{summary}</span>}
             </div>
-            {submitErrors.length > 0 && (
-              <div id="submit-errors" style={{ marginTop: 12, padding: "10px 14px", border: "1px solid var(--color-danger)", borderRadius: 6, background: "rgba(239,68,68,.06)", fontSize: 13 }}>
-                <div style={{ color: "var(--color-danger)", fontWeight: 600, marginBottom: 6 }}>
-                  有 {submitErrors.length} 筆付款通知沒填完，整批還沒送出，請補上後再按一次：
-                </div>
-                {submitErrors.map((e) => (
-                  <div key={e.key} style={{ padding: "3px 0" }}>
+            {errorLines.length > 0 && (
+              <div style={{ marginTop: 12, padding: "10px 14px", border: "1px solid var(--color-danger)", borderRadius: 6, background: "rgba(239,68,68,.06)", fontSize: 13 }}>
+                {[
+                  ...missingRows.map((e) => ({ ...e, rowId: `notice-row-${e.key}`, kind: "付款通知", problem: `缺${e.fields}` })),
+                  ...ambiguousRows.map((e) => ({ ...e, rowId: `completion-row-${e.key}`, kind: "付款完成", problem: "對到不只一筆單據，請修正分店後重新比對" })),
+                ].map((e) => (
+                  <div key={e.rowId} style={{ padding: "3px 0" }}>
                     <button
                       type="button"
-                      onClick={() => document.getElementById(`notice-row-${e.key}`)?.scrollIntoView({ behavior: "smooth", block: "center" })}
+                      onClick={() => document.getElementById(e.rowId)?.scrollIntoView({ behavior: "smooth", block: "center" })}
                       style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--color-danger)", textDecoration: "underline", fontSize: 13 }}
                     >
-                      第 {e.n} 筆
+                      {e.kind}第 {e.n} 筆
                     </button>
                     <span style={{ color: "var(--gray-600)" }}>　{e.label || "（沒有資料）"}</span>
-                    <span style={{ color: "var(--color-danger)", fontWeight: 600 }}>　缺{e.fields}</span>
+                    <span style={{ color: "var(--color-danger)", fontWeight: 600 }}>　{e.problem}</span>
                   </div>
                 ))}
               </div>
