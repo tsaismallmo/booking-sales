@@ -2,11 +2,16 @@
 // 兩種格式：
 // 1) 付款通知：「感謝預訂...，YYYY-MM-DD，HH:MM，共N位，訂位代號X，...請於YYYY-MM-DD前完成付款。<連結>」
 // 2) 付款完成：「您預訂...YYYY-MM-DD，HH:MM，共N位，訂位代號X，已於YY/MM/DD HH:MM:SS完成預約付款，交易成功金額為N元，訂金單號為X。」
-// 簡訊本身不含客人姓名；貼的時候可以在「您好」前面（同一行或上一行）放訂位姓名，會一起抓出來。
+// 簡訊本身不含客人姓名；貼的時候可以在「您好」前面（同一行或上一行）放訂位資訊，會一起抓出來：
+//   「姓名」或「姓名/電話」，後面可以再加 inline / eztable（不分大小寫）標記訂位平台，
+//   例如「許登豐/0978812852 inline」。
 
 export type ParsedBookingNotice = {
   type: 'booking_notice'
   customerName: string | null
+  customerPhone: string | null
+  isInline: boolean
+  isEztable: boolean
   branch: string | null
   bookingDate: string | null
   timeSlot: string | null
@@ -64,12 +69,13 @@ export function parseSms(text: string): ParsedSms {
     const branchMatch = trimmed.match(/感謝預訂(.+?)\d{4}-\d{2}-\d{2}/)
     const deadlineMatch = trimmed.match(/請於(\d{4}-\d{2}-\d{2})前完成付款/)
 
-    const nameMatch = trimmed.match(/^([^\n，,]{1,20}?)\s*您好/)
+    const headerMatch = trimmed.match(/^([^\n，,]{1,60}?)\s*您好/)
+    const header = parseHeader(headerMatch ? headerMatch[1] : '')
     const link = trimmed.match(LINK_RE)?.[1] ?? null
 
     return {
       type: 'booking_notice',
-      customerName: nameMatch ? nameMatch[1].trim() || null : null,
+      ...header,
       branch: branchMatch ? branchMatch[1].trim() : null,
       bookingDate: trimmed.match(DATE_RE)?.[1] ?? null,
       timeSlot: trimmed.match(TIME_RE)?.[1] ?? null,
@@ -81,6 +87,20 @@ export function parseSms(text: string): ParsedSms {
   }
 
   return { type: 'unknown' }
+}
+
+// 「您好」前面的訂位資訊：「許登豐/0978812852 inline」-> 姓名、電話、平台
+function parseHeader(raw: string) {
+  const isInline = /inline/i.test(raw)
+  const isEztable = /eztable/i.test(raw)
+  const [namePart, phonePart] = raw.replace(/inline|eztable/gi, '').split(/[\/／]/)
+  const phone = (phonePart ?? '').replace(/[\s-]/g, '')
+  return {
+    customerName: namePart?.trim() || null,
+    customerPhone: /\d/.test(phone) ? phone : null,
+    isInline,
+    isEztable,
+  }
 }
 
 // "26/08/13 16:54:55" -> "2026-08-13 16:54:55"

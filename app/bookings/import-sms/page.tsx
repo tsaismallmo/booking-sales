@@ -41,6 +41,8 @@ export default function ImportSmsPage() {
     actualBooker: "",
     customerName: "",
     customerPhone: "",
+    isInline: false,
+    isEztable: false,
   });
 
   // 用訂位姓名查到的電話（廠商名單＋以前的單據）；只有一支就直接帶入，多支讓使用者點選
@@ -141,10 +143,14 @@ export default function ImportSmsPage() {
         bookingCode: result.bookingCode ?? "",
         paymentDeadline: result.paymentDeadline ?? "",
         customerName: result.customerName ?? "",
-        customerPhone: "",
+        customerPhone: result.customerPhone ?? "",
+        isInline: result.isInline,
+        isEztable: result.isEztable,
       }));
       setRawBranch(result.branch ?? "");
-      if (result.customerName) await lookupPhone(result.customerName);
+      // 「姓名/電話」已經帶了電話就不用再用姓名查
+      if (result.customerName && !result.customerPhone) await lookupPhone(result.customerName);
+      else setPhoneCandidates([]);
     }
 
     if (result.type === "payment_completion" && result.bookingCode) {
@@ -365,6 +371,19 @@ export default function ImportSmsPage() {
                     ))}
                   </div>
                 )}
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">訂位平台</label>
+                <div style={{ display: "flex", gap: 16, alignItems: "center", height: 38 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                    <input type="checkbox" checked={form.isInline} onChange={(e) => setForm((f) => ({ ...f, isInline: e.target.checked }))} />
+                    Inline
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                    <input type="checkbox" checked={form.isEztable} onChange={(e) => setForm((f) => ({ ...f, isEztable: e.target.checked }))} />
+                    EZTABLE
+                  </label>
+                </div>
               </div>
             </div>
             <div style={{ marginTop: 16 }}>

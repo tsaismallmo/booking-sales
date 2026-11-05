@@ -33,6 +33,8 @@ type NoticeRow = {
   actualBooker: string;
   customerName: string;
   customerPhone: string;
+  isInline: boolean;
+  isEztable: boolean;
   phoneCandidates: PhoneCandidate[]; // 用姓名查到不只一支電話時列出來讓使用者選
   status: "idle" | "saving" | "ok" | "error";
   message: string;
@@ -60,9 +62,27 @@ type CompletionRow = {
 
 type UnknownRow = { key: string; raw: string };
 
-// 用一行以上的空白行分隔多則簡訊——手機複製多則訊息貼到聊天室/表單時通常都會這樣分段
+// 切開多則簡訊：空白行一定切；沒留空白行的話，遇到「您好」（付款通知）或「您預訂」（付款完成）開頭的那行也當成新的一則，
+// 前一行如果是「許登豐/0978812852 inline」這種訂位資訊（短、沒有標點、沒有連結），就跟著歸到新的這一則
+const SMS_START_RE = /您好|您預訂/;
+const isHeaderLine = (line: string) => line.length <= 40 && !/[。，,]|https?:/.test(line) && !SMS_START_RE.test(line);
+
 function splitSmsBlocks(raw: string): string[] {
-  return raw.split(/\n\s*\n+/).map((s) => s.trim()).filter(Boolean);
+  const blocks: string[] = [];
+  let cur: string[] = [];
+  const flush = () => { if (cur.length) blocks.push(cur.join("\n")); cur = []; };
+  for (const rawLine of raw.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) { flush(); continue; }
+    if (SMS_START_RE.test(line) && cur.some((l) => SMS_START_RE.test(l))) {
+      const header = isHeaderLine(cur[cur.length - 1]) ? cur.pop()! : null;
+      flush();
+      if (header) cur.push(header);
+    }
+    cur.push(line);
+  }
+  flush();
+  return blocks;
 }
 
 const LOOKUP_CONCURRENCY = 8;
@@ -128,8 +148,9 @@ export default function ImportSmsBulkPage() {
       ? { ...r, customerPhone: r.customerPhone || list[0].phone, phoneCandidates: [] }
       : { ...r, phoneCandidates: list };
 
+  // 「姓名/電話」已經帶了電話的列不用再用姓名查
   const lookupPhonesForRows = async (rows: NoticeRow[]) => {
-    const names = [...new Set(rows.map((r) => r.customerName.trim()).filter(Boolean))];
+    const names = [...new Set(rows.filter((r) => !r.customerPhone).map((r) => r.customerName.trim()).filter(Boolean))];
     const byName = new Map<string, PhoneCandidate[]>();
     for (let i = 0; i < names.length; i += LOOKUP_CONCURRENCY) {
       const chunk = names.slice(i, i + LOOKUP_CONCURRENCY);
@@ -137,6 +158,7 @@ export default function ImportSmsBulkPage() {
       chunk.forEach((n, j) => byName.set(n, lists[j]));
     }
     setNoticeRows((rs) => rs.map((r) => {
+      if (r.customerPhone) return r;
       const list = byName.get(r.customerName.trim());
       return list ? applyPhones(r, list) : r;
     }));
@@ -199,7 +221,9 @@ export default function ImportSmsBulkPage() {
           depositPayer: "",
           actualBooker: "",
           customerName: r.customerName ?? "",
-          customerPhone: "",
+          customerPhone: r.customerPhone ?? "",
+          isInline: r.isInline,
+          isEztable: r.isEztable,
           phoneCandidates: [],
           status: "idle",
           message: "",
@@ -281,6 +305,8 @@ export default function ImportSmsBulkPage() {
           actualBooker: r.actualBooker,
           customerName: r.customerName,
           customerPhone: r.customerPhone,
+          isInline: r.isInline,
+          isEztable: r.isEztable,
         }),
       });
       if (!res.ok) {
@@ -357,7 +383,7 @@ export default function ImportSmsBulkPage() {
           <textarea
             className="erp-textarea"
             rows={14}
-            placeholder={"把多則簡訊全文貼在這裡，每則之間留一行空白分隔..."}
+            placeholder={"把多則簡訊全文貼在這裡，可以直接連著貼，也可以每則之間留一行空白；付款通知前面可加「姓名/電話 inline」..."}
             value={text}
             onChange={(e) => setText(e.target.value)}
             style={{ fontFamily: "monospace", fontSize: 13 }}
@@ -402,7 +428,7 @@ export default function ImportSmsBulkPage() {
                 <tr>
                   <th>#</th><th>分店</th><th>日期</th><th>時段</th><th>人數</th><th>訂位代號</th>
                   <th>訂金</th><th>付款人員</th><th>實際訂位人員</th>
-                  <th>姓名 *</th><th>電話 *</th><th>結果</th>
+                  <th>姓名 *</th><th>電話 *</th><th>平台</th><th>結果</th>
                 </tr>
               </thead>
               <tbody>
@@ -435,6 +461,16 @@ export default function ImportSmsBulkPage() {
                           ))}
                         </select>
                       )}
+                    </td>
+                    <td style={{ fontSize: 12, whiteSpace: "nowrap" }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+                        <input type="checkbox" checked={r.isInline} onChange={(e) => updateNotice(r.key, { isInline: e.target.checked })} />
+                        Inline
+                      </label>
+                      <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", marginTop: 4 }}>
+                        <input type="checkbox" checked={r.isEztable} onChange={(e) => updateNotice(r.key, { isEztable: e.target.checked })} />
+                        EZTABLE
+                      </label>
                     </td>
                     <td style={{ textAlign: "center", fontSize: 12 }}>
                       {r.status === "ok" && <span style={{ color: "var(--color-success)", fontWeight: 600 }}>✓</span>}
