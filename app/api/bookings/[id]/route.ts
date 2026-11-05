@@ -28,13 +28,21 @@ async function isMergedWithOwnBooking(id: string, userId: string) {
   return !!ownedSibling
 }
 
-async function getOwnedBooking(id: string, userId: string, roles: Role[], { allowMergedView = false }: { allowMergedView?: boolean } = {}) {
+// 廠商員工：所屬廠商底下、實際訂位人員是自己（比對帳號表姓名）的單據，只給看不給改
+async function isBookedByStaff(row: typeof bookings.$inferSelect, userId: string, employerVendorId: string | null | undefined) {
+  if (!employerVendorId || row.vendorId !== employerVendorId || !row.actualBooker) return false
+  const [me] = await db.select({ name: users.name }).from(users).where(eq(users.id, userId))
+  return !!me?.name && me.name === row.actualBooker
+}
+
+async function getOwnedBooking(id: string, userId: string, roles: Role[], { allowMergedView = false, employerVendorId }: { allowMergedView?: boolean; employerVendorId?: string | null } = {}) {
   const [row] = await db.select().from(bookings).where(eq(bookings.id, id))
   if (!row) return null
   if (seesAll(roles)) return row
   if (roles.includes('logistics') && (LOGISTICS_CATEGORIES as readonly string[]).includes(row.category)) return row
   if (row.vendorId === userId) return row
   if (allowMergedView && roles.includes('vendor') && (await isMergedWithOwnBooking(id, userId))) return row
+  if (allowMergedView && roles.includes('vendor_staff') && (await isBookedByStaff(row, userId, employerVendorId))) return row
   return null
 }
 
@@ -43,7 +51,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!session?.user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const row = await getOwnedBooking(id, session.user.id, session.user.roles, { allowMergedView: true })
+  const row = await getOwnedBooking(id, session.user.id, session.user.roles, { allowMergedView: true, employerVendorId: session.user.employerVendorId })
   if (!row) return NextResponse.json({ error: 'not found' }, { status: 404 })
 
   // 附上廠商名稱，不用讓前端另外去查整個帳號名冊（廠商角色查不到、開放的話又會看到其他廠商的名單）

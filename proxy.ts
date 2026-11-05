@@ -37,6 +37,11 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
+  // 廠商員工的單據管理：只列實際訂位人員是自己的單據
+  if (pathname.startsWith('/bookings/booked') && !roles.includes('vendor_staff')) {
+    return NextResponse.redirect(new URL(fallback, req.url))
+  }
+
   // 新增單據：有廠商/管理員身份的人可以建任何類別；純客服也能進來，但只能建臨時單/預定單（API 會再擋一次）
   const canCreateBookings = isVendor || isAdmin || roles.includes('customer_service')
   if (pathname.startsWith('/bookings/new') && !canCreateBookings) {

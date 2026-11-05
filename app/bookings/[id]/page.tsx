@@ -80,8 +80,10 @@ export default function BookingDetailPage() {
   const pureCustomerService = roles.includes("customer_service") && !roles.includes("vendor") && !roles.includes("admin");
   const isRefunded = booking?.status === "refunded";
   const isSold = booking?.status === "sold";
-  const canEdit = !isRefunded;
-  const canDelete = !(pureCustomerService && booking?.category === "現貨單") && !isSold && !isRefunded;
+  // 純廠商員工只能看自己實際訂位的單據，不能改/刪/退回狀態（API 也會擋）
+  const pureVendorStaff = roles.includes("vendor_staff") && !roles.some((r) => r === "vendor" || r === "admin" || r === "customer_service" || r === "logistics");
+  const canEdit = !isRefunded && !pureVendorStaff;
+  const canDelete = !(pureCustomerService && booking?.category === "現貨單") && !isSold && !isRefunded && !pureVendorStaff;
 
   const handleSubmitRequest = async () => {
     setSubmittingRequest(true);
@@ -146,10 +148,10 @@ export default function BookingDetailPage() {
           {canCreateRequest && !pendingRequest && (
             <button onClick={() => setShowRequestForm((s) => !s)} className="btn btn-secondary">轉需求</button>
           )}
-          {isRefunded && (
+          {isRefunded && !pureVendorStaff && (
             <button onClick={handleUndoRefund} className="btn btn-secondary">撤銷退訂</button>
           )}
-          {isSold && (
+          {isSold && !pureVendorStaff && (
             <button onClick={handleUndoSold} className="btn btn-secondary">退回售出</button>
           )}
           {canEdit && <Link href={editHref} className="btn btn-primary">編輯</Link>}

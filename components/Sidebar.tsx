@@ -72,12 +72,12 @@ export function Sidebar({ roles }: { roles: Role[] }) {
           </Link>
         )}
 
-        {/* ── 單據 ── 廠商 */}
-        {isVendor && (
+        {/* ── 單據 ── 廠商（全部現貨單）／廠商員工（只看實際訂位人員是自己的單據） */}
+        {(isVendor || isVendorStaff) && (
           <>
             <div className="erp-sidebar-divider" />
             <div className="erp-sidebar-section">單據</div>
-            <Link href="/bookings" className={cn("erp-sidebar-item", pathname.startsWith("/bookings") && !fromAdmin && !fromSold && !fromTemp && !fromReserved && "active")}>
+            <Link href={isVendor ? "/bookings" : "/bookings/booked"} className={cn("erp-sidebar-item", pathname.startsWith("/bookings") && !fromAdmin && !fromSold && !fromTemp && !fromReserved && "active")}>
               <ClipboardList size={15} />
               單據管理
             </Link>
