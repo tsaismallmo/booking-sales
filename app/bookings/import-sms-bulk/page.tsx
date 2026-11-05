@@ -98,6 +98,7 @@ export default function ImportSmsBulkPage() {
   const [unknownRows, setUnknownRows] = useState<UnknownRow[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [summary, setSummary] = useState("");
+  const [submitError, setSubmitError] = useState("");
 
   const resolveBranchAlias = async (raw: string) => {
     if (!raw) return "";
@@ -281,12 +282,18 @@ export default function ImportSmsBulkPage() {
   const noticeReady = (r: NoticeRow) => !!(r.bookingDate && r.customerName && r.customerPhone);
 
   const handleSubmitAll = async () => {
+    // 付款通知一定要有姓名＋電話才能建單，有缺的話整批都不送，先報錯讓使用者補
+    const missing = noticeRows.map((r, i) => ({ r, n: i + 1 })).filter(({ r }) => r.status !== "ok" && !noticeReady(r));
+    if (missing.length > 0) {
+      setSubmitError(`付款通知第 ${missing.map(({ n }) => n).join("、")} 筆缺日期、姓名或電話，請填完再送出`);
+      return;
+    }
+    setSubmitError("");
     setSubmitting(true);
 
-    let noticeOk = 0, noticeFail = 0, noticeSkipped = 0;
+    let noticeOk = 0, noticeFail = 0;
     for (const r of noticeRows) {
       if (r.status === "ok") continue;
-      if (!noticeReady(r)) { noticeSkipped++; continue; }
       updateNotice(r.key, { status: "saving" });
       const res = await fetch("/api/bookings", {
         method: "POST",
@@ -356,7 +363,6 @@ export default function ImportSmsBulkPage() {
     setSummary(
       `付款通知：成功建立 ${noticeOk} 筆` +
       (noticeFail > 0 ? `、失敗 ${noticeFail} 筆` : "") +
-      (noticeSkipped > 0 ? `、還沒填完跳過 ${noticeSkipped} 筆` : "") +
       `　｜　付款完成：成功留存 ${compOk} 筆` +
       (compFail > 0 ? `、失敗 ${compFail} 筆` : "") +
       (compSkipped > 0 ? `、比對不明確跳過 ${compSkipped} 筆` : "")
@@ -457,7 +463,7 @@ export default function ImportSmsBulkPage() {
                         >
                           <option value="">同名 {r.phoneCandidates.length} 支電話…</option>
                           {r.phoneCandidates.map((c) => (
-                            <option key={c.phone} value={c.phone}>{c.phone}（{c.label}）</option>
+                            <option key={`${c.phone}-${c.label}`} value={c.phone}>{c.phone}（{c.label}）</option>
                           ))}
                         </select>
                       )}
@@ -476,7 +482,7 @@ export default function ImportSmsBulkPage() {
                       {r.status === "ok" && <span style={{ color: "var(--color-success)", fontWeight: 600 }}>✓</span>}
                       {r.status === "error" && <span style={{ color: "var(--color-danger)" }} title={r.message}>✗</span>}
                       {r.status === "saving" && "存中..."}
-                      {r.status === "idle" && !noticeReady(r) && <span style={{ color: "var(--color-warning)" }}>缺姓名/電話</span>}
+                      {r.status === "idle" && !noticeReady(r) && <span style={{ color: "var(--color-danger)" }}>缺姓名/電話</span>}
                     </td>
                   </tr>
                 ))}
@@ -543,7 +549,8 @@ export default function ImportSmsBulkPage() {
             >
               {submitting ? "送出中..." : "確認送出全部"}
             </button>
-            {summary && <span style={{ fontSize: 13, color: "var(--gray-600)" }}>{summary}</span>}
+            {submitError && <span style={{ fontSize: 13, color: "var(--color-danger)", fontWeight: 600 }}>{submitError}</span>}
+            {summary && !submitError && <span style={{ fontSize: 13, color: "var(--gray-600)" }}>{summary}</span>}
           </div>
         </div>
       )}

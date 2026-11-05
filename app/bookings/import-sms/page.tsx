@@ -360,7 +360,7 @@ export default function ImportSmsPage() {
                     <span style={{ fontSize: 12, color: "var(--gray-400)", width: "100%" }}>同名有多支電話，點選帶入：</span>
                     {phoneCandidates.map((c) => (
                       <button
-                        key={c.phone}
+                        key={`${c.phone}-${c.label}`}
                         type="button"
                         className="btn btn-secondary"
                         style={{ fontSize: 12, padding: "2px 8px" }}
