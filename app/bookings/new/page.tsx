@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { RosterListSelect } from "@/components/RosterListSelect";
 import { VendorSelect } from "@/components/VendorSelect";
 
 function NewBookingForm() {
@@ -132,7 +133,7 @@ function NewBookingForm() {
             </div>
             <div className="erp-form-group">
               <label className="erp-label">實際訂位人員</label>
-              <input className="erp-input" value={form.actualBooker} onChange={set("actualBooker")} />
+              <RosterListSelect value={form.actualBooker ?? ""} onChange={(v) => setForm((f) => ({ ...f, actualBooker: v }))} />
             </div>
           </div>
         </div>

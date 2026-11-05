@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { parseSms } from "@/lib/sms-parser";
 import { formatCurrency } from "@/lib/utils";
 import { VendorSelect } from "@/components/VendorSelect";
+import { RosterListSelect } from "@/components/RosterListSelect";
 
-type PhoneCandidate = { phone: string; source: "roster" | "booking"; label: string };
+type PhoneCandidate = { phone: string; source: "roster" | "booking"; label: string; listName: string | null };
 
 type ExistingBooking = {
   id: string;
@@ -142,23 +143,44 @@ export default function ImportSmsBulkPage() {
     return Array.isArray(data) ? data : [];
   };
 
-  // 只有一支電話就直接帶入（不蓋掉已經填的），多支就留著讓使用者選
+  // 電話已知時，查這支電話在哪幾份名單
+  const fetchListsByPhone = async (phone: string): Promise<PhoneCandidate[]> => {
+    const res = await fetch(`/api/customer-phones?phone=${encodeURIComponent(phone)}`);
+    const data = res.ok ? await res.json() : [];
+    return Array.isArray(data) ? data : [];
+  };
+
+  // 只有一支電話就直接帶入（不蓋掉已經填的），多支就留著讓使用者選；
+  // 電話是從名單查到的，名單名稱就帶進實際訂位人員
   const applyPhones = (r: NoticeRow, list: PhoneCandidate[]): NoticeRow =>
     list.length === 1
-      ? { ...r, customerPhone: r.customerPhone || list[0].phone, phoneCandidates: [] }
+      ? { ...r, customerPhone: r.customerPhone || list[0].phone, actualBooker: list[0].listName ?? r.actualBooker, phoneCandidates: [] }
       : { ...r, phoneCandidates: list };
 
-  // 「姓名/電話」已經帶了電話的列不用再用姓名查
+  // 只在剛好一份名單時帶入實際訂位人員，多份名單就留空讓使用者選
+  const applyListsByPhone = (r: NoticeRow, list: PhoneCandidate[]): NoticeRow => {
+    const listNames = [...new Set(list.map((c) => c.listName).filter(Boolean))] as string[];
+    return listNames.length === 1 ? { ...r, actualBooker: listNames[0] } : r;
+  };
+
+  // 沒電話的列用姓名查電話；「姓名/電話」已經帶了電話的列改用電話查是哪份名單
   const lookupPhonesForRows = async (rows: NoticeRow[]) => {
     const names = [...new Set(rows.filter((r) => !r.customerPhone).map((r) => r.customerName.trim()).filter(Boolean))];
+    const phones = [...new Set(rows.map((r) => r.customerPhone).filter(Boolean))];
     const byName = new Map<string, PhoneCandidate[]>();
-    for (let i = 0; i < names.length; i += LOOKUP_CONCURRENCY) {
-      const chunk = names.slice(i, i + LOOKUP_CONCURRENCY);
-      const lists = await Promise.all(chunk.map(fetchPhones));
-      chunk.forEach((n, j) => byName.set(n, lists[j]));
+    const byPhone = new Map<string, PhoneCandidate[]>();
+    const jobs = [
+      ...names.map((n) => async () => { byName.set(n, await fetchPhones(n)); }),
+      ...phones.map((p) => async () => { byPhone.set(p, await fetchListsByPhone(p)); }),
+    ];
+    for (let i = 0; i < jobs.length; i += LOOKUP_CONCURRENCY) {
+      await Promise.all(jobs.slice(i, i + LOOKUP_CONCURRENCY).map((job) => job()));
     }
     setNoticeRows((rs) => rs.map((r) => {
-      if (r.customerPhone) return r;
+      if (r.customerPhone) {
+        const list = byPhone.get(r.customerPhone);
+        return list ? applyListsByPhone(r, list) : r;
+      }
       const list = byName.get(r.customerName.trim());
       return list ? applyPhones(r, list) : r;
     }));
@@ -479,7 +501,7 @@ export default function ImportSmsBulkPage() {
                     <td><input className="erp-input" style={{ width: 90, fontSize: 13 }} value={r.bookingCode} onChange={(e) => updateNotice(r.key, { bookingCode: e.target.value })} /></td>
                     <td><input type="number" className="erp-input" style={{ width: 80, fontSize: 13 }} value={r.depositAmount} onChange={(e) => updateNotice(r.key, { depositAmount: e.target.value })} /></td>
                     <td><input className="erp-input" style={{ width: 90, fontSize: 13 }} value={r.depositPayer} onChange={(e) => updateNotice(r.key, { depositPayer: e.target.value })} /></td>
-                    <td><input className="erp-input" style={{ width: 90, fontSize: 13 }} value={r.actualBooker} onChange={(e) => updateNotice(r.key, { actualBooker: e.target.value })} /></td>
+                    <td><RosterListSelect style={{ width: 110, fontSize: 13 }} value={r.actualBooker} onChange={(v) => updateNotice(r.key, { actualBooker: v })} /></td>
                     <td><input className="erp-input" style={{ width: 90, fontSize: 13 }} value={r.customerName} onChange={(e) => updateNotice(r.key, { customerName: e.target.value })} onBlur={() => handleNameBlur(r.key)} /></td>
                     <td>
                       <input className="erp-input" style={{ width: 110, fontSize: 13 }} value={r.customerPhone} onChange={(e) => updateNotice(r.key, { customerPhone: e.target.value })} />
@@ -488,11 +510,15 @@ export default function ImportSmsBulkPage() {
                           className="erp-select"
                           style={{ width: 110, fontSize: 12, marginTop: 4 }}
                           value=""
-                          onChange={(e) => updateNotice(r.key, { customerPhone: e.target.value })}
+                          onChange={(e) => {
+                            // 同一支電話可能在不同名單各列一次，用索引分辨選的是哪份名單
+                            const c = r.phoneCandidates[Number(e.target.value)];
+                            if (c) updateNotice(r.key, { customerPhone: c.phone, actualBooker: c.listName ?? r.actualBooker });
+                          }}
                         >
                           <option value="">同名 {r.phoneCandidates.length} 支電話…</option>
-                          {r.phoneCandidates.map((c) => (
-                            <option key={`${c.phone}-${c.label}`} value={c.phone}>{c.phone}（{c.label}）</option>
+                          {r.phoneCandidates.map((c, idx) => (
+                            <option key={`${c.phone}-${c.label}`} value={idx}>{c.phone}（{c.label}）</option>
                           ))}
                         </select>
                       )}

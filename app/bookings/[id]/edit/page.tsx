@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { RosterListSelect } from "@/components/RosterListSelect";
 
 export default function EditBookingPage() {
   const params = useParams<{ id: string }>();
@@ -158,7 +159,7 @@ export default function EditBookingPage() {
               </div>
               <div className="erp-form-group">
                 <label className="erp-label">實際訂位人員</label>
-                <input className="erp-input" value={form.actualBooker} onChange={set("actualBooker")} />
+                <RosterListSelect value={form.actualBooker ?? ""} onChange={(v) => setForm((f) => ({ ...f, actualBooker: v }))} />
               </div>
             </div>
           </div>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { eq, and, desc, isNotNull } from 'drizzle-orm'
+import { eq, and, desc, isNotNull, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { bookings, vendorRosterEntries, vendorRosterLists } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
@@ -13,10 +13,23 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
   const name = req.nextUrl.searchParams.get('name')?.trim()
-  if (!name) return NextResponse.json({ error: '缺少 name' }, { status: 400 })
+  const phoneDigits = req.nextUrl.searchParams.get('phone')?.replace(/\D/g, '')
+  if (!name && !phoneDigits) return NextResponse.json({ error: '缺少 name 或 phone' }, { status: 400 })
 
   const ownerId = session.user.roles.includes('vendor') ? session.user.id : session.user.employerVendorId
   if (!ownerId) return NextResponse.json([])
+
+  // 已經知道電話（簡訊前面寫了「姓名/電話」）：只查這支電話在哪幾份名單，給前端帶「實際訂位人員」
+  // （名單裡的電話可能有 - 或空白，去掉非數字再比）
+  if (phoneDigits) {
+    const rows = await db
+      .selectDistinct({ phone: vendorRosterEntries.phone, listName: vendorRosterLists.name })
+      .from(vendorRosterEntries)
+      .innerJoin(vendorRosterLists, eq(vendorRosterEntries.listId, vendorRosterLists.id))
+      .where(and(eq(vendorRosterEntries.vendorId, ownerId), sql`regexp_replace(${vendorRosterEntries.phone}, '\\D', '', 'g') = ${phoneDigits}`))
+    return NextResponse.json(rows.map((r) => ({ phone: r.phone, source: 'roster', label: `名單：${r.listName}`, listName: r.listName })))
+  }
+  if (!name) return NextResponse.json([])
 
   const [rosterRows, bookingRows] = await Promise.all([
     db
@@ -33,8 +46,9 @@ export async function GET(req: NextRequest) {
   ])
 
   const seen = new Set<string>()
-  const results: { phone: string; source: 'roster' | 'booking'; label: string }[] = []
-  const add = (phone: string | null, source: 'roster' | 'booking', label: string) => {
+  // listName：電話是從哪份名單查到的，前端拿來帶入「實際訂位人員」
+  const results: { phone: string; source: 'roster' | 'booking'; label: string; listName: string | null }[] = []
+  const add = (phone: string | null, source: 'roster' | 'booking', label: string, listName: string | null = null) => {
     const digits = phone?.replace(/\D/g, '')
     if (!phone || !digits) return
     if (source === 'booking' && seen.has(digits)) return
@@ -42,9 +56,9 @@ export async function GET(req: NextRequest) {
     if (seen.has(key)) return
     seen.add(key)
     seen.add(digits)
-    results.push({ phone, source, label })
+    results.push({ phone, source, label, listName })
   }
-  for (const r of rosterRows) add(r.phone, 'roster', `名單：${r.listName}`)
+  for (const r of rosterRows) add(r.phone, 'roster', `名單：${r.listName}`, r.listName)
   for (const r of bookingRows) add(r.phone, 'booking', `單據：${r.bookingDate}${r.branch ? ` ${r.branch}` : ''}`)
 
   return NextResponse.json(results)

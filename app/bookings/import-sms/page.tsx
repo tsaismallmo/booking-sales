@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { parseSms, type ParsedSms } from "@/lib/sms-parser";
 import { formatCurrency } from "@/lib/utils";
 import { VendorSelect } from "@/components/VendorSelect";
+import { RosterListSelect } from "@/components/RosterListSelect";
 
-type PhoneCandidate = { phone: string; source: "roster" | "booking"; label: string };
+type PhoneCandidate = { phone: string; source: "roster" | "booking"; label: string; listName: string | null };
 type CustomerCandidate = { name: string; phone: string; source: "roster" | "booking"; label: string };
 
 type ExistingBooking = {
@@ -66,7 +67,8 @@ export default function ImportSmsPage() {
   };
 
   const pickCustomer = (c: CustomerCandidate) => {
-    setForm((f) => ({ ...f, customerName: c.name, customerPhone: c.phone }));
+    // 從名單搜到的客人，名單名稱就是實際訂位人員
+    setForm((f) => ({ ...f, customerName: c.name, customerPhone: c.phone, actualBooker: c.source === "roster" ? c.label : f.actualBooker }));
     setCustomerSearch("");
     setCustomerResults([]);
     setPhoneCandidates([]);
@@ -78,9 +80,20 @@ export default function ImportSmsPage() {
     const res = await fetch(`/api/customer-phones?name=${encodeURIComponent(name.trim())}`);
     const data = res.ok ? await res.json() : [];
     const list: PhoneCandidate[] = Array.isArray(data) ? data : [];
-    if (list.length === 1) setForm((f) => (f.customerPhone ? f : { ...f, customerPhone: list[0].phone }));
+    if (list.length === 1) setForm((f) => (f.customerPhone ? f : { ...f, customerPhone: list[0].phone, actualBooker: list[0].listName ?? f.actualBooker }));
     else setPhoneCandidates(list);
   };
+
+  // 電話已經有了（簡訊前面寫「姓名/電話」）：查這支電話在哪份名單，只在剛好一份時帶入實際訂位人員
+  const lookupListByPhone = async (phone: string) => {
+    const res = await fetch(`/api/customer-phones?phone=${encodeURIComponent(phone)}`);
+    const data = res.ok ? await res.json() : [];
+    const listNames = [...new Set((Array.isArray(data) ? data : []).map((c: PhoneCandidate) => c.listName).filter(Boolean))] as string[];
+    if (listNames.length === 1) setForm((f) => ({ ...f, actualBooker: listNames[0] }));
+  };
+
+  const pickPhone = (c: PhoneCandidate) =>
+    setForm((f) => ({ ...f, customerPhone: c.phone, actualBooker: c.listName ?? f.actualBooker }));
 
   // 付款完成 → 比對到的既有單據
   const [matched, setMatched] = useState<ExistingBooking | null | undefined>(undefined);
@@ -149,7 +162,10 @@ export default function ImportSmsPage() {
       }));
       setRawBranch(result.branch ?? "");
       // 「姓名/電話」已經帶了電話就不用再用姓名查
-      if (result.customerName && !result.customerPhone) await lookupPhone(result.customerName);
+      if (result.customerPhone) {
+        setPhoneCandidates([]);
+        await lookupListByPhone(result.customerPhone);
+      } else if (result.customerName) await lookupPhone(result.customerName);
       else setPhoneCandidates([]);
     }
 
@@ -303,7 +319,7 @@ export default function ImportSmsPage() {
               </div>
               <div className="erp-form-group">
                 <label className="erp-label">實際訂位人員</label>
-                <input className="erp-input" value={form.actualBooker} onChange={set("actualBooker")} />
+                <RosterListSelect value={form.actualBooker} onChange={(v) => setForm((f) => ({ ...f, actualBooker: v }))} />
               </div>
               <div className="erp-form-group" style={{ gridColumn: "1 / -1" }}>
                 <label className="erp-label">搜尋客人（點選帶入姓名＋電話）</label>
@@ -364,7 +380,7 @@ export default function ImportSmsPage() {
                         type="button"
                         className="btn btn-secondary"
                         style={{ fontSize: 12, padding: "2px 8px" }}
-                        onClick={() => setForm((f) => ({ ...f, customerPhone: c.phone }))}
+                        onClick={() => pickPhone(c)}
                       >
                         {c.phone}（{c.label}）
                       </button>
