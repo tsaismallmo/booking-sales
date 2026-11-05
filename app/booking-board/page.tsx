@@ -847,7 +847,6 @@ function CalendarTab() {
       </div>
       </div>
     </div>
-  </div>
   );
 }
 
