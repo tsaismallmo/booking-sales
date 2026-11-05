@@ -98,7 +98,9 @@ export default function ImportSmsBulkPage() {
   const [unknownRows, setUnknownRows] = useState<UnknownRow[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [summary, setSummary] = useState("");
-  const [submitError, setSubmitError] = useState("");
+  // 按送出時缺欄位的付款通知，列在按鈕下面，點了捲到那一列
+  const [submitErrors, setSubmitErrors] = useState<{ key: string; n: number; label: string; fields: string }[]>([]);
+  const errorKeys = new Set(submitErrors.map((e) => e.key));
 
   const resolveBranchAlias = async (raw: string) => {
     if (!raw) return "";
@@ -186,6 +188,7 @@ export default function ImportSmsBulkPage() {
   const handleParse = async () => {
     setParsing(true);
     setSummary("");
+    setSubmitErrors([]);
     const blocks = splitSmsBlocks(text);
 
     const rawBranches = new Set<string>();
@@ -283,12 +286,17 @@ export default function ImportSmsBulkPage() {
 
   const handleSubmitAll = async () => {
     // 付款通知一定要有姓名＋電話才能建單，有缺的話整批都不送，先報錯讓使用者補
-    const missing = noticeRows.map((r, i) => ({ r, n: i + 1 })).filter(({ r }) => r.status !== "ok" && !noticeReady(r));
-    if (missing.length > 0) {
-      setSubmitError(`付款通知第 ${missing.map(({ n }) => n).join("、")} 筆缺日期、姓名或電話，請填完再送出`);
-      return;
-    }
-    setSubmitError("");
+    const missing = noticeRows
+      .map((r, i) => ({ r, n: i + 1 }))
+      .filter(({ r }) => r.status !== "ok" && !noticeReady(r))
+      .map(({ r, n }) => ({
+        key: r.key,
+        n,
+        label: [r.branch, r.bookingDate, r.timeSlot, r.bookingCode && `代號 ${r.bookingCode}`, r.customerName].filter(Boolean).join("　"),
+        fields: [!r.bookingDate && "日期", !r.customerName && "姓名", !r.customerPhone && "電話"].filter(Boolean).join("、"),
+      }));
+    setSubmitErrors(missing);
+    if (missing.length > 0) return;
     setSubmitting(true);
 
     let noticeOk = 0, noticeFail = 0;
@@ -439,8 +447,9 @@ export default function ImportSmsBulkPage() {
               </thead>
               <tbody>
                 {noticeRows.map((r, i) => (
-                  <tr key={r.key} style={{
-                    background: r.status === "ok" ? "rgba(34,197,94,.06)" : r.status === "error" ? "rgba(239,68,68,.06)" : !noticeReady(r) ? "rgba(239,68,68,.03)" : undefined,
+                  <tr key={r.key} id={`notice-row-${r.key}`} style={{
+                    background: r.status === "ok" ? "rgba(34,197,94,.06)" : r.status === "error" || (errorKeys.has(r.key) && !noticeReady(r)) ? "rgba(239,68,68,.12)" : !noticeReady(r) ? "rgba(239,68,68,.03)" : undefined,
+                    boxShadow: errorKeys.has(r.key) && !noticeReady(r) ? "inset 3px 0 0 var(--color-danger)" : undefined,
                   }}>
                     <td>{i + 1}</td>
                     <td><input className="erp-input" style={{ width: 110, fontSize: 13 }} value={r.branch} onChange={(e) => updateNotice(r.key, { branch: e.target.value })} /></td>
@@ -480,7 +489,7 @@ export default function ImportSmsBulkPage() {
                     </td>
                     <td style={{ textAlign: "center", fontSize: 12 }}>
                       {r.status === "ok" && <span style={{ color: "var(--color-success)", fontWeight: 600 }}>✓</span>}
-                      {r.status === "error" && <span style={{ color: "var(--color-danger)" }} title={r.message}>✗</span>}
+                      {r.status === "error" && <span style={{ color: "var(--color-danger)" }}>✗ {r.message}</span>}
                       {r.status === "saving" && "存中..."}
                       {r.status === "idle" && !noticeReady(r) && <span style={{ color: "var(--color-danger)" }}>缺姓名/電話</span>}
                     </td>
@@ -527,7 +536,7 @@ export default function ImportSmsBulkPage() {
                     </td>
                     <td style={{ textAlign: "center", fontSize: 12 }}>
                       {r.status === "ok" && <span style={{ color: "var(--color-success)", fontWeight: 600 }}>✓</span>}
-                      {r.status === "error" && <span style={{ color: "var(--color-danger)" }} title={r.message}>✗</span>}
+                      {r.status === "error" && <span style={{ color: "var(--color-danger)" }}>✗ {r.message}</span>}
                       {r.status === "saving" && "存中..."}
                       {r.status === "idle" && r.matchState === "ambiguous" && <span style={{ color: "var(--color-danger)" }}>跳過</span>}
                     </td>
@@ -541,16 +550,37 @@ export default function ImportSmsBulkPage() {
 
       {parsed && totalParsed > 0 && (unknownRows.length < totalParsed) && (
         <div className="erp-card">
-          <div className="erp-card-body" style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <button
-              onClick={handleSubmitAll}
-              disabled={submitting || (allNoticeDone && allCompletionDone)}
-              className="btn btn-primary"
-            >
-              {submitting ? "送出中..." : "確認送出全部"}
-            </button>
-            {submitError && <span style={{ fontSize: 13, color: "var(--color-danger)", fontWeight: 600 }}>{submitError}</span>}
-            {summary && !submitError && <span style={{ fontSize: 13, color: "var(--gray-600)" }}>{summary}</span>}
+          <div className="erp-card-body">
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <button
+                onClick={handleSubmitAll}
+                disabled={submitting || (allNoticeDone && allCompletionDone)}
+                className="btn btn-primary"
+              >
+                {submitting ? "送出中..." : "確認送出全部"}
+              </button>
+              {summary && submitErrors.length === 0 && <span style={{ fontSize: 13, color: "var(--gray-600)" }}>{summary}</span>}
+            </div>
+            {submitErrors.length > 0 && (
+              <div style={{ marginTop: 12, padding: "10px 14px", border: "1px solid var(--color-danger)", borderRadius: 6, background: "rgba(239,68,68,.06)", fontSize: 13 }}>
+                <div style={{ color: "var(--color-danger)", fontWeight: 600, marginBottom: 6 }}>
+                  有 {submitErrors.length} 筆付款通知沒填完，整批還沒送出，請補上後再按一次：
+                </div>
+                {submitErrors.map((e) => (
+                  <div key={e.key} style={{ padding: "3px 0" }}>
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById(`notice-row-${e.key}`)?.scrollIntoView({ behavior: "smooth", block: "center" })}
+                      style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--color-danger)", textDecoration: "underline", fontSize: 13 }}
+                    >
+                      第 {e.n} 筆
+                    </button>
+                    <span style={{ color: "var(--gray-600)" }}>　{e.label || "（沒有資料）"}</span>
+                    <span style={{ color: "var(--color-danger)", fontWeight: 600 }}>　缺{e.fields}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
