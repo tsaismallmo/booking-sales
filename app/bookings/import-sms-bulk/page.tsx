@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { parseSms } from "@/lib/sms-parser";
 import { formatCurrency } from "@/lib/utils";
@@ -101,6 +101,11 @@ export default function ImportSmsBulkPage() {
   // 按送出時缺欄位的付款通知，列在按鈕下面，點了捲到那一列
   const [submitErrors, setSubmitErrors] = useState<{ key: string; n: number; label: string; fields: string }[]>([]);
   const errorKeys = new Set(submitErrors.map((e) => e.key));
+
+  // 錯誤框在頁面最底下，按了送出被擋時自動捲過去，不然看起來像按了沒反應
+  useEffect(() => {
+    if (submitErrors.length > 0) document.getElementById("submit-errors")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [submitErrors]);
 
   const resolveBranchAlias = async (raw: string) => {
     if (!raw) return "";
@@ -562,7 +567,7 @@ export default function ImportSmsBulkPage() {
               {summary && submitErrors.length === 0 && <span style={{ fontSize: 13, color: "var(--gray-600)" }}>{summary}</span>}
             </div>
             {submitErrors.length > 0 && (
-              <div style={{ marginTop: 12, padding: "10px 14px", border: "1px solid var(--color-danger)", borderRadius: 6, background: "rgba(239,68,68,.06)", fontSize: 13 }}>
+              <div id="submit-errors" style={{ marginTop: 12, padding: "10px 14px", border: "1px solid var(--color-danger)", borderRadius: 6, background: "rgba(239,68,68,.06)", fontSize: 13 }}>
                 <div style={{ color: "var(--color-danger)", fontWeight: 600, marginBottom: 6 }}>
                   有 {submitErrors.length} 筆付款通知沒填完，整批還沒送出，請補上後再按一次：
                 </div>
