@@ -15,11 +15,12 @@ export async function GET() {
   // 每次打開看板先把過期的候選結束掉，全部過期又沒訂到的需求會自動取消
   await expirePastOptions()
 
-  const rows = await db
+  // 已完成的需求不顯示在看板上（在 JS 這邊濾，不在 SQL 比對 enum，資料庫還沒加 completed 時也不會出錯）
+  const rows = (await db
     .select({ request: seatRequests, createdByName: users.name })
     .from(seatRequests)
     .leftJoin(users, eq(seatRequests.createdById, users.id))
-    .orderBy(desc(seatRequests.createdAt))
+    .orderBy(desc(seatRequests.createdAt))).filter((r) => r.request.status !== 'completed')
   const options = await db.select().from(seatRequestOptions).orderBy(asc(seatRequestOptions.priority), asc(seatRequestOptions.createdAt))
 
   const pendingIds = new Set(rows.filter((r) => r.request.status === 'pending').map((r) => r.request.id))

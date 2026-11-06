@@ -41,7 +41,6 @@ type SeatRequest = {
 const STATUS_TABS: { key: SeatRequest["status"]; label: string }[] = [
   { key: "pending", label: "待訂位" },
   { key: "booked", label: "已訂到" },
-  { key: "completed", label: "已完成" },
   { key: "cancelled", label: "已取消" },
 ];
 
@@ -395,10 +394,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
 
         <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           {r.status === "booked" && canCancel && (
-            <button className="btn btn-primary" onClick={() => { if (confirm("這筆需求確認完成？")) patchRequest(r.id, { action: "complete" }); }}>完成</button>
-          )}
-          {r.status === "completed" && canCancel && (
-            <button className="btn btn-ghost" onClick={() => { if (confirm("改回已訂到？")) patchRequest(r.id, { action: "uncomplete" }); }}>改回已訂到</button>
+            <button className="btn btn-primary" onClick={() => { if (confirm("確認完成？完成後這筆需求就不會再顯示在看板上")) patchRequest(r.id, { action: "complete" }); }}>完成</button>
           )}
           {r.status !== "cancelled" && r.status !== "completed" && canCreate && (
             <button className="btn btn-secondary" onClick={() => startEdit(r)}>修改</button>
