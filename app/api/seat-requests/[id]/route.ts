@@ -92,3 +92,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const [row] = await db.select().from(seatRequests).where(eq(seatRequests.id, id))
   return NextResponse.json(row)
 }
+
+// 刪除訂位需求：只有已取消的才能刪（客服／管理員），候選日期會跟著一起刪
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await requireRole('customer_service', 'admin')
+  if (!session) return NextResponse.json({ error: '只有客服或管理員能刪除' }, { status: 403 })
+
+  const { id } = await params
+  const [existing] = await db.select({ status: seatRequests.status }).from(seatRequests).where(eq(seatRequests.id, id))
+  if (!existing) return NextResponse.json({ error: 'not found' }, { status: 404 })
+  if (existing.status !== 'cancelled') return NextResponse.json({ error: '只有已取消的需求可以刪除' }, { status: 400 })
+
+  await db.delete(seatRequests).where(eq(seatRequests.id, id))
+  return NextResponse.json({ ok: true })
+}

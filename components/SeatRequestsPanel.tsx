@@ -206,6 +206,16 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
     return true;
   };
   const patchRequest = (id: string, body: object) => send(`/api/seat-requests/${id}`, body);
+  const deleteRequest = async (id: string) => {
+    if (!confirm("確定刪除這筆已取消的需求？刪除後就找不回來了")) return;
+    setError("");
+    const res = await fetch(`/api/seat-requests/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return setError(data.error || "刪除失敗");
+    }
+    load();
+  };
   const patchOption = (id: string, body: object) => send(`/api/seat-requests/options/${id}`, body);
 
   // 訂到其中一個候選時，問要不要把其他候選一起結束（客人有時只要一天、有時要訂多天，由處理的人判斷）
@@ -369,6 +379,9 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
           )}
           {r.status !== "pending" && (canHandle || canCancel) && (
             <button className="btn btn-ghost" onClick={() => { if (confirm("改回待訂位？（不訂了的候選會恢復待訂）")) patchRequest(r.id, { action: "reopen" }); }}>改回待訂位</button>
+          )}
+          {r.status === "cancelled" && canCancel && (
+            <button className="btn btn-ghost" style={{ color: "var(--color-danger)" }} onClick={() => deleteRequest(r.id)}>刪除</button>
           )}
         </div>
       </div>
