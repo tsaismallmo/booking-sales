@@ -389,7 +389,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
         </div>
 
         <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          {r.status !== "cancelled" && (canHandle || canCancel) && (
+          {r.status !== "cancelled" && canCreate && (
             <button className="btn btn-secondary" onClick={() => startEdit(r)}>修改</button>
           )}
           {r.status === "pending" && (canHandle || canCancel) && r.options.some((o) => o.status !== "pending") && (

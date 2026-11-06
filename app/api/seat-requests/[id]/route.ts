@@ -7,7 +7,7 @@ import { resolveBranch } from '@/lib/branches'
 import { refreshRequestStatus } from '@/lib/seat-requests'
 
 // 整筆訂位需求的處理（個別候選日期的已訂到／訂不到在 /api/seat-requests/options/[id]）：
-//   edit（修改客人資料、候選日期、順位）：三種角色都可以
+//   edit（修改客人資料、候選日期、順位）：客服／管理員（後勤只負責訂，不改需求內容）
 //   cancelled（客人不要了）：客服／管理員
 //   finish（剩下還沒訂的候選不訂了，結束這筆需求）：三種角色都可以
 //   reopen（改回待訂位，被跳過的候選也恢復待訂）：三種角色都可以，按錯時用
@@ -26,6 +26,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const handled = { handledById: session.user.id, handledByName: body.handledByName || session.user.name || null, handledAt: new Date() }
 
   if (body.action === 'edit') {
+    if (!canCancel) return NextResponse.json({ error: '只有客服或管理員能修改' }, { status: 403 })
     // 修改客人資料和候選日期。options 是修改後的完整清單（依順位排）：
     //   有 id 的是原本的候選——還沒處理的可以改分店／日期／時段，已處理的（訂到／訂不到／不訂了）只改順位；
     //   沒有 id 的是新加的候選；原本有但清單裡沒有的，還沒處理的刪掉，已處理的保留排在最後
