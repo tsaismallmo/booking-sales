@@ -29,8 +29,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   let patch: Partial<typeof seatRequestOptions.$inferInsert>
   if (body.action === 'booked') {
     if (!canHandle) return NextResponse.json({ error: '只有後勤或管理員能處理' }, { status: 403 })
-    if (!body.bookingCode?.trim()) return NextResponse.json({ error: '請填訂位代號' }, { status: 400 })
-    patch = { status: 'booked', bookingCode: body.bookingCode.trim(), resultNote: body.resultNote || null, ...handled }
+    patch = { status: 'booked', bookingCode: body.bookingCode?.trim() || null, resultNote: body.resultNote || null, ...handled }
   } else if (body.action === 'failed') {
     if (!canHandle) return NextResponse.json({ error: '只有後勤或管理員能處理' }, { status: 403 })
     if (!body.resultNote?.trim()) return NextResponse.json({ error: '請寫訂不到的原因' }, { status: 400 })

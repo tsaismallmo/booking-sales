@@ -85,7 +85,7 @@ function stockLine(s: StockMatch) {
 // 一個客人一筆，底下可以有多個依順位排的候選日期（可以跨餐廳／分店）。
 // 「月曆」看每一天有幾組客人在等；「依客人」看每位客人的候選。
 // 登記前和看板上都會比對現貨單，現貨單有符合、還沒售出的位子就提醒直接用現貨。
-export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCreate: boolean; canHandle: boolean; canCancel: boolean }) {
+export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = "" }: { canCreate: boolean; canHandle: boolean; canCancel: boolean; myName?: string }) {
   const [rows, setRows] = useState<SeatRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"list" | "calendar">("calendar");
@@ -99,6 +99,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
   const [error, setError] = useState("");
   // 處理中的那一個候選：要按「已訂到」或「訂不到」，展開輸入框
   const [acting, setActing] = useState<{ optionId: string; action: "booked" | "failed" } | null>(null);
+  // 處理人員預設是按按鈕的人，可以改（共用帳號時）
   const [actForm, setActForm] = useState({ bookingCode: "", resultNote: "", handledByName: "" });
   // 月曆
   const [month, setMonth] = useState(() => { const t = new Date(); return { y: t.getFullYear(), m: t.getMonth() }; });
@@ -238,7 +239,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
     }
     if (await patchOption(acting.optionId, { action: acting.action, ...actForm, closeOthers })) {
       setActing(null);
-      setActForm({ bookingCode: "", resultNote: "", handledByName: "" });
+      setActForm({ bookingCode: "", resultNote: "", handledByName: myName });
     }
   };
 
@@ -342,13 +343,13 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
                   <span>{o.partySize ? `${o.partySize}人` : "人數未填"}</span>
                   <span className={`badge ${optionBadge(o.status, o.resultNote).cls}`} style={{ fontSize: 11 }}>{optionBadge(o.status, o.resultNote).label}</span>
                   {o.stockMatches.length > 0 && <span className="badge badge-warning" style={{ fontSize: 11 }}>現貨單有 {o.stockMatches.length} 筆符合</span>}
-                  {o.status === "booked" && <span>代號 <strong>{o.bookingCode}</strong></span>}
+                  {o.status === "booked" && o.bookingCode && <span>代號 <strong>{o.bookingCode}</strong></span>}
                   {o.resultNote && o.resultNote !== EXPIRED_NOTE && <span style={{ color: "var(--gray-600)" }}>{o.status === "failed" ? "原因：" : ""}{o.resultNote}</span>}
                   {o.handledAt && done && <span style={{ fontSize: 11, color: "var(--gray-400)" }}>{o.handledByName ?? "—"} {new Date(o.handledAt).toLocaleDateString("zh-TW")}</span>}
                   <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
                     {r.status === "pending" && o.status === "pending" && canHandle && (
                       <>
-                        <button className="btn btn-primary" style={{ fontSize: 12, padding: "2px 10px" }} onClick={() => setActing({ optionId: o.id, action: "booked" })}>已訂到</button>
+                        <button className="btn btn-primary" style={{ fontSize: 12, padding: "2px 10px" }} onClick={() => { setActing({ optionId: o.id, action: "booked" }); setActForm({ bookingCode: "", resultNote: "", handledByName: myName }); }}>已訂到</button>
                       </>
                     )}
                     {r.status !== "cancelled" && (o.status === "booked" || o.status === "failed") && (canHandle || canCancel) && (
@@ -364,7 +365,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
                 {acting?.optionId === o.id && (
                   <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                     {acting.action === "booked" && (
-                      <input className="erp-input" style={{ maxWidth: 140 }} placeholder="訂位代號 *" value={actForm.bookingCode} onChange={(e) => setActForm((f) => ({ ...f, bookingCode: e.target.value }))} />
+                      <input className="erp-input" style={{ maxWidth: 140 }} placeholder="訂位代號（選填）" value={actForm.bookingCode} onChange={(e) => setActForm((f) => ({ ...f, bookingCode: e.target.value }))} />
                     )}
                     <input
                       className="erp-input"
@@ -374,7 +375,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
                       onChange={(e) => setActForm((f) => ({ ...f, resultNote: e.target.value }))}
                     />
                     <input className="erp-input" style={{ maxWidth: 120 }} placeholder="處理人員" value={actForm.handledByName} onChange={(e) => setActForm((f) => ({ ...f, handledByName: e.target.value }))} />
-                    <button className="btn btn-primary" disabled={acting.action === "booked" ? !actForm.bookingCode.trim() : !actForm.resultNote.trim()} onClick={() => submitAct(r)}>
+                    <button className="btn btn-primary" disabled={acting.action === "failed" && !actForm.resultNote.trim()} onClick={() => submitAct(r)}>
                       確認{acting.action === "booked" ? "已訂到" : "訂不到"}
                     </button>
                     <button className="btn btn-ghost" onClick={() => setActing(null)}>取消</button>

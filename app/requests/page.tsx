@@ -54,6 +54,7 @@ export default function RequestsPage() {
   const [canResolve, setCanResolve] = useState(false);
   const [canManageQueue, setCanManageQueue] = useState(false); // 刪除權限維持只有管理員／後勤，跟能不能處理是分開的兩件事
   const [myUserId, setMyUserId] = useState("");
+  const [myName, setMyName] = useState("");
   const [resolvedByNames, setResolvedByNames] = useState<Record<string, string>>({});
   // 「需要訂位」分頁：客服登記、後勤處理，廠商／廠商員工不用看
   const [tab, setTab] = useState<"modify" | "seat">("modify");
@@ -73,6 +74,7 @@ export default function RequestsPage() {
         setCanResolve(roles.includes("logistics") || roles.includes("admin") || roles.includes("vendor") || roles.includes("vendor_staff"));
         setCanManageQueue(roles.includes("logistics") || roles.includes("admin"));
         setMyUserId(me.id ?? "");
+        setMyName(me.name ?? "");
       });
   }, []);
 
@@ -143,7 +145,7 @@ export default function RequestsPage() {
       )}
 
       {tab === "seat" ? (
-        <SeatRequestsPanel canCreate={seatRoles.canCreate} canHandle={seatRoles.canHandle} canCancel={seatRoles.canCancel} />
+        <SeatRequestsPanel canCreate={seatRoles.canCreate} canHandle={seatRoles.canHandle} canCancel={seatRoles.canCancel} myName={myName} />
       ) : (
       <>
       {loading && <p style={{ color: "var(--gray-400)" }}>載入中...</p>}
