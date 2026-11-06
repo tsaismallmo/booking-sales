@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
+import { compareBookings } from "@/lib/booking-sort";
 
 type Booking = {
   id: string;
@@ -60,7 +61,7 @@ export default function BookedByMePage() {
         if (!hay.includes(lq)) return false;
       }
       return true;
-    });
+    }).sort(compareBookings);
   }, [bookings, statusFilter, q]);
 
   return (
