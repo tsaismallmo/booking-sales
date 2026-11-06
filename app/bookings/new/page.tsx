@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { RosterListSelect } from "@/components/RosterListSelect";
+import { BranchSelect } from "@/components/BranchSelect";
 import { VendorSelect } from "@/components/VendorSelect";
 
 function NewBookingForm() {
@@ -19,6 +20,7 @@ function NewBookingForm() {
   // 純客服（沒有廠商/管理員身份）只能建臨時單／預定單，不用綁廠商
   const [pureCustomerService, setPureCustomerService] = useState(false);
   const [form, setForm] = useState({
+    branchId: "",
     branch: "",
     category: presetCategory || "現貨單",
     bookingDate: new Date().toISOString().split("T")[0],
@@ -98,7 +100,7 @@ function NewBookingForm() {
             )}
             <div className="erp-form-group">
               <label className="erp-label">分店</label>
-              <input className="erp-input" value={form.branch} onChange={set("branch")} />
+              <BranchSelect branchId={form.branchId} branch={form.branch} onChange={(v) => setForm((f) => ({ ...f, ...v }))} />
             </div>
             <div className="erp-form-group">
               <label className="erp-label">類別 <span className="required">*</span></label>

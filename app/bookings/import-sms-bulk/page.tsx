@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { parseSms } from "@/lib/sms-parser";
 import { formatCurrency } from "@/lib/utils";
 import { VendorSelect } from "@/components/VendorSelect";
 import { RosterListSelect } from "@/components/RosterListSelect";
+import { BranchSelect, findBranch, loadBranchOptions, type BranchOption } from "@/components/BranchSelect";
 
 type PhoneCandidate = { phone: string; source: "roster" | "booking"; label: string; listName: string | null };
 
@@ -99,6 +100,11 @@ export default function ImportSmsBulkPage() {
   const [unknownRows, setUnknownRows] = useState<UnknownRow[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [summary, setSummary] = useState("");
+  const [branchOptions, setBranchOptions] = useState<BranchOption[]>([]);
+
+  useEffect(() => {
+    loadBranchOptions().then(setBranchOptions);
+  }, []);
 
   const resolveBranchAlias = async (raw: string) => {
     if (!raw) return "";
@@ -300,7 +306,15 @@ export default function ImportSmsBulkPage() {
     updateCompletion(key, updated);
   };
 
-  const noticeReady = (r: NoticeRow) => !!(r.bookingDate && r.customerName && r.customerPhone);
+  const branchOk = (text: string) => !!findBranch(branchOptions, text);
+  const noticeReady = (r: NoticeRow) => !!(branchOk(r.branch) && r.bookingDate && r.customerName && r.customerPhone);
+
+  // 選了分店後，同一段簡訊分店原文、還沒對到主檔的其他列也一起套用
+  const setNoticeBranch = (key: string, branch: string) =>
+    setNoticeRows((rs) => {
+      const raw = rs.find((r) => r.key === key)?.rawBranch;
+      return rs.map((r) => (r.key === key || (raw && r.rawBranch === raw && !branchOk(r.branch)) ? { ...r, branch } : r));
+    });
 
   const noticeLabel = (r: NoticeRow) =>
     [r.branch, r.bookingDate, r.timeSlot, r.bookingCode && `代號 ${r.bookingCode}`, r.customerName].filter(Boolean).join("　");
@@ -314,7 +328,7 @@ export default function ImportSmsBulkPage() {
         key: r.key,
         n,
         label: noticeLabel(r),
-        fields: [!r.bookingDate && "日期", !r.customerName && "姓名", !r.customerPhone && "電話"].filter(Boolean).join("、"),
+        fields: [!branchOk(r.branch) && "分店", !r.bookingDate && "日期", !r.customerName && "姓名", !r.customerPhone && "電話"].filter(Boolean).join("、"),
       }));
   const missingKeys = new Set(missingRows.map((e) => e.key));
   const ambiguousRows = completionRows
@@ -494,7 +508,7 @@ export default function ImportSmsBulkPage() {
                     boxShadow: missingKeys.has(r.key) ? "inset 3px 0 0 var(--color-danger)" : undefined,
                   }}>
                     <td>{i + 1}</td>
-                    <td><input className="erp-input" style={{ width: 110, fontSize: 13 }} value={r.branch} onChange={(e) => updateNotice(r.key, { branch: e.target.value })} /></td>
+                    <td><BranchSelect compact branchId={null} branch={r.branch} onChange={(v) => setNoticeBranch(r.key, v.branch)} /></td>
                     <td><input type="date" className="erp-input" style={{ fontSize: 13 }} value={r.bookingDate} onChange={(e) => updateNotice(r.key, { bookingDate: e.target.value })} /></td>
                     <td><input className="erp-input" style={{ width: 70, fontSize: 13 }} value={r.timeSlot} onChange={(e) => updateNotice(r.key, { timeSlot: e.target.value })} /></td>
                     <td><input type="number" className="erp-input" style={{ width: 60, fontSize: 13 }} value={r.partySize} onChange={(e) => updateNotice(r.key, { partySize: e.target.value })} /></td>
@@ -537,7 +551,7 @@ export default function ImportSmsBulkPage() {
                       {r.status === "ok" && <span style={{ color: "var(--color-success)", fontWeight: 600 }}>✓</span>}
                       {r.status === "error" && <span style={{ color: "var(--color-danger)" }}>✗ {r.message}</span>}
                       {r.status === "saving" && "存中..."}
-                      {r.status === "idle" && !noticeReady(r) && <span style={{ color: "var(--color-danger)" }}>缺姓名/電話</span>}
+                      {r.status === "idle" && !noticeReady(r) && <span style={{ color: "var(--color-danger)" }}>缺資料</span>}
                     </td>
                   </tr>
                 ))}
@@ -565,7 +579,7 @@ export default function ImportSmsBulkPage() {
                     boxShadow: r.status !== "ok" && r.matchState === "ambiguous" ? "inset 3px 0 0 var(--color-danger)" : undefined,
                   }}>
                     <td>{i + 1}</td>
-                    <td><input className="erp-input" style={{ width: 110, fontSize: 13 }} value={r.matchBranch} onChange={(e) => updateCompletion(r.key, { matchBranch: e.target.value })} /></td>
+                    <td><BranchSelect compact branchId={null} branch={r.matchBranch} onChange={(v) => updateCompletion(r.key, { matchBranch: v.branch })} /></td>
                     <td className="font-mono">{r.bookingCode ?? "—"}</td>
                     <td>{r.bookingDate ?? "—"}</td>
                     <td>{r.timeSlot ?? "—"}</td>

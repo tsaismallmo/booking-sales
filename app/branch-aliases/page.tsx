@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { BranchSelect } from "@/components/BranchSelect";
 
 type Alias = {
   id: string;
   rawText: string;
+  branchId: string | null;
   canonicalBranch: string;
   createdAt: string;
 };
@@ -12,9 +14,9 @@ type Alias = {
 export default function BranchAliasesPage() {
   const [aliases, setAliases] = useState<Alias[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState<Record<string, string>>({});
+  const [editing, setEditing] = useState<Record<string, { branchId: string; branch: string }>>({});
   const [newRaw, setNewRaw] = useState("");
-  const [newCanonical, setNewCanonical] = useState("");
+  const [newTarget, setNewTarget] = useState({ branchId: "", branch: "" });
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState("");
 
@@ -30,13 +32,13 @@ export default function BranchAliasesPage() {
   useEffect(load, []);
 
   const handleAdd = async () => {
-    if (!newRaw.trim() || !newCanonical.trim()) return;
+    if (!newRaw.trim() || !newTarget.branchId) return;
     setAdding(true);
     setAddError("");
     const res = await fetch("/api/branch-aliases", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rawText: newRaw.trim(), canonicalBranch: newCanonical.trim() }),
+      body: JSON.stringify({ rawText: newRaw.trim(), branchId: newTarget.branchId }),
     });
     setAdding(false);
     if (!res.ok) {
@@ -45,17 +47,17 @@ export default function BranchAliasesPage() {
       return;
     }
     setNewRaw("");
-    setNewCanonical("");
+    setNewTarget({ branchId: "", branch: "" });
     load();
   };
 
   const handleSave = async (id: string) => {
-    const canonicalBranch = editing[id];
-    if (!canonicalBranch) return;
+    const target = editing[id];
+    if (!target?.branchId) return;
     await fetch(`/api/branch-aliases/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ canonicalBranch }),
+      body: JSON.stringify({ branchId: target.branchId }),
     });
     setEditing((e) => {
       const next = { ...e };
@@ -87,11 +89,11 @@ export default function BranchAliasesPage() {
             <label className="erp-label">簡訊原文</label>
             <input className="erp-input" placeholder="例如：漢來美食-島語-台中洲際店" value={newRaw} onChange={(e) => setNewRaw(e.target.value)} />
           </div>
-          <div className="erp-form-group" style={{ minWidth: 200 }}>
-            <label className="erp-label">對應到的分店名稱</label>
-            <input className="erp-input" placeholder="例如：台中洲際" value={newCanonical} onChange={(e) => setNewCanonical(e.target.value)} />
+          <div className="erp-form-group" style={{ minWidth: 280 }}>
+            <label className="erp-label">對應到的分店</label>
+            <BranchSelect branchId={newTarget.branchId} branch={newTarget.branch} onChange={setNewTarget} />
           </div>
-          <button onClick={handleAdd} disabled={adding || !newRaw.trim() || !newCanonical.trim()} className="btn btn-primary">
+          <button onClick={handleAdd} disabled={adding || !newRaw.trim() || !newTarget.branchId} className="btn btn-primary">
             {adding ? "新增中..." : "新增"}
           </button>
           {addError && <span style={{ fontSize: 12, color: "var(--color-danger)" }}>{addError}</span>}
@@ -104,7 +106,7 @@ export default function BranchAliasesPage() {
             <thead>
               <tr>
                 <th>簡訊原文</th>
-                <th>對應到的分店名稱</th>
+                <th>對應到的分店</th>
                 <th>建立時間</th>
                 <th>操作</th>
               </tr>
@@ -115,18 +117,17 @@ export default function BranchAliasesPage() {
                 <tr key={a.id}>
                   <td>{a.rawText}</td>
                   <td>
-                    <input
-                      className="erp-input"
-                      style={{ minWidth: 180 }}
-                      value={editing[a.id] ?? a.canonicalBranch}
-                      onChange={(e) => setEditing((ed) => ({ ...ed, [a.id]: e.target.value }))}
+                    <BranchSelect
+                      branchId={editing[a.id]?.branchId ?? a.branchId}
+                      branch={editing[a.id]?.branch ?? a.canonicalBranch}
+                      onChange={(v) => setEditing((ed) => ({ ...ed, [a.id]: v }))}
                     />
                   </td>
                   <td>{new Date(a.createdAt).toLocaleString("zh-TW")}</td>
                   <td style={{ display: "flex", gap: 8 }}>
                     <button
                       onClick={() => handleSave(a.id)}
-                      disabled={editing[a.id] === undefined || editing[a.id] === a.canonicalBranch}
+                      disabled={!editing[a.id]?.branchId || editing[a.id].branchId === a.branchId}
                       className="btn btn-primary"
                       style={{ padding: "4px 10px", fontSize: 13 }}
                     >

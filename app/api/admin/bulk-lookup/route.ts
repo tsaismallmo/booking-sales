@@ -3,6 +3,7 @@ import { inArray } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { bookings } from '@/lib/db/schema'
 import { auth } from '@/auth'
+import { listBranchOptions, resolveBranch } from '@/lib/branches'
 
 type Item = {
   code?: string
@@ -25,7 +26,10 @@ export async function POST(req: NextRequest) {
   }
 
   const body: { items: Item[] } = await req.json()
-  const items: Item[] = body.items ?? []
+  // Excel 上的分店通常只寫「台中洲際」，單據存的是「島語｜台中洲際」，先對回主檔的全名再比
+  const branchOptions = await listBranchOptions()
+  const items: Item[] = await Promise.all((body.items ?? []).map(async (i) =>
+    i.branch ? { ...i, branch: (await resolveBranch({ branch: i.branch }, branchOptions)).branch ?? undefined } : i))
 
   const codes = [...new Set(items.map((i) => i.code).filter((c): c is string => !!c))]
   if (codes.length === 0) return NextResponse.json([])

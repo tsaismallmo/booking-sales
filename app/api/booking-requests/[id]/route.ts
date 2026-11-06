@@ -3,6 +3,7 @@ import { eq, and, inArray } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { bookingRequests, bookings } from '@/lib/db/schema'
 import { auth } from '@/auth'
+import { resolveBranch } from '@/lib/branches'
 
 // 處理需求：把提議的欄位套用回單據，並把需求標記為已完成
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -38,7 +39,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       await db
         .update(bookings)
         .set({
-          branch: existing.proposedBranch ?? booking.branch,
+          ...(existing.proposedBranch ? await resolveBranch({ branch: existing.proposedBranch }) : {}),
           bookingDate: existing.proposedBookingDate ?? booking.bookingDate,
           timeSlot: existing.proposedTimeSlot ?? booking.timeSlot,
           partySize: existing.proposedPartySize ?? booking.partySize,

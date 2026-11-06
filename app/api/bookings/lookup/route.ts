@@ -3,6 +3,7 @@ import { eq, and } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { bookings } from '@/lib/db/schema'
 import { auth } from '@/auth'
+import { resolveBranch } from '@/lib/branches'
 
 // 依訂位代號查單據，給「付款完成簡訊」比對用。
 // 訂位代號每天都從 1001 開始重算，光靠代號完全無法唯一識別一筆單據，
@@ -15,7 +16,8 @@ export async function GET(req: NextRequest) {
   const code = params.get('code')
   if (!code) return NextResponse.json({ error: '缺少訂位代號' }, { status: 400 })
 
-  const branch = params.get('branch')
+  // 分店可能是「餐廳｜分店」全名，也可能是手動改過的舊式分店名，統一對回主檔的全名再比
+  const branch = (await resolveBranch({ branch: params.get('branch') })).branch
   const bookingDate = params.get('bookingDate')
   const timeSlot = params.get('timeSlot')
   const partySize = params.get('partySize')

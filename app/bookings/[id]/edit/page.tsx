@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { RosterListSelect } from "@/components/RosterListSelect";
+import { BranchSelect } from "@/components/BranchSelect";
 
 export default function EditBookingPage() {
   const params = useParams<{ id: string }>();
@@ -48,6 +49,7 @@ export default function EditBookingPage() {
       .then((data) => {
         setForm({
           vendorId: data.vendorId ?? "",
+          branchId: data.branchId ?? "",
           branch: data.branch ?? "",
           category: data.category ?? "現貨單",
           bookingDate: data.bookingDate ?? "",
@@ -127,7 +129,7 @@ export default function EditBookingPage() {
               )}
               <div className="erp-form-group">
                 <label className="erp-label">分店</label>
-                <input className="erp-input" value={form.branch} onChange={set("branch")} />
+                <BranchSelect branchId={form.branchId} branch={form.branch} onChange={(v) => setForm((f) => ({ ...f, ...v }))} />
               </div>
               <div className="erp-form-group">
                 <label className="erp-label">類別</label>

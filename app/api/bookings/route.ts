@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { bookings } from '@/lib/db/schema'
 import { auth } from '@/auth'
 import { LOGISTICS_CATEGORIES } from '@/lib/roles'
+import { resolveBranch } from '@/lib/branches'
 
 export async function GET() {
   const session = await auth()
@@ -73,11 +74,15 @@ export async function POST(req: NextRequest) {
     if (!vendorId) return NextResponse.json({ error: '缺少廠商歸屬' }, { status: 400 })
   }
 
+  // 分店：前端選了主檔就給 branchId，只有文字（舊流程）就盡量對回主檔
+  const resolved = await resolveBranch({ branchId: body.branchId, branch: body.branch })
+
   const [row] = await db
     .insert(bookings)
     .values({
       vendorId,
-      branch: body.branch || null,
+      branchId: resolved.branchId,
+      branch: resolved.branch,
       category: body.category,
       bookingDate: body.bookingDate,
       timeSlot: body.timeSlot || null,

@@ -26,8 +26,8 @@ export default auth((req) => {
   // 依身份決定進來後預設帶去哪裡：廠商去單據管理，管理員去所有單據，純客服去看板，純後勤去需求處理
   const fallback = isVendor ? '/bookings' : isAdmin ? '/admin/bookings' : roles.includes('customer_service') ? '/dashboard' : isLogistics ? '/requests' : '/dashboard'
 
-  // 帳號管理、分店對應表只給管理員
-  if ((pathname.startsWith('/accounts') || pathname.startsWith('/branch-aliases')) && !isAdmin) {
+  // 帳號管理、分店對應表、餐廳／分店管理只給管理員
+  if ((pathname.startsWith('/accounts') || pathname.startsWith('/branch-aliases') || pathname.startsWith('/restaurants')) && !isAdmin) {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 

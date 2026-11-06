@@ -3,6 +3,7 @@ import { inArray } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { bookings, users } from '@/lib/db/schema'
 import { auth } from '@/auth'
+import { listBranchOptions, resolveBranch } from '@/lib/branches'
 
 type ImportRow = {
   vendorName: string
@@ -85,6 +86,7 @@ export async function POST(req: NextRequest) {
     const errors: string[] = []
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const values: any[] = []
+    const branchOptions = await listBranchOptions()
 
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i]
@@ -134,7 +136,7 @@ export async function POST(req: NextRequest) {
 
       values.push({
         vendorId,
-        branch: r.branch || null,
+        ...(await resolveBranch({ branch: r.branch }, branchOptions)),
         category: '現貨單' as const,
         bookingDate,
         timeSlot: r.timeSlot || null,

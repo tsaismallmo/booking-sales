@@ -17,13 +17,33 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
+// 餐廳／分店主檔：只有管理員能維護。單據用 branchId 指到分店，餐廳由分店推得。
+// 不提供刪除只能停用——單據、備份快照都會指到這些 id，刪掉會讓舊資料或還原對不上。
+export const restaurants = pgTable('restaurants', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: text('name').notNull().unique(),
+  active: boolean('active').notNull().default(true),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const branches = pgTable('branches', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  restaurantId: uuid('restaurant_id').notNull().references(() => restaurants.id),
+  name: text('name').notNull(),
+  active: boolean('active').notNull().default(true),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (t) => [unique('branches_restaurant_name_unique').on(t.restaurantId, t.name)])
+
 // 單據：廠商建立，客服銷售
 export const bookings = pgTable('bookings', {
   id: uuid('id').defaultRandom().primaryKey(),
 
   // 基本資訊
   vendorId: uuid('vendor_id').references(() => users.id), // 訂單歸屬（客服自建的臨時單/預購單沒有廠商，可為空）
-  branch: text('branch'), // 分店
+  branchId: uuid('branch_id').references(() => branches.id), // 分店（主檔），有選的話 branch 文字由伺服器自動寫成「餐廳｜分店」
+  branch: text('branch'), // 分店顯示文字「餐廳｜分店」（列表、篩選、比對都用這個；舊資料或沒對到主檔的可能只有自由文字）
   category: bookingCategoryEnum('category').notNull(), // 類別：預購單/臨時單/現貨單
   bookingDate: date('booking_date').notNull(), // 日期
   timeSlot: text('time_slot'), // 時段
@@ -74,7 +94,8 @@ export const bookings = pgTable('bookings', {
 export const branchAliases = pgTable('branch_aliases', {
   id: uuid('id').defaultRandom().primaryKey(),
   rawText: text('raw_text').notNull().unique(),
-  canonicalBranch: text('canonical_branch').notNull(),
+  branchId: uuid('branch_id').references(() => branches.id), // 對應到的分店主檔
+  canonicalBranch: text('canonical_branch').notNull(), // 對應到的「餐廳｜分店」文字（跟 branchId 同步）
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 

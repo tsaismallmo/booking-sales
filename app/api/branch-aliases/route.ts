@@ -3,6 +3,7 @@ import { eq, desc } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { branchAliases } from '@/lib/db/schema'
 import { auth } from '@/auth'
+import { resolveBranch } from '@/lib/branches'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -26,14 +27,17 @@ export async function POST(req: NextRequest) {
   if (!session?.user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  if (!body.rawText || !body.canonicalBranch) {
-    return NextResponse.json({ error: '缺少 rawText 或 canonicalBranch' }, { status: 400 })
+  if (!body.rawText || (!body.canonicalBranch && !body.branchId)) {
+    return NextResponse.json({ error: '缺少 rawText 或分店' }, { status: 400 })
   }
+  // 對應到分店主檔：有 branchId 就照主檔，只有文字就盡量對回主檔
+  const resolved = await resolveBranch({ branchId: body.branchId, branch: body.canonicalBranch })
+  if (!resolved.branch) return NextResponse.json({ error: '缺少分店' }, { status: 400 })
 
   const [row] = await db
     .insert(branchAliases)
-    .values({ rawText: body.rawText, canonicalBranch: body.canonicalBranch })
-    .onConflictDoUpdate({ target: branchAliases.rawText, set: { canonicalBranch: body.canonicalBranch } })
+    .values({ rawText: body.rawText, branchId: resolved.branchId, canonicalBranch: resolved.branch })
+    .onConflictDoUpdate({ target: branchAliases.rawText, set: { branchId: resolved.branchId, canonicalBranch: resolved.branch } })
     .returning()
 
   return NextResponse.json(row, { status: 201 })

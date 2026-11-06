@@ -7,6 +7,7 @@ import type { Role } from '@/types/next-auth'
 import { LOGISTICS_CATEGORIES } from '@/lib/roles'
 import { computeShare } from '@/lib/platform-share'
 import { getRatesForVendorMonth } from '@/lib/platform-settings'
+import { resolveBranch } from '@/lib/branches'
 
 // 日期/數字欄位如果表單留空，前端送的是空字串 ''，但資料庫的 date/numeric 欄位不接受空字串，要轉成 null
 function blankToNull<T>(v: T): T | null {
@@ -96,10 +97,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
   }
 
+  // 分店：有送 branchId 或 branch 才重新對主檔，沒送就保留原本的
+  const branchChanged = !pureCustomerService && (body.branchId !== undefined || body.branch !== undefined)
+  const resolved = branchChanged ? await resolveBranch({ branchId: body.branchId, branch: body.branch }) : { branchId: existing.branchId, branch: existing.branch }
+
   const [row] = await db
     .update(bookings)
     .set({
-      branch: pureCustomerService ? existing.branch : (body.branch ?? existing.branch),
+      branchId: resolved.branchId,
+      branch: resolved.branch,
       category: existing.category, // 類別建立後不能改，要改就刪掉重建
       bookingDate: pureCustomerService ? existing.bookingDate : (body.bookingDate ?? existing.bookingDate),
       timeSlot: pureCustomerService ? existing.timeSlot : (body.timeSlot ?? existing.timeSlot),

@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { branchAliases } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
+import { resolveBranch } from '@/lib/branches'
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireRole('admin')
@@ -10,11 +11,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params
   const body = await req.json()
-  if (!body.canonicalBranch) return NextResponse.json({ error: '缺少 canonicalBranch' }, { status: 400 })
+  const resolved = await resolveBranch({ branchId: body.branchId, branch: body.canonicalBranch })
+  if (!resolved.branch) return NextResponse.json({ error: '缺少分店' }, { status: 400 })
 
   const [row] = await db
     .update(branchAliases)
-    .set({ canonicalBranch: body.canonicalBranch })
+    .set({ branchId: resolved.branchId, canonicalBranch: resolved.branch })
     .where(eq(branchAliases.id, id))
     .returning()
 

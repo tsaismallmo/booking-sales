@@ -6,6 +6,7 @@ import { parseSms, type ParsedSms } from "@/lib/sms-parser";
 import { formatCurrency } from "@/lib/utils";
 import { VendorSelect } from "@/components/VendorSelect";
 import { RosterListSelect } from "@/components/RosterListSelect";
+import { BranchSelect, findBranch, loadBranchOptions } from "@/components/BranchSelect";
 
 type PhoneCandidate = { phone: string; source: "roster" | "booking"; label: string; listName: string | null };
 type CustomerCandidate = { name: string; phone: string; source: "roster" | "booking"; label: string };
@@ -30,6 +31,7 @@ export default function ImportSmsPage() {
 
   // 付款通知 → 建單據 用的可編輯欄位
   const [form, setForm] = useState({
+    branchId: "",
     branch: "",
     category: "現貨單",
     bookingDate: "",
@@ -149,6 +151,7 @@ export default function ImportSmsPage() {
       const branch = result.branch ? await resolveBranchAlias(result.branch) : "";
       setForm((f) => ({
         ...f,
+        branchId: "",
         branch,
         bookingDate: result.bookingDate ?? "",
         timeSlot: result.timeSlot ?? "",
@@ -183,6 +186,11 @@ export default function ImportSmsPage() {
   const handleCreateBooking = async () => {
     if (!form.bookingDate || !form.category) {
       setError("請確認日期與類別");
+      return;
+    }
+    // 分店一定要對到主檔（簡訊分店文字沒對應過的話，選了之後會記進分店對應表，下次自動帶入）
+    if (!form.branchId && !findBranch(await loadBranchOptions(), form.branch)) {
+      setError("請選擇餐廳和分店");
       return;
     }
     if (!form.customerName || !form.customerPhone) {
@@ -283,7 +291,7 @@ export default function ImportSmsPage() {
               <VendorSelect value={vendorId} onChange={setVendorId} />
               <div className="erp-form-group">
                 <label className="erp-label">分店</label>
-                <input className="erp-input" value={form.branch} onChange={set("branch")} />
+                <BranchSelect branchId={form.branchId} branch={form.branch} onChange={(v) => setForm((f) => ({ ...f, ...v }))} />
               </div>
               <div className="erp-form-group">
                 <label className="erp-label">類別</label>
@@ -425,7 +433,7 @@ export default function ImportSmsPage() {
                 <label className="erp-label">
                   比對用分店{rawBranch && matchBranch !== rawBranch ? `（簡訊原文：${rawBranch}）` : ""}
                 </label>
-                <input className="erp-input" value={matchBranch} onChange={(e) => setMatchBranch(e.target.value)} />
+                <BranchSelect branchId={null} branch={matchBranch} onChange={(v) => setMatchBranch(v.branch)} />
               </div>
               <button
                 onClick={() => runLookup(matchBranch, parsed)}
