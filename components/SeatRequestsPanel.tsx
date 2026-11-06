@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BranchSelect } from "@/components/BranchSelect";
+import { getMealPeriod } from "@/lib/quote";
 
 type StockMatch = { id: string; branch: string | null; bookingDate: string; timeSlot: string | null; partySize: number | null; bookingCode: string | null };
 
@@ -52,6 +53,7 @@ const OPTION_BADGE: Record<OptionStatus, { cls: string; label: string }> = {
 };
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
+const MEAL_ORDER = ["午餐", "下午茶", "晚餐", "時段不限"];
 
 type OptionRow = { key: number; branchId: string; branch: string; bookingDate: string; timeSlot: string };
 let rowKey = 0;
@@ -189,32 +191,37 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
     }
   };
 
-  // ── 月曆資料：還在等的需求底下、還沒訂的候選，依日期 → 餐廳分店彙總 ──
+  // ── 月曆資料：還在等的需求底下、還沒訂的候選，依日期 → 餐廳分店 → 餐期，
+  //    每一組的人數個別列出（不加總），方便看要訂幾桌、各幾位 ──
   const pendingRequests = useMemo(() => rows.filter((r) => r.status === "pending"), [rows]);
   const byDate = useMemo(() => {
-    const map = new Map<string, Map<string, { groups: number; people: number; unknown: boolean; stock: boolean }>>();
+    const map = new Map<string, Map<string, Map<string, { sizes: (number | null)[]; stock: boolean }>>>();
     for (const r of pendingRequests) {
       for (const o of r.options) {
         if (o.status !== "pending") continue;
         const branches = map.get(o.bookingDate) ?? new Map();
         const label = o.branch ?? "—";
-        const cur = branches.get(label) ?? { groups: 0, people: 0, unknown: false, stock: false };
-        cur.groups += 1;
-        if (r.partySize) cur.people += r.partySize;
-        else cur.unknown = true;
+        const meals = branches.get(label) ?? new Map();
+        const meal = getMealPeriod(o.timeSlot) ?? "時段不限";
+        const cur = meals.get(meal) ?? { sizes: [], stock: false };
+        cur.sizes.push(r.partySize);
         if (o.stockMatches.length > 0) cur.stock = true;
-        branches.set(label, cur);
+        meals.set(meal, cur);
+        branches.set(label, meals);
         map.set(o.bookingDate, branches);
       }
     }
     return map;
   }, [pendingRequests]);
+  const groupsOfDate = (date: string) =>
+    [...(byDate.get(date)?.values() ?? [])].reduce((n, meals) => n + [...meals.values()].reduce((k, m) => k + m.sizes.length, 0), 0);
   // 哪幾個月有需求（月曆上方的快速切換）
   const monthsWithDemand = useMemo(() => {
     const m = new Map<string, number>();
     for (const [date, branches] of byDate) {
       const key = date.slice(0, 7);
-      m.set(key, (m.get(key) ?? 0) + [...branches.values()].reduce((n, b) => n + b.groups, 0));
+      const n = [...branches.values()].reduce((s, meals) => s + [...meals.values()].reduce((k, x) => k + x.sizes.length, 0), 0);
+      m.set(key, (m.get(key) ?? 0) + n);
     }
     return [...m.entries()].sort(([a], [b]) => a.localeCompare(b));
   }, [byDate]);
@@ -262,7 +269,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
                   <span className="badge badge-navy" style={{ fontSize: 11 }}>第{o.priority}順位</span>
                   <span>{o.branch ?? "—"}</span>
                   <strong>{shortDate(o.bookingDate)}</strong>
-                  <span>{o.timeSlot || "時段不限"}</span>
+                  <span>{getMealPeriod(o.timeSlot) ?? ""} {o.timeSlot || "時段不限"}</span>
                   <span className={`badge ${OPTION_BADGE[o.status].cls}`} style={{ fontSize: 11 }}>{OPTION_BADGE[o.status].label}</span>
                   {o.stockMatches.length > 0 && <span className="badge badge-warning" style={{ fontSize: 11 }}>現貨單有 {o.stockMatches.length} 筆符合</span>}
                   {o.status === "booked" && <span>代號 <strong>{o.bookingCode}</strong></span>}
@@ -449,7 +456,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
                   if (!date) return <div key={`e${i}`} />;
                   const branches = byDate.get(date);
                   const entries = branches ? [...branches.entries()].sort(([a], [b]) => a.localeCompare(b, "zh-Hant")) : [];
-                  const totalGroups = entries.reduce((n, [, b]) => n + b.groups, 0);
+                  const totalGroups = groupsOfDate(date);
                   const selected = selectedDate === date;
                   const past = date < today;
                   return (
@@ -478,19 +485,25 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
                         <span>{Number(date.slice(8))}</span>
                         {totalGroups > 0 && <span style={{ color: "var(--brand-700)" }}>{totalGroups}組</span>}
                       </span>
-                      {entries.slice(0, 3).map(([label, b]) => (
-                        <span key={label} title={`${label}：${b.groups}組${b.people ? ` ${b.people}人` : ""}${b.unknown ? "（有人數未填）" : ""}${b.stock ? "，現貨單有符合" : ""}`} style={{ fontSize: 11, lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", width: "100%" }}>
-                          {b.stock && <span style={{ color: "var(--color-warning)" }}>⚠</span>}
-                          {label.replace("｜", " ")} <strong>{b.groups}組{b.people ? `${b.people}人` : ""}{b.unknown ? "+" : ""}</strong>
+                      {entries.map(([label, meals]) => (
+                        <span key={label} style={{ display: "flex", flexDirection: "column", width: "100%", fontSize: 11, lineHeight: 1.35 }}>
+                          <span title={label} style={{ fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label.replace("｜", " ")}</span>
+                          {[...meals.entries()]
+                            .sort(([a], [b]) => MEAL_ORDER.indexOf(a) - MEAL_ORDER.indexOf(b))
+                            .map(([meal, m]) => (
+                              <span key={meal} style={{ paddingLeft: 4 }}>
+                                {m.stock && <span style={{ color: "var(--color-warning)" }} title="現貨單已經有符合的位子">⚠</span>}
+                                {meal} <strong>{m.sizes.length}組</strong>：{m.sizes.map((s) => (s ? `${s}人` : "?人")).join("、")}
+                              </span>
+                            ))}
                         </span>
                       ))}
-                      {entries.length > 3 && <span style={{ fontSize: 11, color: "var(--gray-500)" }}>還有 {entries.length - 3} 間…</span>}
                     </button>
                   );
                 })}
               </div>
               <div style={{ fontSize: 11, color: "var(--gray-400)", marginTop: 6 }}>
-                只算還在等的候選日期。「+」表示有人數未填；<span style={{ color: "var(--color-warning)" }}>⚠</span> 表示現貨單已經有符合的位子。點日期看是哪些客人。
+                只算還在等的候選日期，每一組的人數分開列出；「?人」表示人數未填；<span style={{ color: "var(--color-warning)" }}>⚠</span> 表示現貨單已經有符合的位子。點日期看是哪些客人。
               </div>
             </div>
           </div>
