@@ -27,6 +27,9 @@ export default auth((req) => {
   // 依身份決定進來後預設帶去哪裡：廠商去單據管理，管理員去所有單據，純客服去看板，純後勤去需求處理，純廠商員工去自己的單據管理
   const fallback = isVendor ? '/bookings' : isAdmin ? '/admin/bookings' : roles.includes('customer_service') ? '/dashboard' : isLogistics ? '/requests' : isVendorStaff ? '/bookings/booked' : '/dashboard'
 
+  // 管理員可以使用全部功能（廠商功能用側邊欄選的代理廠商，見 lib/vendor-scope.ts）
+  if (isAdmin) return response
+
   // 現貨單看板、已售看板：客服／管理員（導回的頁面剛好就是這裡時不擋，避免無限導向）
   if ((pathname === '/dashboard' || pathname.startsWith('/dashboard/sold')) && !isAdmin && !roles.includes('customer_service') && pathname !== fallback) {
     return NextResponse.redirect(new URL(fallback, req.url))
@@ -74,8 +77,8 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
-  // 訂位看板（月曆/Inline/EZTABLE）：只給廠商本人
-  if (pathname.startsWith('/booking-board') && !isVendor) {
+  // 訂位看板（月曆/Inline/EZTABLE）：廠商本人、後勤（看全部廠商）
+  if (pathname.startsWith('/booking-board') && !isVendor && !isLogistics) {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 

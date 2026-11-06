@@ -6,7 +6,7 @@ import { requireRole } from '@/lib/auth-guard'
 
 // 月曆總覽：不分廠商，回傳整個平台每天「未出售」的訂位筆數 + 有待處理需求的筆數
 export async function GET(req: NextRequest) {
-  const session = await requireRole('vendor', 'vendor_staff')
+  const session = await requireRole('vendor', 'vendor_staff', 'admin', 'logistics')
   if (!session) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
   const year = Number(req.nextUrl.searchParams.get('year'))

@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { ClipboardList, Users, LogOut, MapPinned, Store, Wrench, Package, Clock3, CalendarClock, BookUser, CalendarDays, PieChart, BellRing, BadgeCheck, TableProperties, HandCoins, Landmark, Archive, Wallet, Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ActingVendorSelect } from "@/components/ActingVendorSelect";
 import type { Role } from "@/types/next-auth";
 
 const roleLabel: Record<Role, string> = {
@@ -72,42 +73,53 @@ export function Sidebar({ roles }: { roles: Role[] }) {
           </Link>
         )}
 
-        {/* ── 單據 ── 廠商（全部現貨單）／廠商員工（只看實際訂位人員是自己的單據） */}
-        {(isVendor || isVendorStaff) && (
+        {/* ── 單據 ── 廠商／管理員（單據管理、解析簡訊）／廠商員工（只看實際訂位人員是自己的單據） */}
+        {(isVendor || isVendorStaff || isAdmin) && (
           <>
             <div className="erp-sidebar-divider" />
             <div className="erp-sidebar-section">單據</div>
-            <Link href={isVendor ? "/bookings" : "/bookings/booked"} className={cn("erp-sidebar-item", pathname.startsWith("/bookings") && !fromAdmin && !fromSold && !fromTemp && !fromReserved && "active")}>
+            <Link href={isVendor || isAdmin ? "/bookings" : "/bookings/booked"} className={cn("erp-sidebar-item", pathname.startsWith("/bookings") && !pathname.startsWith("/bookings/booked") && !fromAdmin && !fromSold && !fromTemp && !fromReserved && "active", !(isVendor || isAdmin) && pathname.startsWith("/bookings/booked") && "active")}>
               <ClipboardList size={15} />
               單據管理
             </Link>
+            {isVendorStaff && (isVendor || isAdmin) && (
+              <Link href="/bookings/booked" className={cn("erp-sidebar-item", pathname.startsWith("/bookings/booked") && "active")}>
+                <ClipboardList size={15} />
+                我訂的單據
+              </Link>
+            )}
           </>
         )}
 
-        {/* ── 廠商 ── 廠商本人 / 管理員(平台分潤)；廠商員工只需要單據管理 */}
-        {(isVendor || isAdmin) && (
+        {/* ── 廠商 ── 廠商本人 / 管理員（代理廠商）/ 後勤（只有訂位看板）；廠商員工只需要單據管理 */}
+        {(isVendor || isAdmin || isLogistics) && (
           <>
             <div className="erp-sidebar-divider" />
             <div className="erp-sidebar-section">廠商</div>
           </>
         )}
-        {isVendor && (
+        {isAdmin && <ActingVendorSelect />}
+        {(isVendor || isAdmin) && (
+          <Link href="/roster" className={cn("erp-sidebar-item", pathname.startsWith("/roster") && "active")}>
+            <BookUser size={15} />
+            廠商名單
+          </Link>
+        )}
+        {(isVendor || isAdmin || isLogistics) && (
+          <Link href="/booking-board" className={cn("erp-sidebar-item", pathname.startsWith("/booking-board") && "active")}>
+            <CalendarDays size={15} />
+            訂位看板
+          </Link>
+        )}
+        {(isVendor || isAdmin) && (
           <>
-            <Link href="/roster" className={cn("erp-sidebar-item", pathname.startsWith("/roster") && "active")}>
-              <BookUser size={15} />
-              廠商名單
-            </Link>
-            <Link href="/booking-board" className={cn("erp-sidebar-item", pathname.startsWith("/booking-board") && "active")}>
-              <CalendarDays size={15} />
-              訂位看板
-            </Link>
             <Link href="/deposit-board" className={cn("erp-sidebar-item", pathname.startsWith("/deposit-board") && "active")}>
               <Wallet size={15} />
               訂金付款看板
             </Link>
           </>
         )}
-        {isVendor && (
+        {(isVendor || isAdmin) && (
           <Link href="/reminder" className={cn("erp-sidebar-item", pathname.startsWith("/reminder") && "active")}>
             <BellRing size={15} />
             退訂提醒
@@ -119,7 +131,7 @@ export function Sidebar({ roles }: { roles: Role[] }) {
             平台分潤
           </Link>
         )}
-        {isVendor && (
+        {(isVendor || isAdmin) && (
           <Link href="/vendor-staff-share" className={cn("erp-sidebar-item", pathname.startsWith("/vendor-staff-share") && "active")}>
             <Users size={15} />
             廠商員工分潤

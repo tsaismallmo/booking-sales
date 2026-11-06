@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { auth } from '@/auth'
 import { db } from '@/lib/db'
 import { users } from '@/lib/db/schema'
+import { vendorScope } from '@/lib/vendor-scope'
 
 export async function GET() {
   const session = await auth()
@@ -15,5 +16,7 @@ export async function GET() {
     name: me?.name ?? session.user.name ?? null,
     roles: session.user.roles,
     employerVendorId: session.user.employerVendorId ?? null,
+    // 廠商功能目前的廠商範圍：廠商＝自己、員工＝雇主、管理員＝代理的廠商、後勤＝'all'
+    vendorScopeId: await vendorScope(session),
   })
 }

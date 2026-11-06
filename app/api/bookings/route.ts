@@ -3,6 +3,7 @@ import { eq, inArray, desc, or } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { bookings } from '@/lib/db/schema'
 import { auth } from '@/auth'
+import { vendorWriteScope } from '@/lib/vendor-scope'
 import { LOGISTICS_CATEGORIES } from '@/lib/roles'
 import { defaultCancelDeadline, resolveBranch } from '@/lib/branches'
 
@@ -14,6 +15,7 @@ export async function GET() {
   const isVendor = roles.includes('vendor')
   const isVendorStaff = roles.includes('vendor_staff')
   const isLogistics = roles.includes('logistics')
+  const isAdmin = roles.includes('admin')
 
   // /api/bookings 只回傳「自己的」單據：
   //   vendor（含 admin+vendor）→ 只看 vendorId = 自己
@@ -24,13 +26,13 @@ export async function GET() {
   //   純管理員（無 vendor）→ 看全部（管理員通常會走 /api/admin/bookings）
   const rows = isVendor
     ? await db.select().from(bookings).where(eq(bookings.vendorId, session.user.id)).orderBy(desc(bookings.bookingDate))
-    : isVendorStaff
+    : isVendorStaff && !isAdmin
       ? await db.select().from(bookings)
           .where(session.user.employerVendorId
             ? or(eq(bookings.vendorId, session.user.employerVendorId), inArray(bookings.category, [...LOGISTICS_CATEGORIES]))
             : inArray(bookings.category, [...LOGISTICS_CATEGORIES]))
           .orderBy(desc(bookings.bookingDate))
-      : isLogistics
+      : isLogistics && !isAdmin
         ? await db.select().from(bookings).where(inArray(bookings.category, [...LOGISTICS_CATEGORIES])).orderBy(desc(bookings.bookingDate))
         : await db.select().from(bookings).orderBy(desc(bookings.bookingDate))
 
@@ -70,7 +72,8 @@ export async function POST(req: NextRequest) {
   } else if (body.category === '臨時單') {
     vendorId = body.vendorId || null
   } else {
-    vendorId = body.vendorId || null
+    // 管理員從解析簡訊建單時沒帶廠商，就用側邊欄選的代理廠商
+    vendorId = body.vendorId || (isAdmin ? await vendorWriteScope(session) : null)
     if (!vendorId) return NextResponse.json({ error: '缺少廠商歸屬' }, { status: 400 })
   }
 

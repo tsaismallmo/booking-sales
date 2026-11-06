@@ -3,10 +3,11 @@ import { eq, asc } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { vendorRosterLists } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
+import { vendorWriteScope } from '@/lib/vendor-scope'
 
 // 跟前一份／後一份名單交換排序
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await requireRole('vendor')
+  const session = await requireRole('vendor', 'admin')
   if (!session) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
   const { id } = await params
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const direction: 'up' | 'down' = body.direction
   if (direction !== 'up' && direction !== 'down') return NextResponse.json({ error: '缺少方向' }, { status: 400 })
 
-  const lists = await db.select().from(vendorRosterLists).where(eq(vendorRosterLists.vendorId, session.user.id)).orderBy(asc(vendorRosterLists.sortOrder))
+  const lists = await db.select().from(vendorRosterLists).where(eq(vendorRosterLists.vendorId, (await vendorWriteScope(session)) ?? '')).orderBy(asc(vendorRosterLists.sortOrder))
   const idx = lists.findIndex((l) => l.id === id)
   if (idx === -1) return NextResponse.json({ error: 'not found' }, { status: 404 })
 

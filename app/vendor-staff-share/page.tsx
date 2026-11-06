@@ -70,7 +70,7 @@ export default function VendorStaffSharePage() {
   useEffect(() => {
     fetch("/api/me")
       .then((res) => res.json())
-      .then((me) => setMyId(me.id));
+      .then((me) => setMyId(me.vendorScopeId && me.vendorScopeId !== "all" ? me.vendorScopeId : me.id)); // 管理員用代理的廠商
   }, []);
 
   useEffect(() => {

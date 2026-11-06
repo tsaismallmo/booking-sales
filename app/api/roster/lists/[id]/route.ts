@@ -3,6 +3,7 @@ import { eq, and } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { vendorRosterLists, vendorRosterEntries } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
+import { vendorWriteScope } from '@/lib/vendor-scope'
 
 async function getOwnedList(id: string, vendorId: string) {
   const [row] = await db
@@ -13,11 +14,11 @@ async function getOwnedList(id: string, vendorId: string) {
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await requireRole('vendor')
+  const session = await requireRole('vendor', 'admin')
   if (!session) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
   const { id } = await params
-  const existing = await getOwnedList(id, session.user.id)
+  const existing = await getOwnedList(id, (await vendorWriteScope(session)) ?? '')
   if (!existing) return NextResponse.json({ error: 'not found' }, { status: 404 })
 
   const body = await req.json()
@@ -35,11 +36,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 // 刪除名單會連同名單裡的成員一起刪掉
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await requireRole('vendor')
+  const session = await requireRole('vendor', 'admin')
   if (!session) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
   const { id } = await params
-  const existing = await getOwnedList(id, session.user.id)
+  const existing = await getOwnedList(id, (await vendorWriteScope(session)) ?? '')
   if (!existing) return NextResponse.json({ error: 'not found' }, { status: 404 })
 
   await db.delete(vendorRosterEntries).where(eq(vendorRosterEntries.listId, id))

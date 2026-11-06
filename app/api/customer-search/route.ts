@@ -3,16 +3,17 @@ import { eq, and, ilike } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { vendorRosterEntries, vendorRosterLists } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
+import { vendorScope, scopeEq } from '@/lib/vendor-scope'
 
 // 模糊搜尋客人（姓名 + 電話），供「解析簡訊」頁面的客人選擇器用。
 export async function GET(req: NextRequest) {
-  const session = await requireRole('vendor', 'vendor_staff')
+  const session = await requireRole('vendor', 'vendor_staff', 'admin', 'logistics')
   if (!session) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
   const q = req.nextUrl.searchParams.get('q')?.trim()
   if (!q || q.length < 1) return NextResponse.json([])
 
-  const ownerId = session.user.roles.includes('vendor') ? session.user.id : session.user.employerVendorId
+  const ownerId = await vendorScope(session)
   if (!ownerId) return NextResponse.json([])
 
   const rosterRows = await db
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
     .from(vendorRosterEntries)
     .innerJoin(vendorRosterLists, eq(vendorRosterEntries.listId, vendorRosterLists.id))
     .where(and(
-      eq(vendorRosterEntries.vendorId, ownerId),
+      scopeEq(vendorRosterEntries.vendorId, ownerId),
       ilike(vendorRosterEntries.name, `%${q}%`),
     ))
     .limit(20)
