@@ -129,7 +129,6 @@ export const bookingRequests = pgTable('booking_requests', {
 export const seatRequestStatusEnum = pgEnum('seat_request_status', ['pending', 'booked', 'failed', 'cancelled'])
 export const seatRequests = pgTable('seat_requests', {
   id: uuid('id').defaultRandom().primaryKey(),
-  partySize: integer('party_size'),
   customerName: text('customer_name'),
   customerPhone: text('customer_phone'),
   note: text('note'), // 客服補充（例如可接受的時段範圍）
@@ -153,6 +152,7 @@ export const seatRequestOptions = pgTable('seat_request_options', {
   branch: text('branch'), // 「餐廳｜分店」
   bookingDate: date('booking_date').notNull(),
   timeSlot: text('time_slot'),
+  partySize: integer('party_size'), // 每個候選各自的人數（同一位客人不同日期可能人數不同）
   status: seatRequestOptionStatusEnum('status').notNull().default('pending'),
   bookingCode: text('booking_code'), // 後勤訂到後填的訂位代號
   resultNote: text('result_note'), // 訂不到的原因、實際訂到的時段等

@@ -15,6 +15,7 @@ type SeatOption = {
   branch: string | null;
   bookingDate: string;
   timeSlot: string | null;
+  partySize: number | null;
   status: OptionStatus;
   bookingCode: string | null;
   resultNote: string | null;
@@ -25,7 +26,6 @@ type SeatOption = {
 
 type SeatRequest = {
   id: string;
-  partySize: number | null;
   customerName: string | null;
   customerPhone: string | null;
   note: string | null;
@@ -56,11 +56,11 @@ const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 const MEAL_ORDER = ["午餐", "下午茶", "晚餐", "時段不限"];
 
 // id：修改時原本就有的候選；locked：已處理過（訂到／訂不到／不訂了）的候選，只能調順位
-type OptionRow = { key: number; id?: string; locked?: OptionStatus; bookingCode?: string | null; branchId: string; branch: string; bookingDate: string; timeSlot: string };
+type OptionRow = { key: number; id?: string; locked?: OptionStatus; bookingCode?: string | null; branchId: string; branch: string; bookingDate: string; timeSlot: string; partySize: string };
 let rowKey = 0;
-// 新增候選時沿用上一個候選的分店和時段，客人通常是同一間換日期
-const newRow = (from?: OptionRow): OptionRow => ({ key: ++rowKey, branchId: from?.branchId ?? "", branch: from?.branch ?? "", bookingDate: "", timeSlot: from?.timeSlot ?? "" });
-const emptyCustomer = { partySize: "", customerName: "", customerPhone: "", note: "" };
+// 新增候選時沿用上一個候選的分店、時段和人數，客人通常是同一間換日期
+const newRow = (from?: OptionRow): OptionRow => ({ key: ++rowKey, branchId: from?.branchId ?? "", branch: from?.branch ?? "", bookingDate: "", timeSlot: from?.timeSlot ?? "", partySize: from?.partySize ?? "" });
+const emptyCustomer = { customerName: "", customerPhone: "", note: "" };
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const ymd = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
@@ -114,7 +114,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
   }, []);
 
   // 表單每個候選選好分店＋日期就查現貨單（時段、人數有填也一起比）
-  const stockKey = JSON.stringify({ partySize: customer.partySize, options: optionRows.map((r) => ({ branchId: r.branchId, bookingDate: r.bookingDate, timeSlot: r.timeSlot })) });
+  const stockKey = JSON.stringify({ options: optionRows.map((r) => ({ branchId: r.branchId, bookingDate: r.bookingDate, timeSlot: r.timeSlot, partySize: r.partySize })) });
   useEffect(() => {
     if (!showForm) return;
     let stale = false;
@@ -136,7 +136,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
   // 修改：把這筆需求的客人資料和候選帶進表單
   const startEdit = (r: SeatRequest) => {
     setEditingId(r.id);
-    setCustomer({ partySize: r.partySize ? String(r.partySize) : "", customerName: r.customerName ?? "", customerPhone: r.customerPhone ?? "", note: r.note ?? "" });
+    setCustomer({ customerName: r.customerName ?? "", customerPhone: r.customerPhone ?? "", note: r.note ?? "" });
     setOptionRows(r.options.map((o) => ({
       key: ++rowKey,
       id: o.id,
@@ -146,6 +146,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
       branch: o.branch ?? "",
       bookingDate: o.bookingDate,
       timeSlot: o.timeSlot ?? "",
+      partySize: o.partySize ? String(o.partySize) : "",
     })));
     setShowForm(true);
     setError("");
@@ -172,7 +173,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
     if (formStockCount > 0 && !confirm(`現貨單已經有 ${formStockCount} 筆符合候選日期、還沒售出的位子，確定還要${editingId ? "儲存" : "登記訂位需求"}？`)) return;
     setSaving(true);
     setError("");
-    const options = optionRows.map(({ id, branchId, branch, bookingDate, timeSlot }) => ({ id, branchId, branch, bookingDate, timeSlot }));
+    const options = optionRows.map(({ id, branchId, branch, bookingDate, timeSlot, partySize }) => ({ id, branchId, branch, bookingDate, timeSlot, partySize }));
     const res = editingId
       ? await fetch(`/api/seat-requests/${editingId}`, {
           method: "PATCH",
@@ -249,7 +250,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
         const meals = branches.get(label) ?? new Map();
         const meal = getMealPeriod(o.timeSlot) ?? "時段不限";
         const cur = meals.get(meal) ?? { sizes: [], stock: false };
-        cur.sizes.push(r.partySize);
+        cur.sizes.push(o.partySize);
         if (o.stockMatches.length > 0) cur.stock = true;
         meals.set(meal, cur);
         branches.set(label, meals);
@@ -299,7 +300,6 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", fontSize: 14 }}>
           <strong>{r.customerName || "（未填姓名）"}</strong>
           {r.customerPhone && <span style={{ color: "var(--gray-600)" }}>{r.customerPhone}</span>}
-          <span>{r.partySize ? `${r.partySize}人` : "人數未填"}</span>
           {r.status !== "pending" && <span className={`badge ${r.status === "booked" ? "badge-green" : r.status === "failed" ? "badge-red" : "badge-gray"}`}>{STATUS_TABS.find((t) => t.key === r.status)?.label}</span>}
         </div>
         {r.note && <div style={{ fontSize: 13, marginTop: 6 }}>備註：{r.note}</div>}
@@ -315,6 +315,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
                   <span>{o.branch ?? "—"}</span>
                   <strong>{shortDate(o.bookingDate)}</strong>
                   <span>{getMealPeriod(o.timeSlot) ?? ""} {o.timeSlot || "時段不限"}</span>
+                  <span>{o.partySize ? `${o.partySize}人` : "人數未填"}</span>
                   <span className={`badge ${OPTION_BADGE[o.status].cls}`} style={{ fontSize: 11 }}>{OPTION_BADGE[o.status].label}</span>
                   {o.stockMatches.length > 0 && <span className="badge badge-warning" style={{ fontSize: 11 }}>現貨單有 {o.stockMatches.length} 筆符合</span>}
                   {o.status === "booked" && <span>代號 <strong>{o.bookingCode}</strong></span>}
@@ -417,10 +418,6 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
                 <label className="erp-label">客人電話</label>
                 <input className="erp-input" value={customer.customerPhone} onChange={setCust("customerPhone")} />
               </div>
-              <div className="erp-form-group">
-                <label className="erp-label">人數</label>
-                <input type="number" className="erp-input" value={customer.partySize} onChange={setCust("partySize")} />
-              </div>
               <div className="erp-form-group full">
                 <label className="erp-label">備註</label>
                 <input className="erp-input" placeholder="例如：兩大一小、需要兒童椅" value={customer.note} onChange={setCust("note")} />
@@ -437,7 +434,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
                       <span className="badge badge-navy" style={{ alignSelf: "center" }}>第{i + 1}順位</span>
                       {row.locked ? (
                         <span style={{ flex: "4 1 400px", alignSelf: "center", fontSize: 13, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                          {row.branch || "—"}　<strong>{shortDate(row.bookingDate)}</strong>　{getMealPeriod(row.timeSlot) ?? ""} {row.timeSlot || "時段不限"}
+                          {row.branch || "—"}　<strong>{shortDate(row.bookingDate)}</strong>　{getMealPeriod(row.timeSlot) ?? ""} {row.timeSlot || "時段不限"}　{row.partySize ? `${row.partySize}人` : "人數未填"}
                           <span className={`badge ${OPTION_BADGE[row.locked].cls}`} style={{ fontSize: 11 }}>{OPTION_BADGE[row.locked].label}</span>
                           {row.bookingCode && <span>代號 {row.bookingCode}</span>}
                           <span style={{ color: "var(--gray-400)", fontSize: 12 }}>已處理，只能調順位</span>
@@ -455,6 +452,10 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
                       <div style={{ flex: "1 1 100px" }}>
                         <label className="erp-label">時段</label>
                         <input className="erp-input" placeholder="例如 11:30" value={row.timeSlot} onChange={(e) => updateRow(row.key, { timeSlot: e.target.value })} />
+                      </div>
+                      <div style={{ flex: "0 1 80px" }}>
+                        <label className="erp-label">人數</label>
+                        <input type="number" min={1} className="erp-input" value={row.partySize} onChange={(e) => updateRow(row.key, { partySize: e.target.value })} />
                       </div>
                       </>
                       )}

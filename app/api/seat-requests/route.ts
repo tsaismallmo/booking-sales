@@ -20,9 +20,8 @@ export async function GET() {
   const options = await db.select().from(seatRequestOptions).orderBy(asc(seatRequestOptions.priority), asc(seatRequestOptions.createdAt))
 
   const pendingIds = new Set(rows.filter((r) => r.request.status === 'pending').map((r) => r.request.id))
-  const partyOf = new Map(rows.map((r) => [r.request.id, r.request.partySize]))
   const waiting = options.filter((o) => o.status === 'pending' && pendingIds.has(o.requestId))
-  const stock = await findStock(waiting.map((o) => ({ ...o, partySize: partyOf.get(o.requestId) ?? null })))
+  const stock = await findStock(waiting)
 
   return NextResponse.json(rows.map(({ request, createdByName }) => ({
     ...request,
@@ -32,13 +31,13 @@ export async function GET() {
       .map((o) => ({
         ...o,
         stockMatches: o.status === 'pending' && request.status === 'pending'
-          ? stock.filter((b) => matchesStock({ ...o, partySize: request.partySize }, b))
+          ? stock.filter((b) => matchesStock(o, b))
           : [],
       })),
   })))
 }
 
-type OptionInput = { branchId?: string; branch?: string; bookingDate?: string; timeSlot?: string }
+type OptionInput = { branchId?: string; branch?: string; bookingDate?: string; timeSlot?: string; partySize?: string | number }
 
 // 登記訂位需求：客服／管理員。options 依順位排，第一個是客人最想要的
 export async function POST(req: NextRequest) {
@@ -54,11 +53,10 @@ export async function POST(req: NextRequest) {
     const r = await resolveBranch({ branchId: o.branchId, branch: o.branch })
     if (!r.branchId) return NextResponse.json({ error: `第 ${i + 1} 順位請選擇餐廳和分店` }, { status: 400 })
     if (!o.bookingDate) return NextResponse.json({ error: `第 ${i + 1} 順位請填日期` }, { status: 400 })
-    resolved.push({ priority: i + 1, branchId: r.branchId, branch: r.branch, bookingDate: o.bookingDate, timeSlot: o.timeSlot || null })
+    resolved.push({ priority: i + 1, branchId: r.branchId, branch: r.branch, bookingDate: o.bookingDate, timeSlot: o.timeSlot || null, partySize: o.partySize ? Number(o.partySize) || null : null })
   }
 
   const [row] = await db.insert(seatRequests).values({
-    partySize: body.partySize ? Number(body.partySize) || null : null,
     customerName: body.customerName || null,
     customerPhone: body.customerPhone || null,
     note: body.note || null,

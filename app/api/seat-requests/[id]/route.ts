@@ -30,7 +30,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     //   有 id 的是原本的候選——還沒處理的可以改分店／日期／時段，已處理的（訂到／訂不到／不訂了）只改順位；
     //   沒有 id 的是新加的候選；原本有但清單裡沒有的，還沒處理的刪掉，已處理的保留排在最後
     if (existing.status === 'cancelled') return NextResponse.json({ error: '已取消的需求請先改回待訂位再修改' }, { status: 400 })
-    const inputs: { id?: string; branchId?: string; branch?: string; bookingDate?: string; timeSlot?: string }[] = Array.isArray(body.options) ? body.options : []
+    const inputs: { id?: string; branchId?: string; branch?: string; bookingDate?: string; timeSlot?: string; partySize?: string | number }[] = Array.isArray(body.options) ? body.options : []
     const current = await db.select().from(seatRequestOptions).where(eq(seatRequestOptions.requestId, id))
     const byId = new Map(current.map((o) => [o.id, o]))
 
@@ -46,7 +46,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const r = await resolveBranch({ branchId: o.branchId, branch: o.branch })
       if (!r.branchId) return NextResponse.json({ error: `第 ${priority} 順位請選擇餐廳和分店` }, { status: 400 })
       if (!o.bookingDate) return NextResponse.json({ error: `第 ${priority} 順位請填日期` }, { status: 400 })
-      const values = { priority, branchId: r.branchId, branch: r.branch, bookingDate: o.bookingDate, timeSlot: o.timeSlot || null }
+      const values = { priority, branchId: r.branchId, branch: r.branch, bookingDate: o.bookingDate, timeSlot: o.timeSlot || null, partySize: o.partySize ? Number(o.partySize) || null : null }
       plans.push(old ? { kind: 'update', id: old.id, values } : { kind: 'insert', values: { ...values, requestId: id } })
     }
     const kept = new Set(inputs.map((o) => o.id).filter(Boolean))
@@ -65,7 +65,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       await db.delete(seatRequestOptions).where(eq(seatRequestOptions.id, o.id))
     }
     await db.update(seatRequests).set({
-      partySize: body.partySize ? Number(body.partySize) || null : null,
       customerName: body.customerName || null,
       customerPhone: body.customerPhone || null,
       note: body.note || null,
