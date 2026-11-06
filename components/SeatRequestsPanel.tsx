@@ -100,6 +100,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
   // 月曆
   const [month, setMonth] = useState(() => { const t = new Date(); return { y: t.getFullYear(), m: t.getMonth() }; });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [branchFilter, setBranchFilter] = useState("");
 
   const load = () =>
     fetch("/api/seat-requests")
@@ -240,11 +241,29 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
   // ── 月曆資料：還在等的需求底下、還沒訂的候選，依日期 → 餐廳分店 → 餐期，
   //    每一組的人數個別列出（不加總），方便看要訂幾桌、各幾位 ──
   const pendingRequests = useMemo(() => rows.filter((r) => r.status === "pending"), [rows]);
+  // 月曆篩選選項：從還在等的候選裡出現過的餐廳／分店產生，依餐廳分組
+  const filterGroups = useMemo(() => {
+    const m = new Map<string, Set<string>>();
+    for (const r of pendingRequests) for (const o of r.options) {
+      if (o.status !== "pending" || !o.branch) continue;
+      const restaurant = o.branch.split("｜")[0];
+      m.set(restaurant, (m.get(restaurant) ?? new Set()).add(o.branch));
+    }
+    return [...m.entries()]
+      .sort(([a], [b]) => a.localeCompare(b, "zh-Hant"))
+      .map(([restaurant, set]) => ({ restaurant, branches: [...set].sort((a, b) => a.localeCompare(b, "zh-Hant")) }));
+  }, [pendingRequests]);
+  // branchFilter：""＝全部、"r:餐廳"＝整間餐廳、"b:餐廳｜分店"＝單一分店
+  const matchFilter = (branch: string | null) => {
+    if (!branchFilter) return true;
+    if (branchFilter.startsWith("r:")) return (branch ?? "").split("｜")[0] === branchFilter.slice(2);
+    return branch === branchFilter.slice(2);
+  };
   const byDate = useMemo(() => {
     const map = new Map<string, Map<string, Map<string, { sizes: (number | null)[]; stock: boolean }>>>();
     for (const r of pendingRequests) {
       for (const o of r.options) {
-        if (o.status !== "pending") continue;
+        if (o.status !== "pending" || !matchFilter(o.branch)) continue;
         const branches = map.get(o.bookingDate) ?? new Map();
         const label = o.branch ?? "—";
         const meals = branches.get(label) ?? new Map();
@@ -258,7 +277,8 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
       }
     }
     return map;
-  }, [pendingRequests]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- matchFilter 只依賴 branchFilter
+  }, [pendingRequests, branchFilter]);
   const groupsOfDate = (date: string) =>
     [...(byDate.get(date)?.values() ?? [])].reduce((n, meals) => n + [...meals.values()].reduce((k, m) => k + m.sizes.length, 0), 0);
   // 哪幾個月有需求（月曆上方的快速切換）
@@ -291,7 +311,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
     .filter((r) => r.status === statusTab)
     .sort((a, b) => (statusTab === "pending" ? firstPendingDate(a).localeCompare(firstPendingDate(b)) : 0));
   const dayShown = selectedDate
-    ? pendingRequests.filter((r) => r.options.some((o) => o.status === "pending" && o.bookingDate === selectedDate))
+    ? pendingRequests.filter((r) => r.options.some((o) => o.status === "pending" && o.bookingDate === selectedDate && matchFilter(o.branch)))
     : [];
 
   const renderCard = (r: SeatRequest, highlightDate?: string) => (
@@ -501,6 +521,15 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
               <span className="erp-card-title">{month.y} 年 {month.m + 1} 月</span>
               <button className="btn btn-ghost" style={{ padding: "2px 10px" }} onClick={() => shiftMonth(1)}>›</button>
               <button className="btn btn-ghost" style={{ fontSize: 12, padding: "2px 10px" }} onClick={() => { const t = new Date(); setMonth({ y: t.getFullYear(), m: t.getMonth() }); }}>本月</button>
+              <select className="erp-input" style={{ width: "auto", fontSize: 13, padding: "4px 8px" }} value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)}>
+                <option value="">全部餐廳／分店</option>
+                {filterGroups.map((g) => (
+                  <optgroup key={g.restaurant} label={g.restaurant}>
+                    <option value={`r:${g.restaurant}`}>{g.restaurant}（全部分店）</option>
+                    {g.branches.map((b) => <option key={b} value={`b:${b}`}>{b.split("｜")[1] ?? b}</option>)}
+                  </optgroup>
+                ))}
+              </select>
               <span style={{ marginLeft: "auto", display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {monthsWithDemand.map(([key, n]) => {
                   const [y, m] = key.split("-").map(Number);
