@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import {
   backups,
   bookings, bookingRequests, vendorRosterLists, vendorRosterEntries,
-  csShareRates, vendorPlatformRates, branchAliases, smsLogs,
+  csShareRates, vendorPlatformRates, branchAliases, smsLogs, branches,
 } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
 import { createSafetyBackup } from '@/lib/backup'
@@ -57,6 +57,14 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   if (!row) return NextResponse.json({ error: 'not found' }, { status: 404 })
 
   const snapshot = row.data as Snapshot
+
+  // 分店主檔不在備份範圍內，備份當時指到的分店之後可能已經被刪掉；
+  // 先把指到不存在分店的 branchId 拿掉（分店文字保留），不然 insert 會撞外鍵、還原到一半失敗
+  const existingBranchIds = new Set((await db.select({ id: branches.id }).from(branches)).map((b) => b.id))
+  const keepBranch = <T extends { branchId?: string | null }>(r: T): T =>
+    r.branchId && !existingBranchIds.has(r.branchId) ? { ...r, branchId: null } : r
+  snapshot.bookings = snapshot.bookings.map(keepBranch)
+  snapshot.branchAliases = snapshot.branchAliases.map(keepBranch)
 
   // 還原前自動存一份現在的狀態，當作安全網
   const safetyBackupId = await createSafetyBackup(`還原前自動備份（即將還原到「${row.label || row.id}」）`)
