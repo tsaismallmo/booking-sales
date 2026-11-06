@@ -122,6 +122,29 @@ export const bookingRequests = pgTable('booking_requests', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
+// 訂位需求：客人要的日期／時段現貨單裡沒有符合的位子，客服登記下來，後勤去跟餐廳訂。
+// 跟上面的 bookingRequests（已有單據要改內容）不同，這裡還沒有單據。
+export const seatRequestStatusEnum = pgEnum('seat_request_status', ['pending', 'booked', 'failed', 'cancelled'])
+export const seatRequests = pgTable('seat_requests', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  branchId: uuid('branch_id').references(() => branches.id),
+  branch: text('branch'), // 「餐廳｜分店」
+  bookingDate: date('booking_date').notNull(),
+  timeSlot: text('time_slot'),
+  partySize: integer('party_size'),
+  customerName: text('customer_name'),
+  customerPhone: text('customer_phone'),
+  note: text('note'), // 客服補充（例如可接受的時段範圍）
+  status: seatRequestStatusEnum('status').notNull().default('pending'), // 待訂位／已訂到／訂不到／已取消
+  bookingCode: text('booking_code'), // 後勤訂到後填的訂位代號
+  resultNote: text('result_note'), // 後勤處理備註（訂不到的原因、實際訂到的時段等）
+  createdById: uuid('created_by_id').references(() => users.id),
+  handledById: uuid('handled_by_id').references(() => users.id),
+  handledByName: text('handled_by_name'),
+  handledAt: timestamp('handled_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
 // 廠商名單清單：一個廠商可以建立多份命名清單（例如依用途分開管理），可排序。
 // ownerEmail 只是標記這份清單算誰的（廠商本人或其員工），不影響誰看得到——
 // 同一個廠商底下（廠商本人＋所有廠商員工）看得到彼此全部的清單。

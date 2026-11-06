@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { SeatRequestsPanel } from "@/components/SeatRequestsPanel";
 
 type BookingRequest = {
   id: string;
@@ -54,12 +55,19 @@ export default function RequestsPage() {
   const [canManageQueue, setCanManageQueue] = useState(false); // 刪除權限維持只有管理員／後勤，跟能不能處理是分開的兩件事
   const [myUserId, setMyUserId] = useState("");
   const [resolvedByNames, setResolvedByNames] = useState<Record<string, string>>({});
+  // 「需要訂位」分頁：客服登記、後勤處理，廠商／廠商員工不用看
+  const [tab, setTab] = useState<"modify" | "seat">("modify");
+  const [seatRoles, setSeatRoles] = useState({ visible: false, canCreate: false, canHandle: false, canCancel: false });
 
   useEffect(() => {
     fetch("/api/me")
       .then((res) => res.json())
       .then((me) => {
         const roles: string[] = me.roles ?? [];
+        const isCS = roles.includes("customer_service");
+        const isAdmin = roles.includes("admin");
+        const isLogistics = roles.includes("logistics");
+        setSeatRoles({ visible: isCS || isAdmin || isLogistics, canCreate: isCS || isAdmin, canHandle: isLogistics || isAdmin, canCancel: isCS || isAdmin });
         // 廠商／廠商員工看到的清單本來就只有包含自己單據的需求（見 /api/booking-requests 的廠商分支），
         // 所以清單裡的每一筆對他們來說都能處理，不用再逐筆判斷
         setCanResolve(roles.includes("logistics") || roles.includes("admin") || roles.includes("vendor") || roles.includes("vendor_staff"));
@@ -119,10 +127,25 @@ export default function RequestsPage() {
       <div className="erp-page-header">
         <div>
           <h1 className="erp-page-title">需求看板</h1>
-          <p className="erp-page-subtitle">客服發起的修改需求，共 {loading ? "…" : requests.length} 筆待處理</p>
+          <p className="erp-page-subtitle">
+            {tab === "modify"
+              ? <>客服發起的修改需求，共 {loading ? "…" : requests.length} 筆待處理</>
+              : <>客人要的日期現貨單沒有，客服登記、後勤去訂</>}
+          </p>
         </div>
       </div>
 
+      {seatRoles.visible && (
+        <div className="erp-tabs" style={{ marginBottom: 16 }}>
+          <button className={`erp-tab${tab === "modify" ? " active" : ""}`} onClick={() => setTab("modify")}>修改需求</button>
+          <button className={`erp-tab${tab === "seat" ? " active" : ""}`} onClick={() => setTab("seat")}>需要訂位</button>
+        </div>
+      )}
+
+      {tab === "seat" ? (
+        <SeatRequestsPanel canCreate={seatRoles.canCreate} canHandle={seatRoles.canHandle} canCancel={seatRoles.canCancel} />
+      ) : (
+      <>
       {loading && <p style={{ color: "var(--gray-400)" }}>載入中...</p>}
 
       {!loading && requests.length === 0 && (
@@ -200,6 +223,8 @@ export default function RequestsPage() {
           );
         })}
       </div>
+      </>
+      )}
     </div>
   );
 }
