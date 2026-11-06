@@ -1,3 +1,4 @@
+import { staffBookerNames } from '@/lib/staff-booker'
 import { NextRequest, NextResponse } from 'next/server'
 import { eq, and, inArray, arrayOverlaps } from 'drizzle-orm'
 import { db } from '@/lib/db'
@@ -32,8 +33,7 @@ async function isMergedWithOwnBooking(id: string, userId: string) {
 // 廠商員工：所屬廠商底下、實際訂位人員是自己（比對帳號表姓名）的單據，只給看不給改
 async function isBookedByStaff(row: typeof bookings.$inferSelect, userId: string, employerVendorId: string | null | undefined) {
   if (!employerVendorId || row.vendorId !== employerVendorId || !row.actualBooker) return false
-  const [me] = await db.select({ name: users.name }).from(users).where(eq(users.id, userId))
-  return !!me?.name && me.name === row.actualBooker
+  return (await staffBookerNames(userId, employerVendorId)).includes(row.actualBooker)
 }
 
 async function getOwnedBooking(id: string, userId: string, roles: Role[], { allowMergedView = false, employerVendorId }: { allowMergedView?: boolean; employerVendorId?: string | null } = {}) {
