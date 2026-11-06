@@ -9,6 +9,7 @@ import { refreshRequestStatus, taipeiToday } from '@/lib/seat-requests'
 // 整筆訂位需求的處理（個別候選日期的已訂到／訂不到在 /api/seat-requests/options/[id]）：
 //   edit（修改客人資料、候選日期、順位）：客服／管理員（後勤只負責訂，不改需求內容）
 //   cancelled（客人不要了）：客服／管理員
+//   complete（已訂到 → 已完成）／uncomplete（已完成 → 改回已訂到）：客服／管理員
 //   finish（剩下還沒訂的候選不訂了，結束這筆需求）：三種角色都可以
 //   reopen（改回待訂位，被跳過、日期還沒過的候選恢復待訂）：三種角色都可以，按錯時用
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -31,6 +32,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     //   有 id 的是原本的候選——還沒處理的可以改分店／日期／時段，已處理的（訂到／訂不到／不訂了）只改順位；
     //   沒有 id 的是新加的候選；原本有但清單裡沒有的，還沒處理的刪掉，已處理的保留排在最後
     if (existing.status === 'cancelled') return NextResponse.json({ error: '已取消的需求請先改回待訂位再修改' }, { status: 400 })
+    if (existing.status === 'completed') return NextResponse.json({ error: '已完成的需求請先改回已訂到再修改' }, { status: 400 })
     const inputs: { id?: string; branchId?: string; branch?: string; bookingDate?: string; timeSlot?: string; partySize?: string | number }[] = Array.isArray(body.options) ? body.options : []
     const current = await db.select().from(seatRequestOptions).where(eq(seatRequestOptions.requestId, id))
     const byId = new Map(current.map((o) => [o.id, o]))
@@ -73,6 +75,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }).where(eq(seatRequests.id, id))
     // 已結束的需求加了新的候選，會自動回到待訂位
     await refreshRequestStatus(id)
+  } else if (body.action === 'complete') {
+    if (!canCancel) return NextResponse.json({ error: '只有客服或管理員能按完成' }, { status: 403 })
+    if (existing.status !== 'booked') return NextResponse.json({ error: '已訂到的需求才能按完成' }, { status: 400 })
+    await db.update(seatRequests).set({ status: 'completed', ...handled }).where(eq(seatRequests.id, id))
+  } else if (body.action === 'uncomplete') {
+    if (!canCancel) return NextResponse.json({ error: '只有客服或管理員能改回' }, { status: 403 })
+    if (existing.status !== 'completed') return NextResponse.json({ error: '這筆需求不是已完成' }, { status: 400 })
+    await db.update(seatRequests).set({ status: 'booked', handledById: null, handledByName: null, handledAt: null }).where(eq(seatRequests.id, id))
   } else if (body.action === 'cancelled') {
     if (!canCancel) return NextResponse.json({ error: '只有客服或管理員能取消' }, { status: 403 })
     await db.update(seatRequests).set({ status: 'cancelled', resultNote: body.resultNote || existing.resultNote, ...handled }).where(eq(seatRequests.id, id))
@@ -82,6 +92,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     await db.update(seatRequests).set({ resultNote: body.resultNote || existing.resultNote, ...handled }).where(eq(seatRequests.id, id))
     await refreshRequestStatus(id)
   } else if (body.action === 'reopen') {
+    if (existing.status === 'completed') return NextResponse.json({ error: '已完成的需求請先改回已訂到' }, { status: 400 })
     await db.update(seatRequestOptions).set({ status: 'pending', resultNote: null, handledById: null, handledByName: null, handledAt: null })
       .where(and(eq(seatRequestOptions.requestId, id), eq(seatRequestOptions.status, 'skipped'), gte(seatRequestOptions.bookingDate, taipeiToday())))
     await db.update(seatRequests).set({ status: 'pending', resultNote: null, handledById: null, handledByName: null, handledAt: null }).where(eq(seatRequests.id, id))

@@ -22,6 +22,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!existing) return NextResponse.json({ error: 'not found' }, { status: 404 })
   const [request] = await db.select({ status: seatRequests.status }).from(seatRequests).where(eq(seatRequests.id, existing.requestId))
   if (request?.status === 'cancelled') return NextResponse.json({ error: '這筆需求已取消，請先改回待訂位' }, { status: 400 })
+  if (request?.status === 'completed') return NextResponse.json({ error: '這筆需求已完成，請先改回已訂到' }, { status: 400 })
 
   const body = await req.json()
   const handled = { handledById: session.user.id, handledByName: body.handledByName || session.user.name || null, handledAt: new Date() }

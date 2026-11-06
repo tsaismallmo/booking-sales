@@ -125,8 +125,9 @@ export const bookingRequests = pgTable('booking_requests', {
 // 訂位需求：客人要的日期／時段現貨單裡沒有符合的位子，客服登記下來，後勤去跟餐廳訂。
 // 跟上面的 bookingRequests（已有單據要改內容）不同，這裡還沒有單據。
 // 一個客人一筆需求，底下可以有多個候選日期（seatRequestOptions，依順位排、可以跨餐廳／分店）。
-// status 是整筆需求的狀態：還有候選要訂就是 pending；全部處理完，有訂到算 booked、都沒訂到算 failed；客人不要了是 cancelled
-export const seatRequestStatusEnum = pgEnum('seat_request_status', ['pending', 'booked', 'failed', 'cancelled'])
+// status 是整筆需求的狀態：還有候選要訂就是 pending；全部處理完，有訂到算 booked、都沒訂到算 failed；客人不要了是 cancelled；
+// 已訂到之後客服確認完成（例如已通知客人）是 completed
+export const seatRequestStatusEnum = pgEnum('seat_request_status', ['pending', 'booked', 'failed', 'cancelled', 'completed'])
 export const seatRequests = pgTable('seat_requests', {
   id: uuid('id').defaultRandom().primaryKey(),
   customerName: text('customer_name'),

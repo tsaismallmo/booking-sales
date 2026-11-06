@@ -29,10 +29,10 @@ export function taipeiToday() {
 }
 
 // 候選日期處理完之後重算整筆需求的狀態：還有候選待訂就是 pending，
-// 全部處理完，有任何一個訂到算 booked；一個都沒訂到就整筆取消。已取消的需求不動。
+// 全部處理完，有任何一個訂到算 booked；一個都沒訂到就整筆取消。已取消、已完成的需求不動。
 export async function refreshRequestStatus(requestId: string) {
   const [req] = await db.select({ status: seatRequests.status }).from(seatRequests).where(eq(seatRequests.id, requestId))
-  if (!req || req.status === 'cancelled') return
+  if (!req || req.status === 'cancelled' || req.status === 'completed') return
   const opts = await db.select({ status: seatRequestOptions.status, resultNote: seatRequestOptions.resultNote }).from(seatRequestOptions).where(eq(seatRequestOptions.requestId, requestId))
   const status = opts.some((o) => o.status === 'pending') ? 'pending' : opts.some((o) => o.status === 'booked') ? 'booked' : 'cancelled'
   if (status === req.status) return

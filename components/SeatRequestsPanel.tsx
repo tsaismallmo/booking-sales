@@ -29,7 +29,7 @@ type SeatRequest = {
   customerName: string | null;
   customerPhone: string | null;
   note: string | null;
-  status: "pending" | "booked" | "failed" | "cancelled";
+  status: "pending" | "booked" | "failed" | "cancelled" | "completed";
   resultNote: string | null;
   handledByName: string | null;
   handledAt: string | null;
@@ -41,6 +41,7 @@ type SeatRequest = {
 const STATUS_TABS: { key: SeatRequest["status"]; label: string }[] = [
   { key: "pending", label: "待訂位" },
   { key: "booked", label: "已訂到" },
+  { key: "completed", label: "已完成" },
   { key: "cancelled", label: "已取消" },
 ];
 
@@ -325,7 +326,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", fontSize: 14 }}>
           <strong>{r.customerName || "（未填姓名）"}</strong>
           {r.customerPhone && <span style={{ color: "var(--gray-600)" }}>{r.customerPhone}</span>}
-          {r.status !== "pending" && <span className={`badge ${r.status === "booked" ? "badge-green" : r.status === "failed" ? "badge-red" : "badge-gray"}`}>{STATUS_TABS.find((t) => t.key === r.status)?.label}</span>}
+          {r.status !== "pending" && <span className={`badge ${r.status === "booked" ? "badge-green" : r.status === "completed" ? "badge-blue" : r.status === "failed" ? "badge-red" : "badge-gray"}`}>{STATUS_TABS.find((t) => t.key === r.status)?.label}</span>}
         </div>
         {r.note && <div style={{ fontSize: 13, marginTop: 6 }}>備註：{r.note}</div>}
 
@@ -352,7 +353,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
                         <button className="btn btn-primary" style={{ fontSize: 12, padding: "2px 10px" }} onClick={() => { setActing({ optionId: o.id, action: "booked" }); setActForm({ bookingCode: "", resultNote: "", handledByName: myName }); }}>已訂到</button>
                       </>
                     )}
-                    {r.status !== "cancelled" && (o.status === "booked" || o.status === "failed") && (canHandle || canCancel) && (
+                    {r.status !== "cancelled" && r.status !== "completed" && (o.status === "booked" || o.status === "failed") && (canHandle || canCancel) && (
                       <button className="btn btn-ghost" style={{ fontSize: 12, padding: "2px 8px" }} onClick={() => { if (confirm("這個候選改回待訂？")) patchOption(o.id, { action: "reopen" }); }}>改回待訂</button>
                     )}
                   </span>
@@ -388,12 +389,18 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
 
         <div style={{ fontSize: 12, marginTop: 8, color: "var(--gray-400)" }}>
           {r.createdByName ?? "—"} 登記於 {new Date(r.createdAt).toLocaleString("zh-TW")}
-          {r.handledAt && r.status !== "pending" && <>　｜　{r.handledByName ?? "—"} {r.status === "cancelled" ? "取消" : "結束"}於 {new Date(r.handledAt).toLocaleString("zh-TW")}</>}
+          {r.handledAt && r.status !== "pending" && <>　｜　{r.handledByName ?? "—"} {r.status === "cancelled" ? "取消" : r.status === "completed" ? "完成" : "結束"}於 {new Date(r.handledAt).toLocaleString("zh-TW")}</>}
           {r.resultNote && r.status !== "pending" && <>　｜　原因：{r.resultNote}</>}
         </div>
 
         <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          {r.status !== "cancelled" && canCreate && (
+          {r.status === "booked" && canCancel && (
+            <button className="btn btn-primary" onClick={() => { if (confirm("這筆需求確認完成？")) patchRequest(r.id, { action: "complete" }); }}>完成</button>
+          )}
+          {r.status === "completed" && canCancel && (
+            <button className="btn btn-ghost" onClick={() => { if (confirm("改回已訂到？")) patchRequest(r.id, { action: "uncomplete" }); }}>改回已訂到</button>
+          )}
+          {r.status !== "cancelled" && r.status !== "completed" && canCreate && (
             <button className="btn btn-secondary" onClick={() => startEdit(r)}>修改</button>
           )}
           {r.status === "pending" && (canHandle || canCancel) && r.options.some((o) => o.status !== "pending") && (
@@ -402,7 +409,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
           {r.status === "pending" && canCancel && (
             <button className="btn btn-ghost" style={{ color: "var(--color-danger)" }} onClick={() => { if (confirm("客人不要了，取消這筆訂位需求？")) patchRequest(r.id, { action: "cancelled" }); }}>取消需求</button>
           )}
-          {r.status !== "pending" && (canHandle || canCancel) && (
+          {r.status !== "pending" && r.status !== "completed" && (canHandle || canCancel) && (
             <button className="btn btn-ghost" onClick={() => { if (confirm("改回待訂位？（不訂了的候選會恢復待訂）")) patchRequest(r.id, { action: "reopen" }); }}>改回待訂位</button>
           )}
           {r.status === "cancelled" && canCancel && (
