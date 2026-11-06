@@ -26,6 +26,7 @@ function NewBookingForm() {
     partySize: "",
     bookingCode: "",
     cancelDeadline: "",
+    paymentDeadline: "",
     actualBooker: "",
     depositAmount: "",
     depositPayer: "",
@@ -130,6 +131,10 @@ function NewBookingForm() {
             <div className="erp-form-group">
               <label className="erp-label">退訂期限</label>
               <input type="date" className="erp-input" value={form.cancelDeadline} onChange={set("cancelDeadline")} />
+            </div>
+            <div className="erp-form-group">
+              <label className="erp-label">付款期限</label>
+              <input type="date" className="erp-input" value={form.paymentDeadline} onChange={set("paymentDeadline")} />
             </div>
             <div className="erp-form-group">
               <label className="erp-label">實際訂位人員</label>
