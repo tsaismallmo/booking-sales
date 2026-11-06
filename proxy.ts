@@ -23,8 +23,14 @@ export default auth((req) => {
   const isAdmin = roles.includes('admin')
   const isVendor = roles.includes('vendor')
   const isLogistics = roles.includes('logistics')
-  // 依身份決定進來後預設帶去哪裡：廠商去單據管理，管理員去所有單據，純客服去看板，純後勤去需求處理
-  const fallback = isVendor ? '/bookings' : isAdmin ? '/admin/bookings' : roles.includes('customer_service') ? '/dashboard' : isLogistics ? '/requests' : '/dashboard'
+  const isVendorStaff = roles.includes('vendor_staff')
+  // 依身份決定進來後預設帶去哪裡：廠商去單據管理，管理員去所有單據，純客服去看板，純後勤去需求處理，純廠商員工去自己的單據管理
+  const fallback = isVendor ? '/bookings' : isAdmin ? '/admin/bookings' : roles.includes('customer_service') ? '/dashboard' : isLogistics ? '/requests' : isVendorStaff ? '/bookings/booked' : '/dashboard'
+
+  // 現貨單看板、已售看板：客服／管理員（導回的頁面剛好就是這裡時不擋，避免無限導向）
+  if ((pathname === '/dashboard' || pathname.startsWith('/dashboard/sold')) && !isAdmin && !roles.includes('customer_service') && pathname !== fallback) {
+    return NextResponse.redirect(new URL(fallback, req.url))
+  }
 
   // 帳號管理、分店對應表、餐廳／分店管理只給管理員
   if ((pathname.startsWith('/accounts') || pathname.startsWith('/branch-aliases') || pathname.startsWith('/restaurants')) && !isAdmin) {
@@ -48,8 +54,8 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
-  // 需求看板給後勤人員／管理員／客服（能處理）／廠商員工；單純廠商不用看
-  if (pathname.startsWith('/requests') && !isLogistics && !isAdmin && !roles.includes('customer_service') && !roles.includes('vendor_staff')) {
+  // 需求看板給後勤人員／管理員／客服；廠商、廠商員工不用看
+  if (pathname.startsWith('/requests') && !isLogistics && !isAdmin && !roles.includes('customer_service')) {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
@@ -58,23 +64,23 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
-  // 臨時單看板：客服／管理員／後勤可以處理；廠商員工也能看，但只看得到還沒訂位代號的部分（頁面自己再篩一次）
-  if (pathname.startsWith('/dashboard/temp') && !isAdmin && !roles.includes('customer_service') && !isLogistics && !roles.includes('vendor_staff')) {
+  // 臨時單看板：客服／管理員／後勤
+  if (pathname.startsWith('/dashboard/temp') && !isAdmin && !roles.includes('customer_service') && !isLogistics) {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
-  // 廠商名單：廠商本人可管理，廠商員工可唯讀查看所屬廠商的名單
-  if (pathname.startsWith('/roster') && !roles.includes('vendor') && !roles.includes('vendor_staff')) {
+  // 廠商名單：只給廠商本人（廠商員工只需要單據管理）
+  if (pathname.startsWith('/roster') && !isVendor) {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
-  // 訂位看板（月曆/Inline/EZTABLE）：廠商本人跟廠商員工都能看
-  if (pathname.startsWith('/booking-board') && !roles.includes('vendor') && !roles.includes('vendor_staff')) {
+  // 訂位看板（月曆/Inline/EZTABLE）：只給廠商本人
+  if (pathname.startsWith('/booking-board') && !isVendor) {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
-  // 訂金付款看板：廠商本人跟廠商員工都能看
-  if (pathname.startsWith('/deposit-board') && !roles.includes('vendor') && !roles.includes('vendor_staff')) {
+  // 訂金付款看板、退訂提醒：只給廠商本人
+  if ((pathname.startsWith('/deposit-board') || pathname.startsWith('/reminder')) && !isVendor) {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 

@@ -37,8 +37,8 @@ export function Sidebar({ roles }: { roles: Role[] }) {
 
       <nav className="erp-sidebar-nav">
 
-        {/* ── 看板 ── 客服 / 管理員 / 後勤 / 廠商員工（單純廠商沒有看板） */}
-        {(isCustomerService || isAdmin || isLogistics || isVendorStaff) && (
+        {/* ── 看板 ── 客服 / 管理員 / 後勤（廠商、廠商員工沒有看板） */}
+        {(isCustomerService || isAdmin || isLogistics) && (
           <div className="erp-sidebar-section">看板</div>
         )}
         {(isCustomerService || isAdmin) && (
@@ -47,7 +47,7 @@ export function Sidebar({ roles }: { roles: Role[] }) {
             現貨單看板
           </Link>
         )}
-        {(isCustomerService || isAdmin || isLogistics || isVendorStaff) && (
+        {(isCustomerService || isAdmin || isLogistics) && (
           <Link href="/dashboard/temp" className={cn("erp-sidebar-item", (pathname.startsWith("/dashboard/temp") || (pathname.startsWith("/bookings") && fromTemp)) && "active")}>
             <Clock3 size={15} />
             臨時單看板
@@ -65,7 +65,7 @@ export function Sidebar({ roles }: { roles: Role[] }) {
             已售看板
           </Link>
         )}
-        {(isLogistics || isAdmin || isCustomerService || isVendorStaff) && (
+        {(isLogistics || isAdmin || isCustomerService) && (
           <Link href="/requests" className={cn("erp-sidebar-item", pathname.startsWith("/requests") && "active")}>
             <Wrench size={15} />
             需求看板
@@ -84,14 +84,14 @@ export function Sidebar({ roles }: { roles: Role[] }) {
           </>
         )}
 
-        {/* ── 廠商 ── 廠商本人 / 廠商員工 / 管理員(平台分潤) */}
-        {(isVendor || isVendorStaff || isAdmin) && (
+        {/* ── 廠商 ── 廠商本人 / 管理員(平台分潤)；廠商員工只需要單據管理 */}
+        {(isVendor || isAdmin) && (
           <>
             <div className="erp-sidebar-divider" />
             <div className="erp-sidebar-section">廠商</div>
           </>
         )}
-        {(isVendor || isVendorStaff) && (
+        {isVendor && (
           <>
             <Link href="/roster" className={cn("erp-sidebar-item", pathname.startsWith("/roster") && "active")}>
               <BookUser size={15} />
@@ -107,7 +107,7 @@ export function Sidebar({ roles }: { roles: Role[] }) {
             </Link>
           </>
         )}
-        {(isVendor || isVendorStaff) && (
+        {isVendor && (
           <Link href="/reminder" className={cn("erp-sidebar-item", pathname.startsWith("/reminder") && "active")}>
             <BellRing size={15} />
             退訂提醒
