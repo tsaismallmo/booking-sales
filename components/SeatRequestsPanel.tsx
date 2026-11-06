@@ -41,7 +41,6 @@ type SeatRequest = {
 const STATUS_TABS: { key: SeatRequest["status"]; label: string }[] = [
   { key: "pending", label: "待訂位" },
   { key: "booked", label: "已訂到" },
-  { key: "failed", label: "訂不到" },
   { key: "cancelled", label: "已取消" },
 ];
 
@@ -51,12 +50,16 @@ const OPTION_BADGE: Record<OptionStatus, { cls: string; label: string }> = {
   failed: { cls: "badge-red", label: "訂不到" },
   skipped: { cls: "badge-gray", label: "不訂了" },
 };
+// 日期過了被系統自動結束的候選（API 的 EXPIRED_NOTE）
+const EXPIRED_NOTE = "日期已過";
+const optionBadge = (status: OptionStatus, resultNote: string | null | undefined) =>
+  status === "skipped" && resultNote === EXPIRED_NOTE ? { cls: "badge-gray", label: "已過期" } : OPTION_BADGE[status];
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 const MEAL_ORDER = ["午餐", "下午茶", "晚餐", "時段不限"];
 
 // id：修改時原本就有的候選；locked：已處理過（訂到／訂不到／不訂了）的候選，只能調順位
-type OptionRow = { key: number; id?: string; locked?: OptionStatus; bookingCode?: string | null; branchId: string; branch: string; bookingDate: string; timeSlot: string; partySize: string };
+type OptionRow = { key: number; id?: string; locked?: OptionStatus; lockedNote?: string | null; bookingCode?: string | null; branchId: string; branch: string; bookingDate: string; timeSlot: string; partySize: string };
 let rowKey = 0;
 // 新增候選時沿用上一個候選的分店、時段和人數，客人通常是同一間換日期
 const newRow = (from?: OptionRow): OptionRow => ({ key: ++rowKey, branchId: from?.branchId ?? "", branch: from?.branch ?? "", bookingDate: "", timeSlot: from?.timeSlot ?? "", partySize: from?.partySize ?? "" });
@@ -142,6 +145,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
       key: ++rowKey,
       id: o.id,
       locked: o.status === "pending" ? undefined : o.status,
+      lockedNote: o.resultNote,
       bookingCode: o.bookingCode,
       branchId: o.branchId ?? "",
       branch: o.branch ?? "",
@@ -336,16 +340,15 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
                   <strong>{shortDate(o.bookingDate)}</strong>
                   <span>{getMealPeriod(o.timeSlot) ?? ""} {o.timeSlot || "時段不限"}</span>
                   <span>{o.partySize ? `${o.partySize}人` : "人數未填"}</span>
-                  <span className={`badge ${OPTION_BADGE[o.status].cls}`} style={{ fontSize: 11 }}>{OPTION_BADGE[o.status].label}</span>
+                  <span className={`badge ${optionBadge(o.status, o.resultNote).cls}`} style={{ fontSize: 11 }}>{optionBadge(o.status, o.resultNote).label}</span>
                   {o.stockMatches.length > 0 && <span className="badge badge-warning" style={{ fontSize: 11 }}>現貨單有 {o.stockMatches.length} 筆符合</span>}
                   {o.status === "booked" && <span>代號 <strong>{o.bookingCode}</strong></span>}
-                  {o.resultNote && <span style={{ color: "var(--gray-600)" }}>{o.status === "failed" ? "原因：" : ""}{o.resultNote}</span>}
+                  {o.resultNote && o.resultNote !== EXPIRED_NOTE && <span style={{ color: "var(--gray-600)" }}>{o.status === "failed" ? "原因：" : ""}{o.resultNote}</span>}
                   {o.handledAt && done && <span style={{ fontSize: 11, color: "var(--gray-400)" }}>{o.handledByName ?? "—"} {new Date(o.handledAt).toLocaleDateString("zh-TW")}</span>}
                   <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
                     {r.status === "pending" && o.status === "pending" && canHandle && (
                       <>
                         <button className="btn btn-primary" style={{ fontSize: 12, padding: "2px 10px" }} onClick={() => setActing({ optionId: o.id, action: "booked" })}>已訂到</button>
-                        <button className="btn btn-secondary" style={{ fontSize: 12, padding: "2px 10px" }} onClick={() => setActing({ optionId: o.id, action: "failed" })}>訂不到</button>
                       </>
                     )}
                     {r.status !== "cancelled" && (o.status === "booked" || o.status === "failed") && (canHandle || canCancel) && (
@@ -455,7 +458,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
                       {row.locked ? (
                         <span style={{ flex: "4 1 400px", alignSelf: "center", fontSize: 13, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                           {row.branch || "—"}　<strong>{shortDate(row.bookingDate)}</strong>　{getMealPeriod(row.timeSlot) ?? ""} {row.timeSlot || "時段不限"}　{row.partySize ? `${row.partySize}人` : "人數未填"}
-                          <span className={`badge ${OPTION_BADGE[row.locked].cls}`} style={{ fontSize: 11 }}>{OPTION_BADGE[row.locked].label}</span>
+                          <span className={`badge ${optionBadge(row.locked, row.lockedNote).cls}`} style={{ fontSize: 11 }}>{optionBadge(row.locked, row.lockedNote).label}</span>
                           {row.bookingCode && <span>代號 {row.bookingCode}</span>}
                           <span style={{ color: "var(--gray-400)", fontSize: 12 }}>已處理，只能調順位</span>
                         </span>

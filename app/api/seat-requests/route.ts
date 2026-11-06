@@ -4,13 +4,16 @@ import { db } from '@/lib/db'
 import { seatRequestOptions, seatRequests, users } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
 import { resolveBranch } from '@/lib/branches'
-import { findStock, matchesStock } from '@/lib/seat-requests'
+import { expirePastOptions, findStock, matchesStock, taipeiToday } from '@/lib/seat-requests'
 
 // 訂位需求看板：客服／管理員／後勤都能看。一個客人一筆，底下是依順位排的候選日期。
 // 還在等的候選附上「現在現貨單有幾筆符合」，登記之後現貨單才出現位子時看板上也看得到
 export async function GET() {
   const session = await requireRole('customer_service', 'admin', 'logistics')
   if (!session) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+
+  // 每次打開看板先把過期的候選結束掉，全部過期又沒訂到的需求會自動取消
+  await expirePastOptions()
 
   const rows = await db
     .select({ request: seatRequests, createdByName: users.name })
@@ -53,6 +56,7 @@ export async function POST(req: NextRequest) {
     const r = await resolveBranch({ branchId: o.branchId, branch: o.branch })
     if (!r.branchId) return NextResponse.json({ error: `第 ${i + 1} 順位請選擇餐廳和分店` }, { status: 400 })
     if (!o.bookingDate) return NextResponse.json({ error: `第 ${i + 1} 順位請填日期` }, { status: 400 })
+    if (o.bookingDate < taipeiToday()) return NextResponse.json({ error: `第 ${i + 1} 順位的日期已經過了` }, { status: 400 })
     resolved.push({ priority: i + 1, branchId: r.branchId, branch: r.branch, bookingDate: o.bookingDate, timeSlot: o.timeSlot || null, partySize: o.partySize ? Number(o.partySize) || null : null })
   }
 

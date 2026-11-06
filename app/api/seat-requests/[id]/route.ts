@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, gte } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { seatRequestOptions, seatRequests } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
 import { resolveBranch } from '@/lib/branches'
-import { refreshRequestStatus } from '@/lib/seat-requests'
+import { refreshRequestStatus, taipeiToday } from '@/lib/seat-requests'
 
 // 整筆訂位需求的處理（個別候選日期的已訂到／訂不到在 /api/seat-requests/options/[id]）：
 //   edit（修改客人資料、候選日期、順位）：客服／管理員（後勤只負責訂，不改需求內容）
 //   cancelled（客人不要了）：客服／管理員
 //   finish（剩下還沒訂的候選不訂了，結束這筆需求）：三種角色都可以
-//   reopen（改回待訂位，被跳過的候選也恢復待訂）：三種角色都可以，按錯時用
+//   reopen（改回待訂位，被跳過、日期還沒過的候選恢復待訂）：三種角色都可以，按錯時用
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireRole('customer_service', 'admin', 'logistics')
   if (!session) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
@@ -47,6 +47,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const r = await resolveBranch({ branchId: o.branchId, branch: o.branch })
       if (!r.branchId) return NextResponse.json({ error: `第 ${priority} 順位請選擇餐廳和分店` }, { status: 400 })
       if (!o.bookingDate) return NextResponse.json({ error: `第 ${priority} 順位請填日期` }, { status: 400 })
+      if (o.bookingDate < taipeiToday() && o.bookingDate !== old?.bookingDate) return NextResponse.json({ error: `第 ${priority} 順位的日期已經過了` }, { status: 400 })
       const values = { priority, branchId: r.branchId, branch: r.branch, bookingDate: o.bookingDate, timeSlot: o.timeSlot || null, partySize: o.partySize ? Number(o.partySize) || null : null }
       plans.push(old ? { kind: 'update', id: old.id, values } : { kind: 'insert', values: { ...values, requestId: id } })
     }
@@ -81,9 +82,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     await db.update(seatRequests).set({ resultNote: body.resultNote || existing.resultNote, ...handled }).where(eq(seatRequests.id, id))
     await refreshRequestStatus(id)
   } else if (body.action === 'reopen') {
-    await db.update(seatRequestOptions).set({ status: 'pending', handledById: null, handledByName: null, handledAt: null })
-      .where(and(eq(seatRequestOptions.requestId, id), eq(seatRequestOptions.status, 'skipped')))
-    await db.update(seatRequests).set({ status: 'pending', handledById: null, handledByName: null, handledAt: null }).where(eq(seatRequests.id, id))
+    await db.update(seatRequestOptions).set({ status: 'pending', resultNote: null, handledById: null, handledByName: null, handledAt: null })
+      .where(and(eq(seatRequestOptions.requestId, id), eq(seatRequestOptions.status, 'skipped'), gte(seatRequestOptions.bookingDate, taipeiToday())))
+    await db.update(seatRequests).set({ status: 'pending', resultNote: null, handledById: null, handledByName: null, handledAt: null }).where(eq(seatRequests.id, id))
     await refreshRequestStatus(id)
   } else {
     return NextResponse.json({ error: '不認得的動作' }, { status: 400 })
