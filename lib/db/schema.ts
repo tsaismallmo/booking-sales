@@ -124,21 +124,38 @@ export const bookingRequests = pgTable('booking_requests', {
 
 // 訂位需求：客人要的日期／時段現貨單裡沒有符合的位子，客服登記下來，後勤去跟餐廳訂。
 // 跟上面的 bookingRequests（已有單據要改內容）不同，這裡還沒有單據。
+// 一個客人一筆需求，底下可以有多個候選日期（seatRequestOptions，依順位排、可以跨餐廳／分店）。
+// status 是整筆需求的狀態：還有候選要訂就是 pending；全部處理完，有訂到算 booked、都沒訂到算 failed；客人不要了是 cancelled
 export const seatRequestStatusEnum = pgEnum('seat_request_status', ['pending', 'booked', 'failed', 'cancelled'])
 export const seatRequests = pgTable('seat_requests', {
   id: uuid('id').defaultRandom().primaryKey(),
-  branchId: uuid('branch_id').references(() => branches.id),
-  branch: text('branch'), // 「餐廳｜分店」
-  bookingDate: date('booking_date').notNull(),
-  timeSlot: text('time_slot'),
   partySize: integer('party_size'),
   customerName: text('customer_name'),
   customerPhone: text('customer_phone'),
   note: text('note'), // 客服補充（例如可接受的時段範圍）
-  status: seatRequestStatusEnum('status').notNull().default('pending'), // 待訂位／已訂到／訂不到／已取消
-  bookingCode: text('booking_code'), // 後勤訂到後填的訂位代號
-  resultNote: text('result_note'), // 後勤處理備註（訂不到的原因、實際訂到的時段等）
+  status: seatRequestStatusEnum('status').notNull().default('pending'),
+  resultNote: text('result_note'), // 取消／結束的原因
   createdById: uuid('created_by_id').references(() => users.id),
+  handledById: uuid('handled_by_id').references(() => users.id),
+  handledByName: text('handled_by_name'),
+  handledAt: timestamp('handled_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+// 訂位需求的候選日期：priority 1 是客人最想要的。
+// skipped = 這個候選不訂了（已經訂到別的、或整筆需求結束）
+export const seatRequestOptionStatusEnum = pgEnum('seat_request_option_status', ['pending', 'booked', 'failed', 'skipped'])
+export const seatRequestOptions = pgTable('seat_request_options', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  requestId: uuid('request_id').notNull().references(() => seatRequests.id, { onDelete: 'cascade' }),
+  priority: integer('priority').notNull().default(1),
+  branchId: uuid('branch_id').references(() => branches.id),
+  branch: text('branch'), // 「餐廳｜分店」
+  bookingDate: date('booking_date').notNull(),
+  timeSlot: text('time_slot'),
+  status: seatRequestOptionStatusEnum('status').notNull().default('pending'),
+  bookingCode: text('booking_code'), // 後勤訂到後填的訂位代號
+  resultNote: text('result_note'), // 訂不到的原因、實際訂到的時段等
   handledById: uuid('handled_by_id').references(() => users.id),
   handledByName: text('handled_by_name'),
   handledAt: timestamp('handled_at'),

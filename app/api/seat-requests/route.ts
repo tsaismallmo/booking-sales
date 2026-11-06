@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { desc, eq } from 'drizzle-orm'
+import { asc, desc, eq } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { seatRequests, users } from '@/lib/db/schema'
+import { seatRequestOptions, seatRequests, users } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
 import { resolveBranch } from '@/lib/branches'
 import { findStock, matchesStock } from '@/lib/seat-requests'
 
-// 訂位需求看板：客服／管理員／後勤都能看。每筆附上「現在現貨單有幾筆符合」，
-// 登記之後現貨單才出現符合的位子時，看板上也看得到，可以直接用現貨不用再去訂
+// 訂位需求看板：客服／管理員／後勤都能看。一個客人一筆，底下是依順位排的候選日期。
+// 還在等的候選附上「現在現貨單有幾筆符合」，登記之後現貨單才出現位子時看板上也看得到
 export async function GET() {
   const session = await requireRole('customer_service', 'admin', 'logistics')
   if (!session) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
@@ -17,36 +17,61 @@ export async function GET() {
     .from(seatRequests)
     .leftJoin(users, eq(seatRequests.createdById, users.id))
     .orderBy(desc(seatRequests.createdAt))
-  const stock = await findStock(rows.filter((r) => r.request.status === 'pending').map((r) => r.request))
+  const options = await db.select().from(seatRequestOptions).orderBy(asc(seatRequestOptions.priority), asc(seatRequestOptions.createdAt))
+
+  const pendingIds = new Set(rows.filter((r) => r.request.status === 'pending').map((r) => r.request.id))
+  const partyOf = new Map(rows.map((r) => [r.request.id, r.request.partySize]))
+  const waiting = options.filter((o) => o.status === 'pending' && pendingIds.has(o.requestId))
+  const stock = await findStock(waiting.map((o) => ({ ...o, partySize: partyOf.get(o.requestId) ?? null })))
 
   return NextResponse.json(rows.map(({ request, createdByName }) => ({
     ...request,
     createdByName,
-    stockMatches: request.status === 'pending' ? stock.filter((b) => matchesStock(request, b)) : [],
+    options: options
+      .filter((o) => o.requestId === request.id)
+      .map((o) => ({
+        ...o,
+        stockMatches: o.status === 'pending' && request.status === 'pending'
+          ? stock.filter((b) => matchesStock({ ...o, partySize: request.partySize }, b))
+          : [],
+      })),
   })))
 }
 
-// 登記訂位需求：客服／管理員
+type OptionInput = { branchId?: string; branch?: string; bookingDate?: string; timeSlot?: string }
+
+// 登記訂位需求：客服／管理員。options 依順位排，第一個是客人最想要的
 export async function POST(req: NextRequest) {
   const session = await requireRole('customer_service', 'admin')
   if (!session) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
   const body = await req.json()
-  const resolved = await resolveBranch({ branchId: body.branchId, branch: body.branch })
-  if (!resolved.branchId) return NextResponse.json({ error: '請選擇餐廳和分店' }, { status: 400 })
-  if (!body.bookingDate) return NextResponse.json({ error: '請填日期' }, { status: 400 })
+  const inputs: OptionInput[] = Array.isArray(body.options) ? body.options : []
+  if (inputs.length === 0) return NextResponse.json({ error: '至少要填一個候選日期' }, { status: 400 })
+
+  const resolved = []
+  for (const [i, o] of inputs.entries()) {
+    const r = await resolveBranch({ branchId: o.branchId, branch: o.branch })
+    if (!r.branchId) return NextResponse.json({ error: `第 ${i + 1} 順位請選擇餐廳和分店` }, { status: 400 })
+    if (!o.bookingDate) return NextResponse.json({ error: `第 ${i + 1} 順位請填日期` }, { status: 400 })
+    resolved.push({ priority: i + 1, branchId: r.branchId, branch: r.branch, bookingDate: o.bookingDate, timeSlot: o.timeSlot || null })
+  }
 
   const [row] = await db.insert(seatRequests).values({
-    branchId: resolved.branchId,
-    branch: resolved.branch,
-    bookingDate: body.bookingDate,
-    timeSlot: body.timeSlot || null,
     partySize: body.partySize ? Number(body.partySize) || null : null,
     customerName: body.customerName || null,
     customerPhone: body.customerPhone || null,
     note: body.note || null,
     createdById: session.user.id,
   }).returning()
+
+  // neon-http 沒有交易，候選寫失敗就把剛建的需求刪掉，不留沒有候選的空需求
+  try {
+    await db.insert(seatRequestOptions).values(resolved.map((o) => ({ ...o, requestId: row.id })))
+  } catch (err) {
+    await db.delete(seatRequests).where(eq(seatRequests.id, row.id))
+    throw err
+  }
 
   return NextResponse.json(row, { status: 201 })
 }
