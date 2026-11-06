@@ -429,7 +429,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
 
       {!loading && view === "calendar" && (
         <>
-          <div className="erp-card" style={{ marginBottom: 16 }}>
+          <div className="erp-card" style={{ marginBottom: 16, maxWidth: 860 }}>
             <div className="erp-card-header" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <button className="btn btn-ghost" style={{ padding: "2px 10px" }} onClick={() => shiftMonth(-1)}>‹</button>
               <span className="erp-card-title">{month.y} 年 {month.m + 1} 月</span>
@@ -448,9 +448,9 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
               </span>
             </div>
             <div className="erp-card-body" style={{ padding: 8 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 4 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 2 }}>
                 {WEEKDAYS.map((w, i) => (
-                  <div key={w} style={{ textAlign: "center", fontSize: 12, fontWeight: 600, color: i === 0 || i === 6 ? "var(--color-danger)" : "var(--gray-500)", padding: "4px 0" }}>{w}</div>
+                  <div key={w} style={{ textAlign: "center", fontSize: 11, fontWeight: 600, color: i === 0 || i === 6 ? "var(--color-danger)" : "var(--gray-500)", padding: "2px 0" }}>{w}</div>
                 ))}
                 {cells.map((date, i) => {
                   if (!date) return <div key={`e${i}`} />;
@@ -465,9 +465,9 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
                       type="button"
                       onClick={() => setSelectedDate(selected ? null : date)}
                       style={{
-                        minHeight: 86,
+                        minHeight: 52,
                         textAlign: "left",
-                        padding: 4,
+                        padding: "2px 4px",
                         borderRadius: 6,
                         cursor: "pointer",
                         border: selected ? "2px solid var(--brand-500)" : date === today ? "1px solid var(--brand-300)" : "1px solid var(--gray-200)",
@@ -481,17 +481,17 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
                         font: "inherit",
                       }}
                     >
-                      <span style={{ fontSize: 12, fontWeight: 600, display: "flex", justifyContent: "space-between", width: "100%" }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, display: "flex", justifyContent: "space-between", width: "100%" }}>
                         <span>{Number(date.slice(8))}</span>
                         {totalGroups > 0 && <span style={{ color: "var(--brand-700)" }}>{totalGroups}組</span>}
                       </span>
                       {entries.map(([label, meals]) => (
-                        <span key={label} style={{ display: "flex", flexDirection: "column", width: "100%", fontSize: 11, lineHeight: 1.35 }}>
+                        <span key={label} style={{ display: "flex", flexDirection: "column", width: "100%", fontSize: 10, lineHeight: 1.25 }}>
                           <span title={label} style={{ fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label.replace("｜", " ")}</span>
                           {[...meals.entries()]
                             .sort(([a], [b]) => MEAL_ORDER.indexOf(a) - MEAL_ORDER.indexOf(b))
                             .map(([meal, m]) => (
-                              <span key={meal} style={{ paddingLeft: 4 }}>
+                              <span key={meal} style={{ paddingLeft: 2 }}>
                                 {m.stock && <span style={{ color: "var(--color-warning)" }} title="現貨單已經有符合的位子">⚠</span>}
                                 {meal} <strong>{m.sizes.length}組</strong>：{m.sizes.map((s) => (s ? `${s}人` : "?人")).join("、")}
                               </span>
