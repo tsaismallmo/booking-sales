@@ -55,7 +55,8 @@ const OPTION_BADGE: Record<OptionStatus, { cls: string; label: string }> = {
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 const MEAL_ORDER = ["午餐", "下午茶", "晚餐", "時段不限"];
 
-type OptionRow = { key: number; branchId: string; branch: string; bookingDate: string; timeSlot: string };
+// id：修改時原本就有的候選；locked：已處理過（訂到／訂不到／不訂了）的候選，只能調順位
+type OptionRow = { key: number; id?: string; locked?: OptionStatus; bookingCode?: string | null; branchId: string; branch: string; bookingDate: string; timeSlot: string };
 let rowKey = 0;
 // 新增候選時沿用上一個候選的分店和時段，客人通常是同一間換日期
 const newRow = (from?: OptionRow): OptionRow => ({ key: ++rowKey, branchId: from?.branchId ?? "", branch: from?.branch ?? "", bookingDate: "", timeSlot: from?.timeSlot ?? "" });
@@ -87,6 +88,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
   const [view, setView] = useState<"list" | "calendar">("calendar");
   const [statusTab, setStatusTab] = useState<SeatRequest["status"]>("pending");
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null); // 有值 = 表單在修改這筆需求
   const [customer, setCustomer] = useState(emptyCustomer);
   const [optionRows, setOptionRows] = useState<OptionRow[]>(() => [newRow()]);
   const [formStock, setFormStock] = useState<StockMatch[][]>([]);
@@ -121,7 +123,34 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
       .then((data) => { if (!stale) setFormStock(Array.isArray(data) ? data : []); });
     return () => { stale = true; };
   }, [stockKey, showForm]);
-  const formStockCount = optionRows.reduce((n, r, i) => n + (r.branchId && r.bookingDate ? formStock[i]?.length ?? 0 : 0), 0);
+  const formStockCount = optionRows.reduce((n, r, i) => n + (!r.locked && r.branchId && r.bookingDate ? formStock[i]?.length ?? 0 : 0), 0);
+
+  const closeForm = () => {
+    setCustomer(emptyCustomer);
+    setOptionRows([newRow()]);
+    setEditingId(null);
+    setShowForm(false);
+    setError("");
+  };
+
+  // 修改：把這筆需求的客人資料和候選帶進表單
+  const startEdit = (r: SeatRequest) => {
+    setEditingId(r.id);
+    setCustomer({ partySize: r.partySize ? String(r.partySize) : "", customerName: r.customerName ?? "", customerPhone: r.customerPhone ?? "", note: r.note ?? "" });
+    setOptionRows(r.options.map((o) => ({
+      key: ++rowKey,
+      id: o.id,
+      locked: o.status === "pending" ? undefined : o.status,
+      bookingCode: o.bookingCode,
+      branchId: o.branchId ?? "",
+      branch: o.branch ?? "",
+      bookingDate: o.bookingDate,
+      timeSlot: o.timeSlot ?? "",
+    })));
+    setShowForm(true);
+    setError("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const setCust = (field: keyof typeof emptyCustomer) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setCustomer((f) => ({ ...f, [field]: e.target.value }));
@@ -136,26 +165,32 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
 
   const handleCreate = async () => {
     for (const [i, r] of optionRows.entries()) {
+      if (r.locked) continue;
       if (!r.branchId) return setError(`第 ${i + 1} 順位請選擇餐廳和分店`);
       if (!r.bookingDate) return setError(`第 ${i + 1} 順位請填日期`);
     }
-    if (formStockCount > 0 && !confirm(`現貨單已經有 ${formStockCount} 筆符合候選日期、還沒售出的位子，確定還要登記訂位需求？`)) return;
+    if (formStockCount > 0 && !confirm(`現貨單已經有 ${formStockCount} 筆符合候選日期、還沒售出的位子，確定還要${editingId ? "儲存" : "登記訂位需求"}？`)) return;
     setSaving(true);
     setError("");
-    const res = await fetch("/api/seat-requests", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...customer, options: optionRows.map(({ branchId, branch, bookingDate, timeSlot }) => ({ branchId, branch, bookingDate, timeSlot })) }),
-    });
+    const options = optionRows.map(({ id, branchId, branch, bookingDate, timeSlot }) => ({ id, branchId, branch, bookingDate, timeSlot }));
+    const res = editingId
+      ? await fetch(`/api/seat-requests/${editingId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "edit", ...customer, options }),
+        })
+      : await fetch("/api/seat-requests", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...customer, options }),
+        });
     setSaving(false);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      return setError(data.error || "登記失敗");
+      return setError(data.error || (editingId ? "修改失敗" : "登記失敗"));
     }
-    setCustomer(emptyCustomer);
-    setOptionRows([newRow()]);
-    setShowForm(false);
-    setStatusTab("pending");
+    if (!editingId) setStatusTab("pending");
+    closeForm();
     load();
   };
 
@@ -323,6 +358,9 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
         </div>
 
         <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          {r.status !== "cancelled" && (canHandle || canCancel) && (
+            <button className="btn btn-secondary" onClick={() => startEdit(r)}>修改</button>
+          )}
           {r.status === "pending" && (canHandle || canCancel) && r.options.some((o) => o.status !== "pending") && (
             <button className="btn btn-secondary" onClick={() => { if (confirm("剩下還沒訂的候選都不訂了，結束這筆需求？")) patchRequest(r.id, { action: "finish" }); }}>結束需求</button>
           )}
@@ -345,7 +383,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
           <button className={`erp-tab${view === "list" ? " active" : ""}`} onClick={() => setView("list")}>依客人</button>
         </div>
         {canCreate && (
-          <button className="btn btn-primary" style={{ marginLeft: "auto" }} onClick={() => setShowForm((s) => !s)}>
+          <button className="btn btn-primary" style={{ marginLeft: "auto" }} onClick={() => (showForm ? closeForm() : setShowForm(true))}>
             {showForm ? "收起" : "＋ 登記需要訂位"}
           </button>
         )}
@@ -355,7 +393,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
 
       {showForm && (
         <div className="erp-card" style={{ marginBottom: 16 }}>
-          <div className="erp-card-header"><span className="erp-card-title">登記需要訂位</span></div>
+          <div className="erp-card-header"><span className="erp-card-title">{editingId ? "修改需要訂位" : "登記需要訂位"}</span></div>
           <div className="erp-card-body">
             <div className="erp-form-grid">
               <div className="erp-form-group">
@@ -379,11 +417,20 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
             <div style={{ marginTop: 16, fontWeight: 600, fontSize: 14 }}>候選日期（依客人想要的順序，第 1 順位最想要）</div>
             <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 10 }}>
               {optionRows.map((row, i) => {
-                const stock = row.branchId && row.bookingDate ? formStock[i] ?? [] : [];
+                const stock = !row.locked && row.branchId && row.bookingDate ? formStock[i] ?? [] : [];
                 return (
-                  <div key={row.key} style={{ padding: 10, border: "1px solid var(--gray-200)", borderRadius: 6 }}>
+                  <div key={row.key} style={{ padding: 10, border: "1px solid var(--gray-200)", borderRadius: 6, background: row.locked ? "var(--gray-50)" : undefined }}>
                     <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
                       <span className="badge badge-navy" style={{ alignSelf: "center" }}>第{i + 1}順位</span>
+                      {row.locked ? (
+                        <span style={{ flex: "4 1 400px", alignSelf: "center", fontSize: 13, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                          {row.branch || "—"}　<strong>{shortDate(row.bookingDate)}</strong>　{getMealPeriod(row.timeSlot) ?? ""} {row.timeSlot || "時段不限"}
+                          <span className={`badge ${OPTION_BADGE[row.locked].cls}`} style={{ fontSize: 11 }}>{OPTION_BADGE[row.locked].label}</span>
+                          {row.bookingCode && <span>代號 {row.bookingCode}</span>}
+                          <span style={{ color: "var(--gray-400)", fontSize: 12 }}>已處理，只能調順位</span>
+                        </span>
+                      ) : (
+                      <>
                       <div style={{ flex: "2 1 260px" }}>
                         <label className="erp-label">餐廳／分店 <span className="required">*</span></label>
                         <BranchSelect branchId={row.branchId} branch={row.branch} onChange={(v) => updateRow(row.key, v)} />
@@ -396,10 +443,12 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
                         <label className="erp-label">時段</label>
                         <input className="erp-input" placeholder="例如 11:30" value={row.timeSlot} onChange={(e) => updateRow(row.key, { timeSlot: e.target.value })} />
                       </div>
+                      </>
+                      )}
                       <div style={{ display: "flex", gap: 4 }}>
                         <button type="button" className="btn btn-ghost" style={{ padding: "4px 8px" }} disabled={i === 0} onClick={() => moveRow(i, -1)} title="順位往前">↑</button>
                         <button type="button" className="btn btn-ghost" style={{ padding: "4px 8px" }} disabled={i === optionRows.length - 1} onClick={() => moveRow(i, 1)} title="順位往後">↓</button>
-                        <button type="button" className="btn btn-ghost" style={{ padding: "4px 8px", color: "var(--color-danger)" }} disabled={optionRows.length === 1} onClick={() => setOptionRows((rs) => rs.filter((r) => r.key !== row.key))}>刪除</button>
+                        <button type="button" className="btn btn-ghost" style={{ padding: "4px 8px", color: "var(--color-danger)" }} disabled={optionRows.length === 1 || !!row.locked} onClick={() => setOptionRows((rs) => rs.filter((r) => r.key !== row.key))}>刪除</button>
                       </div>
                     </div>
                     {stock.length > 0 && (
@@ -412,14 +461,17 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel }: { canCrea
                 );
               })}
             </div>
-            <button type="button" className="btn btn-secondary" style={{ marginTop: 10 }} onClick={() => setOptionRows((rs) => [...rs, newRow(rs[rs.length - 1])])}>
+            <button type="button" className="btn btn-secondary" style={{ marginTop: 10 }} onClick={() => setOptionRows((rs) => [...rs, newRow(rs.filter((r) => !r.locked).at(-1))])}>
               ＋ 再加一個候選日期
             </button>
             {formStockCount > 0 && (
               <div style={{ marginTop: 8, color: "var(--gray-500)", fontSize: 13 }}>有候選日期現貨單已經有位子，可以直接到現貨單看板賣，不用登記訂位需求</div>
             )}
-            <div style={{ marginTop: 16 }}>
-              <button className="btn btn-primary" disabled={saving} onClick={handleCreate}>{saving ? "登記中..." : "登記"}</button>
+            <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
+              <button className="btn btn-primary" disabled={saving} onClick={handleCreate}>
+                {saving ? (editingId ? "儲存中..." : "登記中...") : editingId ? "儲存修改" : "登記"}
+              </button>
+              {editingId && <button className="btn btn-ghost" onClick={closeForm}>取消修改</button>}
             </div>
           </div>
         </div>
