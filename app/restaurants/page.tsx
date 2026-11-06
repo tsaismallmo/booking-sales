@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-type Restaurant = { id: string; name: string; active: boolean; sortOrder: number };
+type Restaurant = { id: string; name: string; active: boolean; sortOrder: number; cancelDaysBefore: number };
 type Branch = { id: string; name: string; restaurantId: string; restaurantName: string; active: boolean };
 
 // 餐廳／分店主檔：只有管理員能維護。不提供刪除，只能停用（舊單據、備份都還指著它們）；
@@ -15,6 +15,7 @@ export default function RestaurantsPage() {
   const [newRestaurant, setNewRestaurant] = useState("");
   const [newBranch, setNewBranch] = useState<Record<string, string>>({});
   const [renaming, setRenaming] = useState<Record<string, string>>({});
+  const [cancelDays, setCancelDays] = useState<Record<string, string>>({});
 
   const load = () =>
     Promise.all([
@@ -86,7 +87,7 @@ export default function RestaurantsPage() {
       <div className="erp-page-header">
         <div>
           <h1 className="erp-page-title">餐廳／分店管理</h1>
-          <p className="erp-page-subtitle">建立單據時先選餐廳再選分店。不能刪除只能停用；改名或移動分店，已建立的單據會跟著更新顯示名稱</p>
+          <p className="erp-page-subtitle">建立單據時先選餐廳再選分店。單據沒填退訂期限時，會照餐廳設定的天數自動算。不能刪除只能停用；改名或移動分店，已建立的單據會跟著更新顯示名稱</p>
         </div>
       </div>
 
@@ -113,6 +114,35 @@ export default function RestaurantsPage() {
               {nameInput("restaurants", r.id, r.name, 160)}
               {!r.active && <span className="badge badge-gray">已停用</span>}
               <span style={{ fontSize: 12, color: "var(--gray-500)" }}>{own.length} 間分店</span>
+              <span style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 13 }}>
+                退訂期限：訂位日前
+                <input
+                  type="number"
+                  min={0}
+                  className="erp-input"
+                  style={{ width: 64, fontSize: 13 }}
+                  value={cancelDays[r.id] ?? String(r.cancelDaysBefore)}
+                  onChange={(e) => setCancelDays((c) => ({ ...c, [r.id]: e.target.value }))}
+                />
+                天
+                {cancelDays[r.id] !== undefined && cancelDays[r.id] !== String(r.cancelDaysBefore) && (
+                  <button
+                    className="btn btn-primary"
+                    style={{ padding: "4px 10px", fontSize: 12 }}
+                    onClick={async () => {
+                      if (await call(`/api/restaurants/${r.id}`, "PATCH", { cancelDaysBefore: Number(cancelDays[r.id]) })) {
+                        setCancelDays((c) => {
+                          const next = { ...c };
+                          delete next[r.id];
+                          return next;
+                        });
+                      }
+                    }}
+                  >
+                    儲存
+                  </button>
+                )}
+              </span>
               <button className="btn btn-ghost" style={{ marginLeft: "auto", padding: "4px 10px", fontSize: 12 }} onClick={() => call(`/api/restaurants/${r.id}`, "PATCH", { active: !r.active })}>
                 {r.active ? "停用餐廳" : "重新啟用"}
               </button>

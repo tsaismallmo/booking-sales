@@ -22,6 +22,7 @@ export const users = pgTable('users', {
 export const restaurants = pgTable('restaurants', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: text('name').notNull().unique(),
+  cancelDaysBefore: integer('cancel_days_before').notNull().default(7), // 退訂期限＝訂位日期往前幾天（單據沒填退訂期限時自動算）
   active: boolean('active').notNull().default(true),
   sortOrder: integer('sort_order').notNull().default(0),
   createdAt: timestamp('created_at').defaultNow().notNull(),

@@ -154,6 +154,7 @@ export default function EditBookingPage() {
               <div className="erp-form-group">
                 <label className="erp-label">退訂期限</label>
                 <input type="date" className="erp-input" value={form.cancelDeadline} onChange={set("cancelDeadline")} />
+                <span style={{ fontSize: 12, color: "var(--gray-400)" }}>留空會照餐廳設定自動算（例如島語訂位日前 3 天）</span>
               </div>
               <div className="erp-form-group">
                 <label className="erp-label">付款期限</label>

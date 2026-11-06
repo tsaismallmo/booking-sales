@@ -21,7 +21,8 @@ export async function POST(req: NextRequest) {
   if (!name) return NextResponse.json({ error: '缺少餐廳名稱' }, { status: 400 })
   if (name.includes('｜')) return NextResponse.json({ error: '餐廳名稱不能有「｜」' }, { status: 400 })
 
-  const [row] = await db.insert(restaurants).values({ name }).onConflictDoNothing().returning()
+  const cancelDaysBefore = body.cancelDaysBefore !== undefined ? Math.max(0, Math.floor(Number(body.cancelDaysBefore)) || 0) : 7
+  const [row] = await db.insert(restaurants).values({ name, cancelDaysBefore }).onConflictDoNothing().returning()
   if (!row) return NextResponse.json({ error: '已經有同名的餐廳' }, { status: 409 })
   return NextResponse.json(row, { status: 201 })
 }

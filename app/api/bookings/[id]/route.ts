@@ -7,7 +7,7 @@ import type { Role } from '@/types/next-auth'
 import { LOGISTICS_CATEGORIES } from '@/lib/roles'
 import { computeShare } from '@/lib/platform-share'
 import { getRatesForVendorMonth } from '@/lib/platform-settings'
-import { resolveBranch } from '@/lib/branches'
+import { defaultCancelDeadline, listBranchOptions, resolveBranch } from '@/lib/branches'
 
 // 日期/數字欄位如果表單留空，前端送的是空字串 ''，但資料庫的 date/numeric 欄位不接受空字串，要轉成 null
 function blankToNull<T>(v: T): T | null {
@@ -99,7 +99,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   // 分店：有送 branchId 或 branch 才重新對主檔，沒送就保留原本的
   const branchChanged = !pureCustomerService && (body.branchId !== undefined || body.branch !== undefined)
-  const resolved = branchChanged ? await resolveBranch({ branchId: body.branchId, branch: body.branch }) : { branchId: existing.branchId, branch: existing.branch }
+  const branchOptions = await listBranchOptions()
+  const resolved = branchChanged ? await resolveBranch({ branchId: body.branchId, branch: body.branch }, branchOptions) : { branchId: existing.branchId, branch: existing.branch }
+
+  // 退訂期限：清空就照餐廳設定自動算；原本就是自動算出來的值、這次改了日期或分店，也跟著重算；手動填過別的日期就保留
+  const nextBookingDate = pureCustomerService ? existing.bookingDate : (body.bookingDate ?? existing.bookingDate)
+  const askedDeadline = pureCustomerService ? existing.cancelDeadline : blankToNull(body.cancelDeadline ?? existing.cancelDeadline)
+  const wasAuto = !!existing.cancelDeadline && existing.cancelDeadline === (await defaultCancelDeadline(existing.branchId, existing.bookingDate, branchOptions))
+  const cancelDeadline = !pureCustomerService && (!askedDeadline || (wasAuto && askedDeadline === existing.cancelDeadline))
+    ? ((await defaultCancelDeadline(resolved.branchId, nextBookingDate, branchOptions)) ?? askedDeadline)
+    : askedDeadline
 
   const [row] = await db
     .update(bookings)
@@ -112,7 +121,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       partySize: pureCustomerService ? existing.partySize : (body.partySize !== undefined ? Number(body.partySize) || null : existing.partySize),
       bookingCode: pureCustomerService ? existing.bookingCode : (body.bookingCode ?? existing.bookingCode),
       status: body.status ?? existing.status,
-      cancelDeadline: pureCustomerService ? existing.cancelDeadline : blankToNull(body.cancelDeadline ?? existing.cancelDeadline),
+      cancelDeadline,
       paymentDeadline: pureCustomerService ? existing.paymentDeadline : blankToNull(body.paymentDeadline ?? existing.paymentDeadline),
       depositAmount: pureCustomerService ? existing.depositAmount : blankToNull(body.depositAmount ?? existing.depositAmount),
       depositPayer: pureCustomerService ? existing.depositPayer : (body.depositPayer ?? existing.depositPayer),

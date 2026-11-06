@@ -3,7 +3,7 @@ import { inArray } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { bookings, users } from '@/lib/db/schema'
 import { auth } from '@/auth'
-import { listBranchOptions, resolveBranch } from '@/lib/branches'
+import { defaultCancelDeadline, listBranchOptions, resolveBranch } from '@/lib/branches'
 
 type ImportRow = {
   vendorName: string
@@ -134,9 +134,10 @@ export async function POST(req: NextRequest) {
 
       const status = r.status === 'sold' || r.status === 'refunded' ? r.status : 'unsold'
 
+      const resolvedBranch = await resolveBranch({ branch: r.branch }, branchOptions)
       values.push({
         vendorId,
-        ...(await resolveBranch({ branch: r.branch }, branchOptions)),
+        ...resolvedBranch,
         category: '現貨單' as const,
         bookingDate,
         timeSlot: r.timeSlot || null,
@@ -146,7 +147,7 @@ export async function POST(req: NextRequest) {
         customerPhone: r.customerPhone || null,
         depositAmount,
         depositPayer: r.depositPayer || null,
-        cancelDeadline: normalizeDate(r.cancelDeadline) || null,
+        cancelDeadline: normalizeDate(r.cancelDeadline) || (await defaultCancelDeadline(resolvedBranch.branchId, bookingDate, branchOptions)),
         status,
         isEztable: r.platform === 'eztable',
         isInline: r.platform === 'inline',

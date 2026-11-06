@@ -26,6 +26,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const [row] = await db.update(restaurants).set({
     name,
     active: body.active ?? existing.active,
+    cancelDaysBefore: body.cancelDaysBefore !== undefined ? Math.max(0, Math.floor(Number(body.cancelDaysBefore)) || 0) : existing.cancelDaysBefore,
     sortOrder: body.sortOrder ?? existing.sortOrder,
   }).where(eq(restaurants.id, id)).returning()
 

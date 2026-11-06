@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { bookings } from '@/lib/db/schema'
 import { auth } from '@/auth'
 import { LOGISTICS_CATEGORIES } from '@/lib/roles'
-import { resolveBranch } from '@/lib/branches'
+import { defaultCancelDeadline, resolveBranch } from '@/lib/branches'
 
 export async function GET() {
   const session = await auth()
@@ -89,7 +89,8 @@ export async function POST(req: NextRequest) {
       partySize: body.partySize ? Number(body.partySize) : null,
       bookingCode: body.bookingCode || null,
       status: body.status || 'unsold',
-      cancelDeadline: body.cancelDeadline || null,
+      // 沒填退訂期限就照餐廳設定自動算（例如島語訂位日前 3 天）
+      cancelDeadline: body.cancelDeadline || (await defaultCancelDeadline(resolved.branchId, body.bookingDate)),
       paymentDeadline: body.paymentDeadline || null,
       depositAmount: body.depositAmount || null,
       depositPayer: body.depositPayer || null,

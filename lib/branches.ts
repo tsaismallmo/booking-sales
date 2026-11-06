@@ -8,16 +8,30 @@ export function branchLabel(restaurantName: string, branchName: string) {
   return `${restaurantName}${BRANCH_SEPARATOR}${branchName}`
 }
 
-export type BranchOption = { id: string; name: string; restaurantId: string; restaurantName: string; label: string; active: boolean }
+export type BranchOption = { id: string; name: string; restaurantId: string; restaurantName: string; label: string; active: boolean; cancelDaysBefore: number }
 
 export async function listBranchOptions(): Promise<BranchOption[]> {
   const rows = await db
-    .select({ id: branches.id, name: branches.name, active: branches.active, restaurantId: restaurants.id, restaurantName: restaurants.name, restaurantActive: restaurants.active, rSort: restaurants.sortOrder, bSort: branches.sortOrder })
+    .select({ id: branches.id, name: branches.name, active: branches.active, restaurantId: restaurants.id, restaurantName: restaurants.name, restaurantActive: restaurants.active, cancelDaysBefore: restaurants.cancelDaysBefore, rSort: restaurants.sortOrder, bSort: branches.sortOrder })
     .from(branches)
     .innerJoin(restaurants, eq(branches.restaurantId, restaurants.id))
   return rows
     .sort((a, b) => a.rSort - b.rSort || a.restaurantName.localeCompare(b.restaurantName) || a.bSort - b.bSort || a.name.localeCompare(b.name))
-    .map((r) => ({ id: r.id, name: r.name, restaurantId: r.restaurantId, restaurantName: r.restaurantName, label: branchLabel(r.restaurantName, r.name), active: r.active && r.restaurantActive }))
+    .map((r) => ({ id: r.id, name: r.name, restaurantId: r.restaurantId, restaurantName: r.restaurantName, label: branchLabel(r.restaurantName, r.name), active: r.active && r.restaurantActive, cancelDaysBefore: r.cancelDaysBefore }))
+}
+
+// 退訂期限＝訂位日期往前推餐廳設定的天數（日期都是 YYYY-MM-DD 純文字，用 UTC 算避免時區差一天）
+export function cancelDeadlineFor(bookingDate: string | null | undefined, daysBefore: number | null | undefined) {
+  if (!bookingDate || daysBefore == null || !/^\d{4}-\d{2}-\d{2}$/.test(bookingDate)) return null
+  const d = new Date(`${bookingDate}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() - daysBefore)
+  return d.toISOString().slice(0, 10)
+}
+
+export async function defaultCancelDeadline(branchId: string | null, bookingDate: string | null | undefined, options?: BranchOption[]) {
+  if (!branchId) return null
+  const opts = options ?? (await listBranchOptions())
+  return cancelDeadlineFor(bookingDate, opts.find((o) => o.id === branchId)?.cancelDaysBefore)
 }
 
 // 餐廳或分店改名、分店換餐廳之後，把指到這些分店的單據／簡訊對應文字一起更新成新的「餐廳｜分店」

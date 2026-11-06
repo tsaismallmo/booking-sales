@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-export type BranchOption = { id: string; name: string; restaurantId: string; restaurantName: string; label: string; active: boolean };
+export type BranchOption = { id: string; name: string; restaurantId: string; restaurantName: string; label: string; active: boolean; cancelDaysBefore: number };
 
 // 同一頁可能有很多個下拉（大量解析每一列一個），分店清單只抓一次
 let cached: Promise<BranchOption[]> | null = null;
