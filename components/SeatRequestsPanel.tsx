@@ -145,14 +145,13 @@ function buildMonitorFile(requests: SeatRequest[]) {
 }
 
 // ── 饗賓監控程式的參數檔：每行「客人 分店 日期 餐期 人數」，只放監控程式認得的饗賓分店 ──
-// 系統分店（餐廳｜分店）→ 監控程式的分店寫法：有簡稱的用簡稱，饗饗有兩間分店，用全名分開
+// 系統分店（餐廳｜分店）→ 監控程式 STORES 的正式名稱。監控程式只查這 5 間，其他分店不放
 const FEAST_BRANCHES: Record<string, string> = {
-  "旭集｜台中大遠百店": "旭集台中",
-  "旭集｜信義店": "旭集信義",
-  "旭集｜微風廣場店": "旭集微風",
-  "饗AJOY｜101店": "饗AJOY",
+  "旭集｜台中大遠百店": "旭集台中大遠百店",
+  "旭集｜信義店": "旭集信義店",
+  "旭集｜微風廣場店": "旭集微風廣場店",
+  "饗AJOY｜101店": "饗AJOY101店",
   "饗饗｜微風店": "饗饗微風店",
-  "饗饗｜新莊店": "饗饗新莊店",
 };
 function buildFeastFile(requests: SeatRequest[]) {
   const lines = new Map<string, { text: string; sort: string }>();
