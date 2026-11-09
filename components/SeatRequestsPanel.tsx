@@ -77,6 +77,73 @@ function weekdayOf(date: string) {
 }
 const shortDate = (date: string) => `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}（${weekdayOf(date)}）`;
 
+// ── 讀取加速：上次讀到的資料存在瀏覽器，打開時先顯示，背景再去資料庫拿最新的，有變才換掉 ──
+const CACHE_KEY = "seat-requests-cache-v1";
+let inflight: Promise<SeatRequest[] | null> | null = null;
+function readCache(): SeatRequest[] | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    const data = raw ? JSON.parse(raw) : null;
+    return Array.isArray(data) ? data : null;
+  } catch {
+    return null;
+  }
+}
+function fetchSeatRequests(): Promise<SeatRequest[] | null> {
+  // 同一時間只發一次（需求看板一打開就先預先讀，切到「需要訂位」時直接沿用）
+  inflight ??= fetch("/api/seat-requests")
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data) => {
+      if (!Array.isArray(data)) return null;
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify(data)); } catch { /* 存不了就算了 */ }
+      return data as SeatRequest[];
+    })
+    .catch(() => null)
+    .finally(() => { inflight = null; });
+  return inflight;
+}
+// 需求看板頁面一打開就呼叫，還在「修改需求」分頁時就先把訂位需求讀好
+export function prefetchSeatRequests() {
+  void fetchSeatRequests();
+}
+
+// ── 監控程式的參數檔：每行「客人 分店 日期 時段」，只放島語還在等的候選 ──
+const MONITOR_RESTAURANT = "島語";
+const MONITOR_CITIES = ["台北", "台中", "桃園", "高雄"];
+function monitorCity(branch: string | null) {
+  const [restaurant, name = ""] = (branch ?? "").split("｜");
+  if (restaurant !== MONITOR_RESTAURANT) return null;
+  return MONITOR_CITIES.find((c) => name.startsWith(c)) ?? null;
+}
+function buildMonitorFile(requests: SeatRequest[]) {
+  // 同一位客人、同一天、同時段的多間分店合成一行（台北、桃園）
+  const lines = new Map<string, { name: string; cities: string[]; date: string; slot: string; sort: string }>();
+  for (const r of requests) {
+    if (r.status !== "pending") continue;
+    const name = (r.customerName || r.customerPhone || "客人").replace(/\s+/g, "");
+    for (const o of r.options) {
+      const city = o.status === "pending" ? monitorCity(o.branch) : null;
+      if (!city) continue;
+      const slot = o.timeSlot || "都可";
+      const key = [r.id, o.bookingDate, slot].join("|");
+      const cur = lines.get(key) ?? { name, cities: [], date: `${Number(o.bookingDate.slice(5, 7))}/${Number(o.bookingDate.slice(8, 10))}`, slot, sort: `${o.bookingDate} ${slot}` };
+      if (!cur.cities.includes(city)) cur.cities.push(city);
+      lines.set(key, cur);
+    }
+  }
+  const body = [...lines.values()]
+    .sort((a, b) => a.sort.localeCompare(b.sort))
+    .map((l) => `${l.name} ${MONITOR_CITIES.filter((c) => l.cities.includes(c)).join("、")} ${l.date} ${l.slot}`);
+  return [
+    "# 客人需求：每行「客人 分店 日期 時段」",
+    "# 分店：台北 / 台中 / 桃園 / 高雄（多間用 、 隔開，例如 台北、桃園）",
+    "# 時段：午餐 / 下午茶 / 晚餐 / 都可，或具體時間如 17:30",
+    "# 日期過了會自動不比對；訂到的客人直接刪掉那一行",
+    ...body,
+    "",
+  ].join("\n");
+}
+
 function stockLine(s: StockMatch) {
   return `${s.bookingDate} ${s.timeSlot ?? "—"} ${s.partySize ?? "—"}人${s.bookingCode ? ` 代號${s.bookingCode}` : ""}`;
 }
@@ -86,8 +153,9 @@ function stockLine(s: StockMatch) {
 // 「月曆」看每一天有幾組客人在等；「依客人」看每位客人的候選。
 // 登記前和看板上都會比對現貨單，現貨單有符合、還沒售出的位子就提醒直接用現貨。
 export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = "" }: { canCreate: boolean; canHandle: boolean; canCancel: boolean; myName?: string }) {
-  const [rows, setRows] = useState<SeatRequest[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [rows, setRows] = useState<SeatRequest[]>(() => readCache() ?? []);
+  const [loading, setLoading] = useState(() => readCache() === null); // 有上次的資料就先顯示，不用等
+  const [refreshing, setRefreshing] = useState(true);
   const [view, setView] = useState<"list" | "calendar">("calendar");
   const [statusTab, setStatusTab] = useState<SeatRequest["status"]>("pending");
   const [showForm, setShowForm] = useState(false);
@@ -106,16 +174,29 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [branchFilter, setBranchFilter] = useState("");
 
-  const load = () =>
-    fetch("/api/seat-requests")
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        setRows(Array.isArray(data) ? data : []);
-        setLoading(false);
-      });
+  const fetchLatest = () =>
+    fetchSeatRequests().then((data) => {
+      if (data) setRows(data);
+      setLoading(false);
+      setRefreshing(false);
+    });
+  const load = () => {
+    setRefreshing(true);
+    return fetchLatest();
+  };
+
+  const downloadMonitorFile = () => {
+    const text = buildMonitorFile(rows);
+    const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "客人需求.txt";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   useEffect(() => {
-    void load();
+    void fetchLatest();
   }, []);
 
   // 表單每個候選選好分店＋日期就查現貨單（時段、人數有填也一起比）
@@ -423,8 +504,18 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
           <button className={`erp-tab${view === "calendar" ? " active" : ""}`} onClick={() => setView("calendar")}>月曆</button>
           <button className={`erp-tab${view === "list" ? " active" : ""}`} onClick={() => setView("list")}>依客人</button>
         </div>
+        {refreshing && !loading && <span style={{ fontSize: 12, color: "var(--gray-400)" }}>更新中…</span>}
+        <button
+          className="btn"
+          style={{ marginLeft: "auto" }}
+          disabled={loading}
+          onClick={downloadMonitorFile}
+          title="島語還在等的候選，寫成監控程式的參數檔（客人 分店 日期 時段）"
+        >
+          ⬇ 下載監控參數檔
+        </button>
         {canCreate && (
-          <button className="btn btn-primary" style={{ marginLeft: "auto" }} onClick={() => (showForm ? closeForm() : setShowForm(true))}>
+          <button className="btn btn-primary" onClick={() => (showForm ? closeForm() : setShowForm(true))}>
             {showForm ? "收起" : "＋ 登記需要訂位"}
           </button>
         )}

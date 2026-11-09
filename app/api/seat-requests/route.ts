@@ -12,16 +12,19 @@ export async function GET() {
   const session = await requireRole('customer_service', 'admin', 'logistics')
   if (!session) return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
-  // 每次打開看板先把過期的候選結束掉，全部過期又沒訂到的需求會自動取消
-  await expirePastOptions()
-
   // 已完成的需求不顯示在看板上（在 JS 這邊濾，不在 SQL 比對 enum，資料庫還沒加 completed 時也不會出錯）
-  const rows = (await db
-    .select({ request: seatRequests, createdByName: users.name })
-    .from(seatRequests)
-    .leftJoin(users, eq(seatRequests.createdById, users.id))
-    .orderBy(desc(seatRequests.createdAt))).filter((r) => r.request.status !== 'completed')
-  const options = await db.select().from(seatRequestOptions).orderBy(asc(seatRequestOptions.priority), asc(seatRequestOptions.createdAt))
+  const readAll = () => Promise.all([
+    db.select({ request: seatRequests, createdByName: users.name })
+      .from(seatRequests)
+      .leftJoin(users, eq(seatRequests.createdById, users.id))
+      .orderBy(desc(seatRequests.createdAt)),
+    db.select().from(seatRequestOptions).orderBy(asc(seatRequestOptions.priority), asc(seatRequestOptions.createdAt)),
+  ])
+  // 每次打開看板都要把過期的候選結束掉（全部過期又沒訂到的需求會自動取消）。
+  // 為了快，過期處理和讀資料同時跑；大部分時候沒有東西過期，有的話才再讀一次
+  const [expiredCount, first] = await Promise.all([expirePastOptions(), readAll()])
+  const [allRows, options] = expiredCount > 0 ? await readAll() : first
+  const rows = allRows.filter((r) => r.request.status !== 'completed')
 
   const pendingIds = new Set(rows.filter((r) => r.request.status === 'pending').map((r) => r.request.id))
   const waiting = options.filter((o) => o.status === 'pending' && pendingIds.has(o.requestId))

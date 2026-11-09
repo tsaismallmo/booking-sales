@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { SeatRequestsPanel } from "@/components/SeatRequestsPanel";
+import { SeatRequestsPanel, prefetchSeatRequests } from "@/components/SeatRequestsPanel";
 
 type BookingRequest = {
   id: string;
@@ -68,7 +68,13 @@ export default function RequestsPage() {
         const isCS = roles.includes("customer_service");
         const isAdmin = roles.includes("admin");
         const isLogistics = roles.includes("logistics");
-        setSeatRoles({ visible: isCS || isAdmin || isLogistics, canCreate: isCS || isAdmin, canHandle: isLogistics || isAdmin, canCancel: isCS || isAdmin });
+        const seatVisible = isCS || isAdmin || isLogistics;
+        setSeatRoles({ visible: seatVisible, canCreate: isCS || isAdmin, canHandle: isLogistics || isAdmin, canCancel: isCS || isAdmin });
+        if (seatVisible) {
+          prefetchSeatRequests();
+          // 記住上次看的分頁，常看「需要訂位」的人一打開就直接是那一頁
+          try { if (localStorage.getItem("requests-tab") === "seat") setTab("seat"); } catch { /* 忽略 */ }
+        }
         // 廠商／廠商員工看到的清單本來就只有包含自己單據的需求（見 /api/booking-requests 的廠商分支），
         // 所以清單裡的每一筆對他們來說都能處理，不用再逐筆判斷
         setCanResolve(roles.includes("logistics") || roles.includes("admin") || roles.includes("vendor") || roles.includes("vendor_staff"));
@@ -139,8 +145,8 @@ export default function RequestsPage() {
 
       {seatRoles.visible && (
         <div className="erp-tabs" style={{ marginBottom: 16 }}>
-          <button className={`erp-tab${tab === "modify" ? " active" : ""}`} onClick={() => setTab("modify")}>修改需求</button>
-          <button className={`erp-tab${tab === "seat" ? " active" : ""}`} onClick={() => setTab("seat")}>需要訂位</button>
+          <button className={`erp-tab${tab === "modify" ? " active" : ""}`} onClick={() => { setTab("modify"); try { localStorage.setItem("requests-tab", "modify"); } catch { /* 忽略 */ } }}>修改需求</button>
+          <button className={`erp-tab${tab === "seat" ? " active" : ""}`} onClick={() => { setTab("seat"); try { localStorage.setItem("requests-tab", "seat"); } catch { /* 忽略 */ } }}>需要訂位</button>
         </div>
       )}
 
