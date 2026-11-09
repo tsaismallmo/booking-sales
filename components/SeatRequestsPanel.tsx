@@ -144,6 +144,50 @@ function buildMonitorFile(requests: SeatRequest[]) {
   ].join("\n");
 }
 
+// ── 饗賓監控程式的參數檔：每行「客人 分店 日期 餐期 人數」，只放監控程式認得的饗賓分店 ──
+// 系統分店（餐廳｜分店）→ 監控程式的分店寫法：有簡稱的用簡稱，饗饗有兩間分店，用全名分開
+const FEAST_BRANCHES: Record<string, string> = {
+  "旭集｜台中大遠百店": "旭集台中",
+  "旭集｜信義店": "旭集信義",
+  "旭集｜微風廣場店": "旭集微風",
+  "饗AJOY｜101店": "饗AJOY",
+  "饗饗｜微風店": "饗饗微風店",
+  "饗饗｜新莊店": "饗饗新莊店",
+};
+function buildFeastFile(requests: SeatRequest[]) {
+  const lines = new Map<string, { text: string; sort: string }>();
+  for (const r of requests) {
+    if (r.status !== "pending") continue;
+    const name = (r.customerName || r.customerPhone || "客人").replace(/\s+/g, "");
+    for (const o of r.options) {
+      const branch = o.status === "pending" && o.branch ? FEAST_BRANCHES[o.branch] : undefined;
+      if (!branch) continue;
+      const meal = getMealPeriod(o.timeSlot) ?? "都可";
+      const date = `${Number(o.bookingDate.slice(5, 7))}/${Number(o.bookingDate.slice(8, 10))}`;
+      const text = [name, branch, date, meal, o.partySize ? String(o.partySize) : ""].filter(Boolean).join(" ");
+      lines.set(text, { text, sort: `${o.bookingDate} ${MEAL_ORDER.indexOf(meal)}` });
+    }
+  }
+  return [
+    "# 饗賓客人需求：每行「客人 分店 日期 餐期 人數」",
+    "# 分店：旭集台中 / 旭集信義 / 旭集微風 / 饗AJOY / 饗饗（全名也可以）",
+    "# 餐期：午餐 / 下午茶 / 晚餐 / 都可",
+    "# 人數：可省略（旭集台中＝人數不限；其他分店會用 2 人去查）",
+    "# 日期過了自動不比對；訂到的客人直接刪掉那一行",
+    ...[...lines.values()].sort((a, b) => a.sort.localeCompare(b.sort)).map((l) => l.text),
+    "",
+  ].join("\n");
+}
+
+function downloadText(fileName: string, text: string) {
+  const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function stockLine(s: StockMatch) {
   return `${s.bookingDate} ${s.timeSlot ?? "—"} ${s.partySize ?? "—"}人${s.bookingCode ? ` 代號${s.bookingCode}` : ""}`;
 }
@@ -185,14 +229,9 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
     return fetchLatest();
   };
 
-  const downloadMonitorFile = () => {
-    const text = buildMonitorFile(rows);
-    const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "customers.txt";
-    a.click();
-    URL.revokeObjectURL(url);
+  const downloadMonitorFile = () => downloadText("customers.txt", buildMonitorFile(rows));
+  const downloadFeastFile = () => {
+    downloadText("feast_customers.txt", buildFeastFile(rows));
   };
 
   useEffect(() => {
@@ -513,6 +552,14 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
           title="島語還在等的候選，寫成監控程式的參數檔（客人 分店 日期 時段）"
         >
           ⬇ 下載島語監控參數檔
+        </button>
+        <button
+          className="btn"
+          disabled={loading}
+          onClick={downloadFeastFile}
+          title="饗賓（旭集、饗饗、饗AJOY）還在等的候選，寫成監控程式的參數檔（客人 分店 日期 餐期 人數）"
+        >
+          ⬇ 下載饗賓監控參數檔
         </button>
         {canCreate && (
           <button className="btn btn-primary" onClick={() => (showForm ? closeForm() : setShowForm(true))}>
