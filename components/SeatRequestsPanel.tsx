@@ -163,7 +163,9 @@ function buildFeastFile(requests: SeatRequest[]) {
       if (!branch) continue;
       const meal = getMealPeriod(o.timeSlot) ?? "都可";
       const date = `${Number(o.bookingDate.slice(5, 7))}/${Number(o.bookingDate.slice(8, 10))}`;
-      const text = [name, branch, date, meal, o.partySize ? String(o.partySize) : ""].filter(Boolean).join(" ");
+      // 2 位的需求寫成 2-3（饗賓 2、3 人的位子都可以給 2 位客人）
+      const size = o.partySize === 2 ? "2-3" : o.partySize ? String(o.partySize) : "";
+      const text = [name, branch, date, meal, size].filter(Boolean).join(" ");
       lines.set(text, { text, sort: `${o.bookingDate} ${MEAL_ORDER.indexOf(meal)}` });
     }
   }
