@@ -190,7 +190,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
     const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = "客人需求.txt";
+    a.download = "島語客人需求.txt";
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -512,7 +512,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
           onClick={downloadMonitorFile}
           title="島語還在等的候選，寫成監控程式的參數檔（客人 分店 日期 時段）"
         >
-          ⬇ 下載監控參數檔
+          ⬇ 下載島語監控參數檔
         </button>
         {canCreate && (
           <button className="btn btn-primary" onClick={() => (showForm ? closeForm() : setShowForm(true))}>
