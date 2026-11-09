@@ -1,4 +1,4 @@
-import { and, eq, inArray, lt } from 'drizzle-orm'
+import { and, eq, inArray, lte } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { bookings, seatRequestOptions, seatRequests } from '@/lib/db/schema'
 
@@ -48,13 +48,13 @@ export async function refreshRequestStatus(requestId: string) {
   }
 }
 
-// 日期已經過了還沒訂到的候選自動結束（標成「日期已過」）；
+// 日期是今天或已經過了、還沒訂到的候選自動結束（標成「日期已過」，只看日期不看時段）；
 // 客人的候選全部結束又沒有訂到任何一個，整筆自動取消，還有沒過期的就繼續等
 export async function expirePastOptions() {
   const expired = await db
     .update(seatRequestOptions)
     .set({ status: 'skipped', resultNote: EXPIRED_NOTE, handledById: null, handledByName: '系統', handledAt: new Date() })
-    .where(and(eq(seatRequestOptions.status, 'pending'), lt(seatRequestOptions.bookingDate, taipeiToday())))
+    .where(and(eq(seatRequestOptions.status, 'pending'), lte(seatRequestOptions.bookingDate, taipeiToday())))
     .returning({ requestId: seatRequestOptions.requestId })
   for (const id of new Set(expired.map((e) => e.requestId))) await refreshRequestStatus(id)
 }
