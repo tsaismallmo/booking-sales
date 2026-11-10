@@ -301,6 +301,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
       if (r.locked) continue;
       if (!r.branchId) return setError(`第 ${i + 1} 順位請選擇餐廳和分店`);
       if (!r.bookingDate) return setError(`第 ${i + 1} 順位請填日期`);
+      if (!r.timeSlot) return setError(`第 ${i + 1} 順位請選餐期`);
     }
     if (formStockCount > 0 && !confirm(`現貨單已經有 ${formStockCount} 筆符合候選日期、還沒售出的位子，確定還要${editingId ? "儲存" : "登記訂位需求"}？`)) return;
     setSaving(true);
@@ -621,9 +622,9 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
                         <input type="date" className="erp-input" value={row.bookingDate} onChange={(e) => updateRow(row.key, { bookingDate: e.target.value })} />
                       </div>
                       <div style={{ flex: "1 1 100px" }}>
-                        <label className="erp-label">餐期</label>
+                        <label className="erp-label">餐期 <span className="required">*</span></label>
                         <select className="erp-input" value={row.timeSlot} onChange={(e) => updateRow(row.key, { timeSlot: e.target.value })}>
-                          <option value="">都可</option>
+                          <option value="" disabled>選餐期</option>
                           <option value="午餐">午餐</option>
                           <option value="下午茶">下午茶</option>
                           <option value="晚餐">晚餐</option>

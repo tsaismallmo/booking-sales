@@ -49,6 +49,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const r = await resolveBranch({ branchId: o.branchId, branch: o.branch })
       if (!r.branchId) return NextResponse.json({ error: `第 ${priority} 順位請選擇餐廳和分店` }, { status: 400 })
       if (!o.bookingDate) return NextResponse.json({ error: `第 ${priority} 順位請填日期` }, { status: 400 })
+      if (!o.timeSlot) return NextResponse.json({ error: `第 ${priority} 順位請選餐期` }, { status: 400 })
       if (o.bookingDate <= taipeiToday() && o.bookingDate !== old?.bookingDate) return NextResponse.json({ error: `第 ${priority} 順位的日期是今天或已經過了，要從明天以後` }, { status: 400 })
       const values = { priority, branchId: r.branchId, branch: r.branch, bookingDate: o.bookingDate, timeSlot: o.timeSlot || null, partySize: o.partySize ? Number(o.partySize) || null : null }
       plans.push(old ? { kind: 'update', id: old.id, values } : { kind: 'insert', values: { ...values, requestId: id } })
