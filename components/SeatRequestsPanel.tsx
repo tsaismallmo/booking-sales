@@ -116,8 +116,8 @@ function monitorCity(branch: string | null) {
   return MONITOR_CITIES.find((c) => name.startsWith(c)) ?? null;
 }
 function buildMonitorFile(requests: SeatRequest[]) {
-  // 同一位客人、同一天、同時段的多間分店合成一行（台北、桃園）
-  const lines = new Map<string, { name: string; cities: string[]; date: string; slot: string; sort: string }>();
+  // 每個候選一行，不合併；完全一樣的行只留一行
+  const lines = new Map<string, string>();
   for (const r of requests) {
     if (r.status !== "pending") continue;
     const name = (r.customerName || r.customerPhone || "客人").replace(/\s+/g, "");
@@ -125,15 +125,13 @@ function buildMonitorFile(requests: SeatRequest[]) {
       const city = o.status === "pending" ? monitorCity(o.branch) : null;
       if (!city) continue;
       const slot = getMealPeriod(o.timeSlot) ?? "都可";
-      const key = [r.id, o.bookingDate, slot].join("|");
-      const cur = lines.get(key) ?? { name, cities: [], date: `${Number(o.bookingDate.slice(5, 7))}/${Number(o.bookingDate.slice(8, 10))}`, slot, sort: `${o.bookingDate} ${slot}` };
-      if (!cur.cities.includes(city)) cur.cities.push(city);
-      lines.set(key, cur);
+      const text = `${name} ${city} ${Number(o.bookingDate.slice(5, 7))}/${Number(o.bookingDate.slice(8, 10))} ${slot}`;
+      lines.set(text, `${o.bookingDate} ${MEAL_ORDER.indexOf(slot)}`);
     }
   }
-  const body = [...lines.values()]
-    .sort((a, b) => a.sort.localeCompare(b.sort))
-    .map((l) => `${l.name} ${MONITOR_CITIES.filter((c) => l.cities.includes(c)).join("、")} ${l.date} ${l.slot}`);
+  const body = [...lines.entries()]
+    .sort((a, b) => a[1].localeCompare(b[1]))
+    .map(([text]) => text);
   return [
     "# 客人需求：每行「客人 分店 日期 時段」",
     "# 分店：台北 / 台中 / 桃園 / 高雄（多間用 、 隔開，例如 台北、桃園）",
