@@ -5,6 +5,8 @@ export const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
 export function getMealPeriod(time: string | null | undefined): '午餐' | '下午茶' | '晚餐' | null {
   const t = (time || '').trim()
   if (!t) return null
+  // 訂位需求的時段直接存餐期名稱
+  if (t === '午餐' || t === '下午茶' || t === '晚餐') return t
   if (t === '14:30') return '下午茶'
   if (t < '14:30') return '午餐'
   return '晚餐'

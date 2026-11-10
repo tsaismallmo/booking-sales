@@ -124,7 +124,7 @@ function buildMonitorFile(requests: SeatRequest[]) {
     for (const o of r.options) {
       const city = o.status === "pending" ? monitorCity(o.branch) : null;
       if (!city) continue;
-      const slot = o.timeSlot || "都可";
+      const slot = getMealPeriod(o.timeSlot) ?? "都可";
       const key = [r.id, o.bookingDate, slot].join("|");
       const cur = lines.get(key) ?? { name, cities: [], date: `${Number(o.bookingDate.slice(5, 7))}/${Number(o.bookingDate.slice(8, 10))}`, slot, sort: `${o.bookingDate} ${slot}` };
       if (!cur.cities.includes(city)) cur.cities.push(city);
@@ -187,6 +187,13 @@ function downloadText(fileName: string, text: string) {
   a.download = fileName;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// 候選的時段：新登記的存餐期（午餐／下午茶／晚餐），舊資料可能是時間（17:30），兩種都顯示得出來
+function slotLabel(t: string | null | undefined) {
+  const meal = getMealPeriod(t);
+  if (!meal) return "時段不限";
+  return t === meal ? meal : `${meal} ${t}`;
 }
 
 function stockLine(s: StockMatch) {
@@ -272,7 +279,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
       branchId: o.branchId ?? "",
       branch: o.branch ?? "",
       bookingDate: o.bookingDate,
-      timeSlot: o.timeSlot ?? "",
+      timeSlot: getMealPeriod(o.timeSlot) ?? "",
       partySize: o.partySize ? String(o.partySize) : "",
     })));
     setShowForm(true);
@@ -354,7 +361,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
       const others = r.options.filter((o) => o.status === "pending" && o.id !== acting.optionId);
       if (others.length > 0) {
         closeOthers = confirm(
-          `這位客人還有 ${others.length} 個候選日期還沒訂：\n${others.map((o) => `第${o.priority}順位 ${o.branch ?? "—"} ${o.bookingDate} ${o.timeSlot ?? ""}`).join("\n")}\n\n按「確定」：其他候選不訂了，這筆需求完成\n按「取消」：保留其他候選，繼續訂`
+          `這位客人還有 ${others.length} 個候選日期還沒訂：\n${others.map((o) => `第${o.priority}順位 ${o.branch ?? "—"} ${o.bookingDate} ${slotLabel(o.timeSlot)}`).join("\n")}\n\n按「確定」：其他候選不訂了，這筆需求完成\n按「取消」：保留其他候選，繼續訂`
         );
       }
     }
@@ -460,7 +467,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
                   <span className="badge badge-navy" style={{ fontSize: 11 }}>第{o.priority}順位</span>
                   <span>{o.branch ?? "—"}</span>
                   <strong>{shortDate(o.bookingDate)}</strong>
-                  <span>{getMealPeriod(o.timeSlot) ?? ""} {o.timeSlot || "時段不限"}</span>
+                  <span>{slotLabel(o.timeSlot)}</span>
                   <span>{o.partySize ? `${o.partySize}人` : "人數未填"}</span>
                   <span className={`badge ${optionBadge(o.status, o.resultNote).cls}`} style={{ fontSize: 11 }}>{optionBadge(o.status, o.resultNote).label}</span>
                   {o.stockMatches.length > 0 && <span className="badge badge-warning" style={{ fontSize: 11 }}>現貨單有 {o.stockMatches.length} 筆符合</span>}
@@ -600,7 +607,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
                       <span className="badge badge-navy" style={{ alignSelf: "center" }}>第{i + 1}順位</span>
                       {row.locked ? (
                         <span style={{ flex: "4 1 400px", alignSelf: "center", fontSize: 13, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                          {row.branch || "—"}　<strong>{shortDate(row.bookingDate)}</strong>　{getMealPeriod(row.timeSlot) ?? ""} {row.timeSlot || "時段不限"}　{row.partySize ? `${row.partySize}人` : "人數未填"}
+                          {row.branch || "—"}　<strong>{shortDate(row.bookingDate)}</strong>　{slotLabel(row.timeSlot)}　{row.partySize ? `${row.partySize}人` : "人數未填"}
                           <span className={`badge ${optionBadge(row.locked, row.lockedNote).cls}`} style={{ fontSize: 11 }}>{optionBadge(row.locked, row.lockedNote).label}</span>
                           {row.bookingCode && <span>代號 {row.bookingCode}</span>}
                           <span style={{ color: "var(--gray-400)", fontSize: 12 }}>已處理，只能調順位</span>
@@ -616,8 +623,13 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
                         <input type="date" className="erp-input" value={row.bookingDate} onChange={(e) => updateRow(row.key, { bookingDate: e.target.value })} />
                       </div>
                       <div style={{ flex: "1 1 100px" }}>
-                        <label className="erp-label">時段</label>
-                        <input className="erp-input" placeholder="例如 11:30" value={row.timeSlot} onChange={(e) => updateRow(row.key, { timeSlot: e.target.value })} />
+                        <label className="erp-label">餐期</label>
+                        <select className="erp-input" value={row.timeSlot} onChange={(e) => updateRow(row.key, { timeSlot: e.target.value })}>
+                          <option value="">都可</option>
+                          <option value="午餐">午餐</option>
+                          <option value="下午茶">下午茶</option>
+                          <option value="晚餐">晚餐</option>
+                        </select>
                       </div>
                       <div style={{ flex: "0 1 80px" }}>
                         <label className="erp-label">人數</label>

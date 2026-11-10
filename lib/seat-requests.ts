@@ -1,13 +1,14 @@
 import { and, eq, inArray, lte } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { bookings, seatRequestOptions, seatRequests } from '@/lib/db/schema'
+import { getMealPeriod } from '@/lib/quote'
 
 export type StockQuery = { branchId: string | null; bookingDate: string; timeSlot: string | null; partySize: number | null }
 
-// 現貨單裡「還沒售出」、同分店同日期、時段相同（需求沒指定時段就不限）、人數夠的位子
+// 現貨單裡「還沒售出」、同分店同日期、同餐期（需求沒指定就不限）、人數夠的位子
 export function matchesStock(q: StockQuery, b: { branchId: string | null; bookingDate: string; timeSlot: string | null; partySize: number | null }) {
   if (!q.branchId || b.branchId !== q.branchId || b.bookingDate !== q.bookingDate) return false
-  if (q.timeSlot && b.timeSlot !== q.timeSlot) return false
+  if (q.timeSlot && getMealPeriod(b.timeSlot) !== getMealPeriod(q.timeSlot)) return false
   if (q.partySize && b.partySize != null && b.partySize < q.partySize) return false
   return true
 }
