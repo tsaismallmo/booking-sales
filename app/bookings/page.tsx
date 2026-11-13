@@ -25,6 +25,49 @@ type Booking = {
 // 沒有訂金＝還沒繳費
 const isUnpaid = (b: Booking) => !b.depositAmount || Number(b.depositAmount) === 0;
 
+// 篩「未繳費」時訂金直接在表格裡填：輸入金額按 Enter 或「存」就寫進單據，存好那筆就有訂金、自動從清單消失
+function DepositInput({ booking, onSaved }: { booking: Booking; onSaved: (amount: string) => void }) {
+  const [value, setValue] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const save = async () => {
+    const amount = value.replace(/[,\s]/g, "");
+    if (!amount) return;
+    if (!/^\d+(\.\d+)?$/.test(amount) || Number(amount) <= 0) return setError("請填金額");
+    setSaving(true);
+    setError("");
+    const res = await fetch(`/api/bookings/${booking.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ depositAmount: amount }),
+    });
+    setSaving(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return setError(data.error || "存檔失敗");
+    }
+    onSaved(amount);
+  };
+  return (
+    <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+      <input
+        className="erp-input"
+        inputMode="numeric"
+        placeholder="訂金"
+        style={{ width: 90, padding: "4px 8px", fontSize: 13 }}
+        value={value}
+        disabled={saving}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") void save(); }}
+      />
+      <button className="btn btn-ghost" style={{ padding: "4px 8px", fontSize: 13 }} disabled={saving || !value.trim()} onClick={() => void save()}>
+        {saving ? "…" : "存"}
+      </button>
+      {error && <span style={{ fontSize: 12, color: "var(--color-danger)" }}>{error}</span>}
+    </div>
+  );
+}
+
 const statusLabel: Record<Booking["status"], string> = {
   unsold: "未售出",
   reserved: "訂",
@@ -152,7 +195,11 @@ export default function BookingsPage() {
                   <td className="font-mono">{b.bookingCode ?? "—"}</td>
                   <td>{b.customerName ?? "—"}</td>
                   <td>{b.customerPhone ?? "—"}</td>
-                  <td>{formatCurrency(b.depositAmount)}</td>
+                  <td>
+                    {deadlineBy && isUnpaid(b)
+                      ? <DepositInput booking={b} onSaved={(amount) => setBookings((rows) => rows.map((x) => (x.id === b.id ? { ...x, depositAmount: amount } : x)))} />
+                      : formatCurrency(b.depositAmount)}
+                  </td>
                   <td style={isUnpaid(b) && b.status !== "refunded" && b.paymentDeadline && b.paymentDeadline <= today ? { color: "var(--color-danger)", fontWeight: 600 } : undefined}>
                     {b.paymentDeadline ?? "—"}
                   </td>
