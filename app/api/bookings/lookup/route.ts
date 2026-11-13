@@ -37,14 +37,14 @@ export async function GET(req: NextRequest) {
 
   // 不管訂位代號查到幾筆，一律都要用分店/日期/時段/人數/金額再驗證過，
   // 絕不能因為代號剛好只查到一筆就直接當成是它。
+  // 單據沒填訂金金額時不比金額（代號＋分店＋日期＋時段＋人數已經對上），有填就一定要相同
   const narrowed = candidates.filter(
     (c) =>
       c.branch === branch &&
       c.bookingDate === bookingDate &&
       c.timeSlot === timeSlot &&
       c.partySize === Number(partySize) &&
-      c.depositAmount != null &&
-      Number(c.depositAmount) === Number(amount)
+      (c.depositAmount == null || Number(c.depositAmount) === Number(amount))
   )
 
   if (narrowed.length === 1) {
