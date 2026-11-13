@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { eq, and, desc, isNotNull, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { bookings, vendorRosterEntries, vendorRosterLists } from '@/lib/db/schema'
+import { bookings, users, vendorRosterEntries, vendorRosterLists } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
 import { vendorScope, scopeEq } from '@/lib/vendor-scope'
 
@@ -24,19 +24,21 @@ export async function GET(req: NextRequest) {
   // （名單裡的電話可能有 - 或空白，去掉非數字再比）
   if (phoneDigits) {
     const rows = await db
-      .selectDistinct({ phone: vendorRosterEntries.phone, listName: vendorRosterLists.name })
+      .selectDistinct({ phone: vendorRosterEntries.phone, listName: vendorRosterLists.name, bookerName: sql<string>`coalesce(${users.name}, ${vendorRosterLists.name})` })
       .from(vendorRosterEntries)
       .innerJoin(vendorRosterLists, eq(vendorRosterEntries.listId, vendorRosterLists.id))
+      .leftJoin(users, sql`lower(${users.email}) = lower(${vendorRosterLists.ownerEmail})`)
       .where(and(scopeEq(vendorRosterEntries.vendorId, ownerId), sql`regexp_replace(${vendorRosterEntries.phone}, '\\D', '', 'g') = ${phoneDigits}`))
-    return NextResponse.json(rows.map((r) => ({ phone: r.phone, source: 'roster', label: `名單：${r.listName}`, listName: r.listName })))
+    return NextResponse.json(rows.map((r) => ({ phone: r.phone, source: 'roster', label: `名單：${r.listName}`, listName: r.listName, bookerName: r.bookerName })))
   }
   if (!name) return NextResponse.json([])
 
   const [rosterRows, bookingRows] = await Promise.all([
     db
-      .select({ phone: vendorRosterEntries.phone, listName: vendorRosterLists.name })
+      .select({ phone: vendorRosterEntries.phone, listName: vendorRosterLists.name, bookerName: sql<string>`coalesce(${users.name}, ${vendorRosterLists.name})` })
       .from(vendorRosterEntries)
       .innerJoin(vendorRosterLists, eq(vendorRosterEntries.listId, vendorRosterLists.id))
+      .leftJoin(users, sql`lower(${users.email}) = lower(${vendorRosterLists.ownerEmail})`)
       .where(and(scopeEq(vendorRosterEntries.vendorId, ownerId), eq(vendorRosterEntries.name, name))),
     db
       .select({ phone: bookings.customerPhone, branch: bookings.branch, bookingDate: bookings.bookingDate })
@@ -47,9 +49,10 @@ export async function GET(req: NextRequest) {
   ])
 
   const seen = new Set<string>()
-  // listName：電話是從哪份名單查到的，前端拿來帶入「實際訂位人員」
-  const results: { phone: string; source: 'roster' | 'booking'; label: string; listName: string | null }[] = []
-  const add = (phone: string | null, source: 'roster' | 'booking', label: string, listName: string | null = null) => {
+  // listName：電話是從哪份名單查到的；bookerName：那份名單擁有者的帳號姓名（沒設定擁有者就用名單名稱），
+  // 前端拿來帶入「實際訂位人員」（下拉選項是帳號姓名）
+  const results: { phone: string; source: 'roster' | 'booking'; label: string; listName: string | null; bookerName: string | null }[] = []
+  const add = (phone: string | null, source: 'roster' | 'booking', label: string, listName: string | null = null, bookerName: string | null = null) => {
     const digits = phone?.replace(/\D/g, '')
     if (!phone || !digits) return
     if (source === 'booking' && seen.has(digits)) return
@@ -57,9 +60,9 @@ export async function GET(req: NextRequest) {
     if (seen.has(key)) return
     seen.add(key)
     seen.add(digits)
-    results.push({ phone, source, label, listName })
+    results.push({ phone, source, label, listName, bookerName })
   }
-  for (const r of rosterRows) add(r.phone, 'roster', `名單：${r.listName}`, r.listName)
+  for (const r of rosterRows) add(r.phone, 'roster', `名單：${r.listName}`, r.listName, r.bookerName)
   for (const r of bookingRows) add(r.phone, 'booking', `單據：${r.bookingDate}${r.branch ? ` ${r.branch}` : ''}`)
 
   return NextResponse.json(results)

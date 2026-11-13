@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { eq, and, ilike } from 'drizzle-orm'
+import { eq, and, ilike, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { vendorRosterEntries, vendorRosterLists } from '@/lib/db/schema'
+import { users, vendorRosterEntries, vendorRosterLists } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
 import { vendorScope, scopeEq } from '@/lib/vendor-scope'
 
@@ -17,16 +17,18 @@ export async function GET(req: NextRequest) {
   if (!ownerId) return NextResponse.json([])
 
   const rosterRows = await db
-    .select({ name: vendorRosterEntries.name, phone: vendorRosterEntries.phone, listName: vendorRosterLists.name })
+    .select({ name: vendorRosterEntries.name, phone: vendorRosterEntries.phone, listName: vendorRosterLists.name, bookerName: sql<string>`coalesce(${users.name}, ${vendorRosterLists.name})` })
     .from(vendorRosterEntries)
     .innerJoin(vendorRosterLists, eq(vendorRosterEntries.listId, vendorRosterLists.id))
+    .leftJoin(users, sql`lower(${users.email}) = lower(${vendorRosterLists.ownerEmail})`)
     .where(and(
       scopeEq(vendorRosterEntries.vendorId, ownerId),
       ilike(vendorRosterEntries.name, `%${q}%`),
     ))
     .limit(20)
 
-  type Result = { name: string; phone: string; source: 'roster'; label: string }
+  // bookerName：名單擁有者的帳號姓名（沒設定擁有者就用名單名稱），前端帶入「實際訂位人員」
+  type Result = { name: string; phone: string; source: 'roster'; label: string; bookerName: string }
   const seen = new Set<string>()
   const results: Result[] = []
 
@@ -35,7 +37,7 @@ export async function GET(req: NextRequest) {
     const key = `${r.name}::${r.phone.replace(/\D/g, '')}`
     if (seen.has(key)) continue
     seen.add(key)
-    results.push({ name: r.name, phone: r.phone, source: 'roster', label: r.listName })
+    results.push({ name: r.name, phone: r.phone, source: 'roster', label: r.listName, bookerName: r.bookerName })
   }
 
   return NextResponse.json(results.slice(0, 20))

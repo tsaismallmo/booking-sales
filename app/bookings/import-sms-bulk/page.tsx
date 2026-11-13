@@ -8,7 +8,7 @@ import { VendorSelect } from "@/components/VendorSelect";
 import { StaffOptionSelect } from "@/components/StaffOptionSelect";
 import { BranchSelect, findBranch, loadBranchOptions, type BranchOption } from "@/components/BranchSelect";
 
-type PhoneCandidate = { phone: string; source: "roster" | "booking"; label: string; listName: string | null };
+type PhoneCandidate = { phone: string; source: "roster" | "booking"; label: string; listName: string | null; bookerName: string | null };
 
 type ExistingBooking = {
   id: string;
@@ -162,13 +162,13 @@ export default function ImportSmsBulkPage() {
   // 電話是從名單查到的，名單名稱就帶進實際訂位人員
   const applyPhones = (r: NoticeRow, list: PhoneCandidate[]): NoticeRow =>
     list.length === 1
-      ? { ...r, customerPhone: r.customerPhone || list[0].phone, actualBooker: list[0].listName ?? r.actualBooker, phoneCandidates: [] }
+      ? { ...r, customerPhone: r.customerPhone || list[0].phone, actualBooker: list[0].bookerName ?? r.actualBooker, phoneCandidates: [] }
       : { ...r, phoneCandidates: list };
 
   // 只在剛好一份名單時帶入實際訂位人員，多份名單就留空讓使用者選
   const applyListsByPhone = (r: NoticeRow, list: PhoneCandidate[]): NoticeRow => {
-    const listNames = [...new Set(list.map((c) => c.listName).filter(Boolean))] as string[];
-    return listNames.length === 1 ? { ...r, actualBooker: listNames[0] } : r;
+    const bookerNames = [...new Set(list.map((c) => c.bookerName).filter(Boolean))] as string[];
+    return bookerNames.length === 1 ? { ...r, actualBooker: bookerNames[0] } : r;
   };
 
   // 沒電話的列用姓名查電話；「姓名/電話」已經帶了電話的列改用電話查是哪份名單
@@ -531,7 +531,7 @@ export default function ImportSmsBulkPage() {
                           onChange={(e) => {
                             // 同一支電話可能在不同名單各列一次，用索引分辨選的是哪份名單
                             const c = r.phoneCandidates[Number(e.target.value)];
-                            if (c) updateNotice(r.key, { customerPhone: c.phone, actualBooker: c.listName ?? r.actualBooker });
+                            if (c) updateNotice(r.key, { customerPhone: c.phone, actualBooker: c.bookerName ?? r.actualBooker });
                           }}
                         >
                           <option value="">同名 {r.phoneCandidates.length} 支電話…</option>

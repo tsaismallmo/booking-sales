@@ -8,8 +8,8 @@ import { VendorSelect } from "@/components/VendorSelect";
 import { StaffOptionSelect } from "@/components/StaffOptionSelect";
 import { BranchSelect, findBranch, loadBranchOptions } from "@/components/BranchSelect";
 
-type PhoneCandidate = { phone: string; source: "roster" | "booking"; label: string; listName: string | null };
-type CustomerCandidate = { name: string; phone: string; source: "roster" | "booking"; label: string };
+type PhoneCandidate = { phone: string; source: "roster" | "booking"; label: string; listName: string | null; bookerName: string | null };
+type CustomerCandidate = { name: string; phone: string; source: "roster" | "booking"; label: string; bookerName?: string };
 
 type ExistingBooking = {
   id: string;
@@ -71,7 +71,7 @@ export default function ImportSmsPage() {
 
   const pickCustomer = (c: CustomerCandidate) => {
     // 從名單搜到的客人，名單名稱就是實際訂位人員
-    setForm((f) => ({ ...f, customerName: c.name, customerPhone: c.phone, actualBooker: c.source === "roster" ? c.label : f.actualBooker }));
+    setForm((f) => ({ ...f, customerName: c.name, customerPhone: c.phone, actualBooker: c.source === "roster" ? (c.bookerName ?? c.label) : f.actualBooker }));
     setCustomerSearch("");
     setCustomerResults([]);
     setPhoneCandidates([]);
@@ -83,7 +83,7 @@ export default function ImportSmsPage() {
     const res = await fetch(`/api/customer-phones?name=${encodeURIComponent(name.trim())}`);
     const data = res.ok ? await res.json() : [];
     const list: PhoneCandidate[] = Array.isArray(data) ? data : [];
-    if (list.length === 1) setForm((f) => (f.customerPhone ? f : { ...f, customerPhone: list[0].phone, actualBooker: list[0].listName ?? f.actualBooker }));
+    if (list.length === 1) setForm((f) => (f.customerPhone ? f : { ...f, customerPhone: list[0].phone, actualBooker: list[0].bookerName ?? f.actualBooker }));
     else setPhoneCandidates(list);
   };
 
@@ -91,12 +91,12 @@ export default function ImportSmsPage() {
   const lookupListByPhone = async (phone: string) => {
     const res = await fetch(`/api/customer-phones?phone=${encodeURIComponent(phone)}`);
     const data = res.ok ? await res.json() : [];
-    const listNames = [...new Set((Array.isArray(data) ? data : []).map((c: PhoneCandidate) => c.listName).filter(Boolean))] as string[];
-    if (listNames.length === 1) setForm((f) => ({ ...f, actualBooker: listNames[0] }));
+    const bookerNames = [...new Set((Array.isArray(data) ? data : []).map((c: PhoneCandidate) => c.bookerName).filter(Boolean))] as string[];
+    if (bookerNames.length === 1) setForm((f) => ({ ...f, actualBooker: bookerNames[0] }));
   };
 
   const pickPhone = (c: PhoneCandidate) =>
-    setForm((f) => ({ ...f, customerPhone: c.phone, actualBooker: c.listName ?? f.actualBooker }));
+    setForm((f) => ({ ...f, customerPhone: c.phone, actualBooker: c.bookerName ?? f.actualBooker }));
 
   // 付款完成 → 比對到的既有單據
   const [matched, setMatched] = useState<ExistingBooking | null | undefined>(undefined);
