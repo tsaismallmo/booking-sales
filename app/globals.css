@@ -687,6 +687,38 @@ button { font-family: var(--font-ui); cursor: pointer; }
   box-shadow: var(--shadow-card-hover);
 }
 
+/* ---------- Sidebar 收合 ---------- */
+.erp-sidebar { transition: transform .2s ease; }
+.erp-main { transition: margin-left .2s ease; }
+.erp-sidebar-collapse {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,.6);
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+.erp-sidebar-collapse:hover { color: #fff; background: rgba(255,255,255,.1); }
+.erp-sidebar-expand {
+  display: none;
+  position: fixed;
+  top: 12px; left: 12px;
+  z-index: 45;
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--gray-200);
+  background: #fff;
+  color: var(--brand-800);
+  font-size: 18px;
+  box-shadow: var(--shadow-card-hover);
+}
+html.sidebar-collapsed .erp-sidebar { transform: translateX(-100%); }
+html.sidebar-collapsed .erp-main { margin-left: 0; }
+html.sidebar-collapsed .erp-main .erp-page { padding-left: 64px; }
+html.sidebar-collapsed .erp-sidebar-expand { display: block; }
+
 /* ---------- Responsive ---------- */
 @media (max-width: 768px) {
   .erp-main { margin-left: 0; }

@@ -16,6 +16,21 @@ const roleLabel: Record<Role, string> = {
   vendor_staff: "廠商員工",
 };
 
+// 側邊欄收合：狀態放在 <html> 的 class（layout 的小段 script 在畫面出來前就套上，重新整理不會閃一下），
+// 並記在瀏覽器裡，下次打開維持上次的樣子
+const COLLAPSED_KEY = "sidebar-collapsed";
+export function setSidebarCollapsed(collapsed: boolean) {
+  document.documentElement.classList.toggle("sidebar-collapsed", collapsed);
+  try { localStorage.setItem(COLLAPSED_KEY, collapsed ? "1" : "0"); } catch { /* 存不了就算了 */ }
+}
+
+// 收起來之後左上角的展開按鈕
+export function SidebarExpandButton() {
+  return (
+    <button type="button" className="erp-sidebar-expand" title="展開選單" aria-label="展開選單" onClick={() => setSidebarCollapsed(false)}>☰</button>
+  );
+}
+
 export function Sidebar({ roles }: { roles: Role[] }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -33,6 +48,7 @@ export function Sidebar({ roles }: { roles: Role[] }) {
       <div className="erp-sidebar-logo">
         <span className="erp-sidebar-logo-icon">📋</span>
         <span className="erp-sidebar-logo-text">訂位銷售管理系統</span>
+        <button type="button" className="erp-sidebar-collapse" title="收起選單" aria-label="收起選單" onClick={() => setSidebarCollapsed(true)}>«</button>
       </div>
 
       <nav className="erp-sidebar-nav">
