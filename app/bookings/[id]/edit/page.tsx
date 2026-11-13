@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { RosterListSelect } from "@/components/RosterListSelect";
 import { BranchSelect } from "@/components/BranchSelect";
+import { SalesChannelSelect } from "@/components/SalesChannelSelect";
 
 export default function EditBookingPage() {
   const params = useParams<{ id: string }>();
@@ -69,6 +70,7 @@ export default function EditBookingPage() {
           collectedAmount: data.collectedAmount ?? "",
           account: data.account ?? "",
           agencyFee: data.agencyFee ?? "",
+          salesChannelId: data.salesChannelId ?? "",
           platformFeeBase: data.platformFeeBase ?? "",
           salespersonId: data.salespersonId ?? "",
           info: data.info ?? "",
@@ -254,6 +256,10 @@ export default function EditBookingPage() {
                   </select>
                 </div>
               )}
+              <div className="erp-form-group">
+                <label className="erp-label">銷售平台</label>
+                <SalesChannelSelect value={form.salesChannelId ?? ""} onChange={(v) => setForm((f) => ({ ...f, salesChannelId: v }))} />
+              </div>
               <div className="erp-form-group">
                 <label className="erp-label">售出日期</label>
                 <input type="date" className="erp-input" value={form.soldDate} onChange={set("soldDate")} />

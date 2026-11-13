@@ -37,6 +37,18 @@ export const branches = pgTable('branches', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (t) => [unique('branches_restaurant_name_unique').on(t.restaurantId, t.name)])
 
+// 銷售平台：單據賣在哪個平台（平台、樂園…），各平台有自己固定的基本抽成 %。
+// 實際抽成 % ＝ 基本 % × 廠商當月係數（vendor_platform_rates.coefficient）。
+// is_default 那個是單據沒指定平台時用的（舊單據都算它）
+export const salesChannels = pgTable('sales_channels', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: text('name').notNull().unique(),
+  baseRate: numeric('base_rate').notNull(), // 基本抽成 %
+  isDefault: boolean('is_default').notNull().default(false),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
 // 單據：廠商建立，客服銷售
 export const bookings = pgTable('bookings', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -46,6 +58,7 @@ export const bookings = pgTable('bookings', {
   branchId: uuid('branch_id').references(() => branches.id), // 分店（主檔），有選的話 branch 文字由伺服器自動寫成「餐廳｜分店」
   branch: text('branch'), // 分店顯示文字「餐廳｜分店」（列表、篩選、比對都用這個；舊資料或沒對到主檔的可能只有自由文字）
   category: bookingCategoryEnum('category').notNull(), // 類別：預購單/臨時單/現貨單
+  salesChannelId: uuid('sales_channel_id').references(() => salesChannels.id), // 銷售平台（空的＝預設平台）
   bookingDate: date('booking_date').notNull(), // 日期
   timeSlot: text('time_slot'), // 時段
   partySize: integer('party_size'), // 人數
@@ -195,13 +208,15 @@ export const csShareRates = pgTable('cs_share_rates', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
-// 各廠商每個月各別的平台分潤費率：改某個月的費率不會動到其他月份，
-// 沒設定過的月份用預設 20%。只有管理員能改。
+// 各廠商每個月的係數：看廠商上個月賣的成果給，抽成 % ＝ 銷售平台基本 % × 係數，
+// 沒設定過的月份係數是 1。只有管理員能改，改某個月不會動到其他月份。
+// platform_fee_rate 是改成係數之前的舊欄位（當時直接存平台 %），已經換算進 coefficient，不再使用
 export const vendorPlatformRates = pgTable('vendor_platform_rates', {
   id: uuid('id').defaultRandom().primaryKey(),
   vendorId: uuid('vendor_id').notNull().references(() => users.id),
   month: text('month').notNull(), // 'YYYY-MM'
   platformFeeRate: integer('platform_fee_rate').notNull().default(20),
+  coefficient: numeric('coefficient').notNull().default('1'),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
   unique().on(table.vendorId, table.month),

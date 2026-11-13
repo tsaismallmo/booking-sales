@@ -1,5 +1,5 @@
 export type PlatformRates = {
-  platformFeeRate: number // 平台費率（%），廠商拿剩下的
+  platformFeeRate: number // 這筆的抽成 %（銷售平台基本 % × 廠商當月係數，可能有小數），廠商拿剩下的
   csShareOfPlatformRate: number // 客服從平台費裡再抽的比例（%）
 }
 
@@ -40,7 +40,8 @@ export function computeShare(booking: ShareBooking, rates: PlatformRates): Share
 
   const hasCustomBase = booking.platformFeeBase !== null && booking.platformFeeBase !== undefined
   const feeBase = hasCustomBase ? Number(booking.platformFeeBase) : actualFee
-  const platformFee = Math.round(feeBase * rates.platformFeeRate / 100)
+  // 抽成 % 可能有小數（例如 15% × 0.85 = 12.75%），金額算完再四捨五入到元；先修掉浮點誤差，避免 127.5 變 127.49999
+  const platformFee = Math.round(Number((feeBase * rates.platformFeeRate / 100).toFixed(6)))
   const vendorProfit = actualFee - platformFee
   const csShare = Math.round(platformFee * rates.csShareOfPlatformRate / 100)
   const platformNet = platformFee - csShare

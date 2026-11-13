@@ -14,6 +14,9 @@ type ShareBooking = {
   actualFee: number;
   platformFeeBase: number | null;
   platformFeeRate: number;
+  coefficient: number;
+  channelName: string;
+  channelBaseRate: number;
   platformFee: number;
   vendorProfit: number;
   branch: string | null;
@@ -24,7 +27,9 @@ type ShareBooking = {
 type DetailReport = {
   mode: "detail";
   vendorId: string;
-  platformFeeRate: number;
+  coefficient: number;
+  channelRates: { name: string; baseRate: number; rate: number }[];
+  byChannel: { channelName: string; count: number; platformFee: number; vendorProfit: number }[];
   bookings: ShareBooking[];
   totals: { platformFee: number; vendorProfit: number; count: number };
 };
@@ -176,15 +181,18 @@ export default function PlatformSharePage() {
         <div className="erp-card">
           <div className="erp-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span className="erp-card-title">{monthLabel}　已售 {detail.bookings.length} 筆</span>
-            <span style={{ fontSize: 13, color: "var(--gray-500)" }}>本月平台費率　{detail.platformFeeRate}%</span>
+            <span style={{ fontSize: 13, color: "var(--gray-500)" }}>
+              本月係數 {detail.coefficient}　{detail.channelRates.map((c) => `${c.name} ${c.baseRate}% × ${detail.coefficient} = ${c.rate}%`).join("　")}
+            </span>
           </div>
           <div className="erp-table-wrap">
             <table className="erp-table">
               <thead>
                 <tr>
                   <th>日期</th><th>星期</th><th>分店</th><th>訂位代號</th><th>姓名</th><th>人數</th>
+                  <th>銷售平台</th>
                   <th>實收代訂費</th>
-                  <th>平台費</th>
+                  <th>抽成</th>
                   <th>廠商利潤</th>
                 </tr>
               </thead>
@@ -197,6 +205,10 @@ export default function PlatformSharePage() {
                     <td className="font-mono">{b.bookingCode ?? "—"}</td>
                     <td>{b.customerName ?? "—"}</td>
                     <td>{b.partySize}</td>
+                    <td>
+                      {b.channelName}
+                      <div style={{ fontSize: 11, color: "var(--gray-500)" }}>{b.channelBaseRate}% × {b.coefficient} = {b.platformFeeRate}%</div>
+                    </td>
                     <td>{formatCurrency(b.actualFee)}</td>
                     <td>
                       {formatCurrency(b.platformFee)}
@@ -208,13 +220,21 @@ export default function PlatformSharePage() {
                   </tr>
                 ))}
                 {detail.bookings.length === 0 && (
-                  <tr><td colSpan={9} style={{ textAlign: "center", color: "var(--gray-400)" }}>這個月沒有可計算的資料（要已售出、有填代訂費）</td></tr>
+                  <tr><td colSpan={10} style={{ textAlign: "center", color: "var(--gray-400)" }}>這個月沒有可計算的資料（要已售出、有填代訂費）</td></tr>
                 )}
               </tbody>
               {detail.bookings.length > 0 && (
                 <tfoot>
+                  {detail.byChannel.length > 1 && detail.byChannel.map((c) => (
+                    <tr key={c.channelName} style={{ color: "var(--gray-600)" }}>
+                      <td colSpan={7}>{c.channelName} 小計（{c.count} 筆）</td>
+                      <td>{formatCurrency(detail.bookings.filter((b) => b.channelName === c.channelName).reduce((s, b) => s + b.actualFee, 0))}</td>
+                      <td>{formatCurrency(c.platformFee)}</td>
+                      <td>{formatCurrency(c.vendorProfit)}</td>
+                    </tr>
+                  ))}
                   <tr style={{ fontWeight: 600 }}>
-                    <td colSpan={6}>總計</td>
+                    <td colSpan={7}>總計</td>
                     <td>{formatCurrency(detail.bookings.reduce((s, b) => s + b.actualFee, 0))}</td>
                     <td>{formatCurrency(detail.totals.platformFee)}</td>
                     <td>{formatCurrency(detail.totals.vendorProfit)}</td>

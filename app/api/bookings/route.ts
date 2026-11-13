@@ -108,6 +108,7 @@ export async function POST(req: NextRequest) {
       account: body.account || null,
       salespersonId: body.salespersonId || null,
       agencyFee: body.agencyFee || null,
+      salesChannelId: body.salesChannelId || null,
       info: body.info || null,
       note: body.note || null,
     })

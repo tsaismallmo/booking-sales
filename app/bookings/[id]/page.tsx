@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
+import { salesChannelName, useSalesChannels } from "@/components/SalesChannelSelect";
 
 type Booking = Record<string, string | number | null>;
 
@@ -39,6 +40,7 @@ export default function BookingDetailPage() {
   const fromSuffix = fromParam ? `?from=${fromParam}` : "";
   const editHref = `/bookings/${params.id}/edit${fromSuffix}`;
   const [booking, setBooking] = useState<Booking | null>(null);
+  const channels = useSalesChannels();
   const [loading, setLoading] = useState(true);
   const [smsLogs, setSmsLogs] = useState<SmsLog[]>([]);
   const [pendingRequest, setPendingRequest] = useState<BookingRequest | null>(null);
@@ -220,6 +222,7 @@ export default function BookingDetailPage() {
       <div className="erp-card" style={{ marginBottom: 20 }}>
         <div className="erp-card-header"><span className="erp-card-title">銷售/收款</span></div>
         <div className="erp-card-body erp-sysinfo">
+          <Row label="銷售平台" value={salesChannelName(channels, booking.salesChannelId as string | null)} />
           <Row label="售出日期" value={booking.soldDate} />
           <Row label="收款金額" value={formatCurrency(booking.collectedAmount)} />
           <Row label="帳戶" value={booking.account} />

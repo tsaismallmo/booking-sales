@@ -3,8 +3,8 @@ import { and, eq, gte, inArray, isNotNull, lte } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { bookings, users } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
-import { computeShare, DEFAULT_PLATFORM_RATES } from '@/lib/platform-share'
-import { getCsShareRate, getVendorPlatformFeeRatesForMonths } from '@/lib/platform-settings'
+import { computeShare } from '@/lib/platform-share'
+import { getCsShareRate, loadShareRateContext, platformRateFor } from '@/lib/platform-settings'
 
 // 客服分潤不是一筆一筆單獨算的，是先算出一個獎金池，每個客服再照自己賣出量佔全部客服賣出量的
 // 比例（成交率）去分這個池子：
@@ -25,13 +25,12 @@ async function computeTotalPlatformFee(from: string, to: string) {
 
   const vendorIds = [...new Set(rows.map((b) => b.vendorId).filter((v): v is string => !!v))]
   const months = [...new Set(rows.map((b) => b.soldDate?.slice(0, 7)).filter((m): m is string => !!m))]
-  const vendorRateMap = await getVendorPlatformFeeRatesForMonths(vendorIds, months)
+  const rateCtx = await loadShareRateContext(vendorIds, months)
 
   let total = 0
   for (const b of rows) {
     const month = b.soldDate ? b.soldDate.slice(0, 7) : null
-    const vendorKey = b.vendorId && month ? `${b.vendorId}|${month}` : null
-    const platformFeeRate = (vendorKey ? vendorRateMap.get(vendorKey) : undefined) ?? DEFAULT_PLATFORM_RATES.platformFeeRate
+    const { platformFeeRate } = platformRateFor(rateCtx, b, month)
     const r = computeShare(b, { platformFeeRate, csShareOfPlatformRate: 0 })
     if (r) total += r.platformFee
   }

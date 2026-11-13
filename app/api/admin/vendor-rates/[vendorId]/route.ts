@@ -17,18 +17,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ve
   if (!month || !/^\d{4}-\d{2}$/.test(month)) {
     return NextResponse.json({ error: '缺少月份' }, { status: 400 })
   }
-  const platformFeeRate = Number(body.platformFeeRate)
-  if (Number.isNaN(platformFeeRate) || platformFeeRate < 0 || platformFeeRate > 100) {
-    return NextResponse.json({ error: '平台費率須在 0–100 之間' }, { status: 400 })
+  // 係數：抽成 % ＝ 銷售平台基本 % × 係數，可以大於 1（多抽）也可以小於 1（少抽）
+  const coefficient = Number(body.coefficient)
+  if (!Number.isFinite(coefficient) || coefficient < 0 || coefficient > 5) {
+    return NextResponse.json({ error: '係數要在 0–5 之間' }, { status: 400 })
   }
 
   // 只更新這個月的設定，不會動到其他月份
   const [row] = await db
     .insert(vendorPlatformRates)
-    .values({ vendorId, month, platformFeeRate })
+    .values({ vendorId, month, coefficient: String(coefficient) })
     .onConflictDoUpdate({
       target: [vendorPlatformRates.vendorId, vendorPlatformRates.month],
-      set: { platformFeeRate, updatedAt: new Date() },
+      set: { coefficient: String(coefficient), updatedAt: new Date() },
     })
     .returning()
 

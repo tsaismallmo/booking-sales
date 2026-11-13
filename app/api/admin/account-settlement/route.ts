@@ -3,8 +3,8 @@ import { and, eq, gte, inArray, isNotNull, lte } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { bookings, users } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
-import { computeShare, DEFAULT_PLATFORM_RATES } from '@/lib/platform-share'
-import { getVendorPlatformFeeRatesForMonths } from '@/lib/platform-settings'
+import { computeShare } from '@/lib/platform-share'
+import { loadShareRateContext, platformRateFor } from '@/lib/platform-settings'
 
 const PLATFORM_FEE_RECIPIENT = '雅婷'
 
@@ -40,9 +40,7 @@ export async function GET(req: NextRequest) {
   const vendorIds = [...new Set(rows.map((b) => b.vendorId).filter((v): v is string => !!v))]
   const months = [...new Set(rows.map((b) => b.soldDate?.slice(0, 7)).filter((m): m is string => !!m))]
   const allVendors = await db.select({ id: users.id, name: users.name, email: users.email }).from(users)
-  const [vendorRateMap] = await Promise.all([
-    getVendorPlatformFeeRatesForMonths(vendorIds, months),
-  ])
+  const rateCtx = await loadShareRateContext(vendorIds, months)
   const vendorNameById = new Map(allVendors.map((v) => [v.id, v.name || v.email]))
 
   // 用來反查帳戶文字開頭是哪個人：只比對有名字的帳號，由長到短比對，
@@ -68,8 +66,7 @@ export async function GET(req: NextRequest) {
 
   const detail = rows.map((b): SettlementRow | null => {
     const month = b.soldDate ? b.soldDate.slice(0, 7) : null
-    const vendorKey = b.vendorId && month ? `${b.vendorId}|${month}` : null
-    const platformFeeRate = (vendorKey ? vendorRateMap.get(vendorKey) : undefined) ?? DEFAULT_PLATFORM_RATES.platformFeeRate
+    const { platformFeeRate } = platformRateFor(rateCtx, b, month)
     const r = computeShare(b, { platformFeeRate, csShareOfPlatformRate: 0 })
     if (!r) return null
     return {

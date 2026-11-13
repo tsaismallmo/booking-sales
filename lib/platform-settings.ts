@@ -1,6 +1,6 @@
-import { eq, and, inArray } from 'drizzle-orm'
+import { eq, and, inArray, asc } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { csShareRates, vendorPlatformRates } from '@/lib/db/schema'
+import { csShareRates, salesChannels, vendorPlatformRates } from '@/lib/db/schema'
 import { DEFAULT_PLATFORM_RATES, type PlatformRates } from '@/lib/platform-share'
 
 // 伺服器端專用：讀取分潤設定，不要在 client component 匯入這支檔案。
@@ -19,30 +19,65 @@ export async function getCsShareRatesForMonths(months: string[]): Promise<Map<st
   return new Map(rows.map((r) => [r.month, r.csShareOfPlatformRate]))
 }
 
-// 平台費率依「廠商 + 月份」各別設定，沒設定過的月份用預設值，改某個月不會動到其他月份
-export async function getVendorPlatformFeeRate(vendorId: string, month: string): Promise<number> {
-  const [row] = await db.select().from(vendorPlatformRates)
-    .where(and(eq(vendorPlatformRates.vendorId, vendorId), eq(vendorPlatformRates.month, month)))
-  return row?.platformFeeRate ?? DEFAULT_PLATFORM_RATES.platformFeeRate
+// ── 抽成 % ＝ 銷售平台基本 % × 廠商當月係數 ──
+
+export type SalesChannel = { id: string; name: string; baseRate: number; isDefault: boolean }
+
+export async function listSalesChannels(): Promise<SalesChannel[]> {
+  const rows = await db.select().from(salesChannels).orderBy(asc(salesChannels.sortOrder), asc(salesChannels.createdAt))
+  return rows.map((r) => ({ id: r.id, name: r.name, baseRate: Number(r.baseRate), isDefault: r.isDefault }))
 }
 
-// 批次查詢多個「廠商 + 月份」組合的平台費率，回傳 `${vendorId}|${month}` -> 費率 的對照表
-// （沒設定過的組合不會出現在表裡，呼叫端要自己 fallback 預設值）
-export async function getVendorPlatformFeeRatesForMonths(
-  vendorIds: string[],
-  months: string[]
-): Promise<Map<string, number>> {
+// 廠商在某個月的係數，沒設定過是 1
+export async function getVendorCoefficient(vendorId: string, month: string): Promise<number> {
+  const [row] = await db.select({ coefficient: vendorPlatformRates.coefficient }).from(vendorPlatformRates)
+    .where(and(eq(vendorPlatformRates.vendorId, vendorId), eq(vendorPlatformRates.month, month)))
+  return row ? Number(row.coefficient) : DEFAULT_COEFFICIENT
+}
+
+// 批次查詢多個「廠商 + 月份」的係數，回傳 `${vendorId}|${month}` -> 係數（沒設定過的不在表裡，呼叫端用 1）
+export async function getVendorCoefficientsForMonths(vendorIds: string[], months: string[]): Promise<Map<string, number>> {
   if (vendorIds.length === 0 || months.length === 0) return new Map()
   const rows = await db.select().from(vendorPlatformRates)
     .where(and(inArray(vendorPlatformRates.vendorId, vendorIds), inArray(vendorPlatformRates.month, months)))
-  return new Map(rows.map((r) => [`${r.vendorId}|${r.month}`, r.platformFeeRate]))
+  return new Map(rows.map((r) => [`${r.vendorId}|${r.month}`, Number(r.coefficient)]))
 }
 
-// 給單一廠商、單一月份用的完整分潤設定（該月的平台費率 + 該月的客服分潤比例）
-export async function getRatesForVendorMonth(vendorId: string, month: string): Promise<PlatformRates> {
-  const [platformFeeRate, csShareOfPlatformRate] = await Promise.all([
-    getVendorPlatformFeeRate(vendorId, month),
-    getCsShareRate(month),
-  ])
-  return { platformFeeRate, csShareOfPlatformRate }
+export const DEFAULT_COEFFICIENT = 1
+
+// 報表一次算很多筆用：先把銷售平台和係數都讀好，再逐筆算抽成 %
+export type ShareRateContext = { channels: SalesChannel[]; coefficients: Map<string, number> }
+
+export async function loadShareRateContext(vendorIds: (string | null)[], months: (string | null)[]): Promise<ShareRateContext> {
+  const ids = [...new Set(vendorIds.filter((v): v is string => !!v))]
+  const ms = [...new Set(months.filter((m): m is string => !!m))]
+  const [channels, coefficients] = await Promise.all([listSalesChannels(), getVendorCoefficientsForMonths(ids, ms)])
+  return { channels, coefficients }
+}
+
+// 單據的銷售平台（沒指定或找不到就用預設平台）
+export function channelOf(ctx: { channels: SalesChannel[] }, salesChannelId: string | null | undefined): SalesChannel {
+  return ctx.channels.find((c) => c.id === salesChannelId)
+    ?? ctx.channels.find((c) => c.isDefault)
+    ?? { id: '', name: '平台', baseRate: DEFAULT_PLATFORM_RATES.platformFeeRate, isDefault: true }
+}
+
+// 這筆單據的抽成 %：銷售平台基本 % × 廠商在「這個月份」的係數
+export function platformRateFor(
+  ctx: ShareRateContext,
+  b: { vendorId: string | null; salesChannelId?: string | null },
+  month: string | null,
+) {
+  const coefficient = (b.vendorId && month ? ctx.coefficients.get(`${b.vendorId}|${month}`) : undefined) ?? DEFAULT_COEFFICIENT
+  const channel = channelOf(ctx, b.salesChannelId)
+  return { platformFeeRate: Number((channel.baseRate * coefficient).toFixed(6)), coefficient, channel }
+}
+
+// 給單一廠商、單一月份、單一單據用的完整分潤設定
+export async function getRatesForBooking(
+  b: { vendorId: string; salesChannelId?: string | null },
+  month: string,
+): Promise<PlatformRates> {
+  const [ctx, csShareOfPlatformRate] = await Promise.all([loadShareRateContext([b.vendorId], [month]), getCsShareRate(month)])
+  return { platformFeeRate: platformRateFor(ctx, b, month).platformFeeRate, csShareOfPlatformRate }
 }

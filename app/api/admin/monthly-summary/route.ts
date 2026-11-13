@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { bookings } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
 import { computeShare } from '@/lib/platform-share'
-import { getCsShareRate, getVendorPlatformFeeRatesForMonths } from '@/lib/platform-settings'
+import { getCsShareRate, loadShareRateContext, platformRateFor } from '@/lib/platform-settings'
 
 function pad2(n: number) {
   return String(n).padStart(2, '0')
@@ -56,8 +56,8 @@ export async function GET(req: NextRequest) {
     }
 
     const vendorIds = [...new Set(rows.map((b) => b.vendorId).filter((v): v is string => !!v))]
-    const [rateMap, csShareOfPlatformRate] = await Promise.all([
-      getVendorPlatformFeeRatesForMonths(vendorIds, [month]),
+    const [rateCtx, csShareOfPlatformRate] = await Promise.all([
+      loadShareRateContext(vendorIds, [month]),
       getCsShareRate(month),
     ])
 
@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
     let bookingCount = 0
 
     for (const b of rows) {
-      const platformFeeRate = (b.vendorId ? rateMap.get(`${b.vendorId}|${month}`) : undefined) ?? 20
+      const { platformFeeRate } = platformRateFor(rateCtx, b, month)
       const r = computeShare(b, { platformFeeRate, csShareOfPlatformRate })
       if (!r) continue
       bookingCount += 1

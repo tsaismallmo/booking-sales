@@ -7,7 +7,7 @@ import { auth } from '@/auth'
 import type { Role } from '@/types/next-auth'
 import { LOGISTICS_CATEGORIES } from '@/lib/roles'
 import { computeShare } from '@/lib/platform-share'
-import { getRatesForVendorMonth } from '@/lib/platform-settings'
+import { getRatesForBooking } from '@/lib/platform-settings'
 import { defaultCancelDeadline, listBranchOptions, resolveBranch } from '@/lib/branches'
 
 // 日期/數字欄位如果表單留空，前端送的是空字串 ''，但資料庫的 date/numeric 欄位不接受空字串，要轉成 null
@@ -89,7 +89,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const sum = (Number(newStaffShare) || 0) + (Number(newBookerShare) || 0)
     if (sum > 0 && existing.vendorId) {
       const month = (existing.soldDate ?? existing.bookingDate).slice(0, 7)
-      const rates = await getRatesForVendorMonth(existing.vendorId, month)
+      const rates = await getRatesForBooking({ vendorId: existing.vendorId, salesChannelId: body.salesChannelId !== undefined ? body.salesChannelId || null : existing.salesChannelId }, month)
       const share = computeShare(existing, rates)
       if (share && sum > share.vendorProfit) {
         return NextResponse.json({ error: `分潤總額（${sum}）超過這筆單的廠商利潤（${share.vendorProfit}）` }, { status: 400 })
@@ -139,6 +139,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       account: body.account ?? existing.account,
       salespersonId: body.salespersonId !== undefined ? (body.salespersonId || null) : existing.salespersonId,
       agencyFee: blankToNull(body.agencyFee ?? existing.agencyFee),
+      salesChannelId: body.salesChannelId !== undefined ? (body.salesChannelId || null) : existing.salesChannelId,
       soldCount: body.soldCount !== undefined ? (body.soldCount === '' || body.soldCount === null ? null : Number(body.soldCount)) : existing.soldCount,
       platformFeeBase: roles.includes('admin') ? blankToNull(body.platformFeeBase ?? existing.platformFeeBase) : existing.platformFeeBase,
       staffShareAmount: (roles.includes('vendor') || roles.includes('admin')) ? blankToNull(body.staffShareAmount ?? existing.staffShareAmount) : existing.staffShareAmount,
