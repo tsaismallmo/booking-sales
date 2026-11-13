@@ -124,7 +124,7 @@ export default function ImportSmsBulkPage() {
   };
 
   const runLookup = async (row: CompletionRow): Promise<CompletionRow> => {
-    if (!row.bookingCode || !row.matchBranch || !row.bookingDate || !row.timeSlot || row.partySize == null || row.amount == null) {
+    if (!row.bookingCode || !row.matchBranch || !row.bookingDate || !row.timeSlot || row.partySize == null) {
       return { ...row, matchState: "notfound", matched: null };
     }
     const qs = new URLSearchParams({

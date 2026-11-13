@@ -457,7 +457,7 @@ export default function ImportSmsPage() {
             )}
             {!checkingMatch && matched === null && ambiguous && (
               <div className="erp-alert danger">
-                訂位代號 {parsed.bookingCode} 用分店/日期/時段/人數/金額還是對到不只一筆或無法確定，請到單據管理手動確認後再處理，避免關聯錯筆。
+                訂位代號 {parsed.bookingCode} 用分店/日期/時段/人數還是對到不只一筆或無法確定，請到單據管理手動確認後再處理，避免關聯錯筆。
               </div>
             )}
             {!checkingMatch && matched === null && !ambiguous && (

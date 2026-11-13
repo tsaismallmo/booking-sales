@@ -7,7 +7,7 @@ import { resolveBranch } from '@/lib/branches'
 
 // 依訂位代號查單據，給「付款完成簡訊」比對用。
 // 訂位代號每天都從 1001 開始重算，光靠代號完全無法唯一識別一筆單據，
-// 一定要連同分店＋日期＋時段＋人數＋金額一起比對才能確定是同一筆。
+// 一定要連同分店＋日期＋時段＋人數一起比對才能確定是同一筆（不比金額）。
 export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
@@ -21,11 +21,10 @@ export async function GET(req: NextRequest) {
   const bookingDate = params.get('bookingDate')
   const timeSlot = params.get('timeSlot')
   const partySize = params.get('partySize')
-  const amount = params.get('amount')
 
-  if (!branch || !bookingDate || !timeSlot || !partySize || !amount) {
+  if (!branch || !bookingDate || !timeSlot || !partySize) {
     return NextResponse.json(
-      { match: null, ambiguous: true, error: '訂位代號每天都會重複，缺少分店/日期/時段/人數/金額就無法安全比對' },
+      { match: null, ambiguous: true, error: '訂位代號每天都會重複，缺少分店/日期/時段/人數就無法安全比對' },
       { status: 400 }
     )
   }
@@ -35,16 +34,14 @@ export async function GET(req: NextRequest) {
     ? await db.select().from(bookings).where(eq(bookings.bookingCode, code))
     : await db.select().from(bookings).where(and(eq(bookings.bookingCode, code), eq(bookings.vendorId, session.user.id)))
 
-  // 不管訂位代號查到幾筆，一律都要用分店/日期/時段/人數/金額再驗證過，
-  // 絕不能因為代號剛好只查到一筆就直接當成是它。
-  // 單據沒填訂金金額時不比金額（代號＋分店＋日期＋時段＋人數已經對上），有填就一定要相同
+  // 不管訂位代號查到幾筆，一律都要用分店/日期/時段/人數再驗證過，
+  // 絕不能因為代號剛好只查到一筆就直接當成是它。金額不比對
   const narrowed = candidates.filter(
     (c) =>
       c.branch === branch &&
       c.bookingDate === bookingDate &&
       c.timeSlot === timeSlot &&
-      c.partySize === Number(partySize) &&
-      (c.depositAmount == null || Number(c.depositAmount) === Number(amount))
+      c.partySize === Number(partySize)
   )
 
   if (narrowed.length === 1) {
