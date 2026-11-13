@@ -41,6 +41,11 @@ export async function POST(req: NextRequest) {
   if (body.bookingId && typeof body.depositPayer === 'string') {
     await db.update(bookings).set({ depositPayer: body.depositPayer.trim() || null }).where(eq(bookings.id, body.bookingId))
   }
+  // 付款完成簡訊的交易金額就是付給餐廳的訂金，關聯到單據時寫進單據的訂金（單筆、大量解析都走這裡）
+  const amount = Number(body.parsedData?.amount)
+  if (body.bookingId && body.type === 'payment_completion' && body.parsedData?.amount != null && Number.isFinite(amount) && amount > 0) {
+    await db.update(bookings).set({ depositAmount: String(amount) }).where(eq(bookings.id, body.bookingId))
+  }
 
   const [row] = await db
     .insert(smsLogs)
