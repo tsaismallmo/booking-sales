@@ -11,6 +11,7 @@ type RosterList = {
 };
 
 type RosterEntry = {
+  groupId?: string | null; // 這個名字是在哪個集團登記的；空的＝所有集團都適用
   id: string;
   listId: string;
   name: string;
@@ -40,7 +41,12 @@ export default function RosterPage() {
   const [loadingEntries, setLoadingEntries] = useState(true);
   const [team, setTeam] = useState<TeamMember[]>([]);
 
-  const [form, setForm] = useState({ name: "", phone: "" });
+  const [form, setForm] = useState({ name: "", phone: "", groupId: "" });
+  const [groups, setGroups] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => {
+    fetch("/api/restaurant-groups").then((res) => (res.ok ? res.json() : [])).then((g) => setGroups(Array.isArray(g) ? g : []));
+  }, []);
+  const groupName = (id: string | null | undefined) => groups.find((g) => g.id === id)?.name;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -158,7 +164,7 @@ export default function RosterPage() {
       setError(data.error || "新增失敗");
       return;
     }
-    setForm({ name: "", phone: "" });
+    setForm((f) => ({ name: "", phone: "", groupId: f.groupId }));
     fetch(`/api/roster?listId=${selectedListId}`)
       .then((res) => res.json())
       .then((data) => setEntries(Array.isArray(data) ? data : []));
@@ -253,6 +259,10 @@ export default function RosterPage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   <input className="erp-input" placeholder="姓名" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
                   <input className="erp-input" placeholder="09XXXXXXXX" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                  <select className="erp-select" value={form.groupId} onChange={(e) => setForm({ ...form, groupId: e.target.value })} title="這個名字是在哪個餐廳集團登記的">
+                    <option value="">所有集團都適用</option>
+                    {groups.map((g) => <option key={g.id} value={g.id}>只用在 {g.name}</option>)}
+                  </select>
                   <button onClick={handleAdd} disabled={saving} className="btn btn-primary">{saving ? "新增中..." : "新增"}</button>
                 </div>
               </div>
@@ -278,6 +288,23 @@ export default function RosterPage() {
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 600, color: "var(--gray-800)" }}>{e.name}</div>
                       <div style={{ fontSize: 12, color: "var(--gray-500)" }}>{e.phone ?? "—"}</div>
+                      {canEdit ? (
+                        <select
+                          className="erp-select"
+                          style={{ fontSize: 11, padding: "1px 4px", marginTop: 2, width: "auto" }}
+                          value={e.groupId ?? ""}
+                          onChange={async (ev) => {
+                            const groupId = ev.target.value || null;
+                            await fetch(`/api/roster/${e.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ groupId }) });
+                            setEntries((es) => es.map((x) => (x.id === e.id ? { ...x, groupId } : x)));
+                          }}
+                        >
+                          <option value="">所有集團</option>
+                          {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                        </select>
+                      ) : (
+                        e.groupId && <span className="badge badge-gray" style={{ fontSize: 11 }}>{groupName(e.groupId)}</span>
+                      )}
                     </div>
                     {canEdit && (
                       <button className="erp-roster-card-remove" onClick={() => handleRemoveEntry(e.id)}>✕</button>

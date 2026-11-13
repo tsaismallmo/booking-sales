@@ -8,16 +8,16 @@ export function branchLabel(restaurantName: string, branchName: string) {
   return `${restaurantName}${BRANCH_SEPARATOR}${branchName}`
 }
 
-export type BranchOption = { id: string; name: string; restaurantId: string; restaurantName: string; label: string; active: boolean; cancelDaysBefore: number }
+export type BranchOption = { id: string; name: string; restaurantId: string; restaurantName: string; label: string; active: boolean; cancelDaysBefore: number; groupId: string | null }
 
 export async function listBranchOptions(): Promise<BranchOption[]> {
   const rows = await db
-    .select({ id: branches.id, name: branches.name, active: branches.active, restaurantId: restaurants.id, restaurantName: restaurants.name, restaurantActive: restaurants.active, cancelDaysBefore: restaurants.cancelDaysBefore, rSort: restaurants.sortOrder, bSort: branches.sortOrder })
+    .select({ id: branches.id, name: branches.name, active: branches.active, restaurantId: restaurants.id, restaurantName: restaurants.name, restaurantActive: restaurants.active, cancelDaysBefore: restaurants.cancelDaysBefore, groupId: restaurants.groupId, rSort: restaurants.sortOrder, bSort: branches.sortOrder })
     .from(branches)
     .innerJoin(restaurants, eq(branches.restaurantId, restaurants.id))
   return rows
     .sort((a, b) => a.rSort - b.rSort || a.restaurantName.localeCompare(b.restaurantName) || a.bSort - b.bSort || a.name.localeCompare(b.name))
-    .map((r) => ({ id: r.id, name: r.name, restaurantId: r.restaurantId, restaurantName: r.restaurantName, label: branchLabel(r.restaurantName, r.name), active: r.active && r.restaurantActive, cancelDaysBefore: r.cancelDaysBefore }))
+    .map((r) => ({ id: r.id, name: r.name, restaurantId: r.restaurantId, restaurantName: r.restaurantName, label: branchLabel(r.restaurantName, r.name), active: r.active && r.restaurantActive, cancelDaysBefore: r.cancelDaysBefore, groupId: r.groupId }))
 }
 
 // 退訂期限＝訂位日期往前推餐廳設定的天數（日期都是 YYYY-MM-DD 純文字，用 UTC 算避免時區差一天）
@@ -66,4 +66,12 @@ export async function resolveBranch(input: { branchId?: string | null; branch?: 
   const byName = opts.filter((o) => o.name === text)
   if (byName.length === 1) return { branchId: byName[0].id, branch: byName[0].label }
   return { branchId: null, branch: text }
+}
+
+// 分店所屬的餐廳集團（漢來、饗賓…）；分店對不到主檔或餐廳沒設集團就是 null
+export async function groupIdOfBranch(input: { branchId?: string | null; branch?: string | null }) {
+  if (!input.branchId && !input.branch?.trim()) return null
+  const opts = await listBranchOptions()
+  const r = await resolveBranch(input, opts)
+  return opts.find((o) => o.id === r.branchId)?.groupId ?? null
 }

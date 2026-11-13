@@ -62,7 +62,7 @@ export default function ImportSmsPage() {
     if (customerSearchTimer) clearTimeout(customerSearchTimer);
     if (!q.trim()) { setCustomerResults([]); return; }
     const t = setTimeout(async () => {
-      const res = await fetch(`/api/customer-search?q=${encodeURIComponent(q.trim())}`);
+      const res = await fetch(`/api/customer-search?q=${encodeURIComponent(q.trim())}&branch=${encodeURIComponent(form.branch ?? "")}`);
       const data = res.ok ? await res.json() : [];
       setCustomerResults(Array.isArray(data) ? data : []);
     }, 250);
@@ -77,10 +77,11 @@ export default function ImportSmsPage() {
     setPhoneCandidates([]);
   };
 
-  const lookupPhone = async (name: string) => {
+  // branch：簡訊的分店，只查那間餐廳所屬集團的名單（同一支電話在不同集團可能登記不同名字）
+  const lookupPhone = async (name: string, branch = form.branch ?? "") => {
     setPhoneCandidates([]);
     if (!name.trim()) return;
-    const res = await fetch(`/api/customer-phones?name=${encodeURIComponent(name.trim())}`);
+    const res = await fetch(`/api/customer-phones?name=${encodeURIComponent(name.trim())}&branch=${encodeURIComponent(branch)}`);
     const data = res.ok ? await res.json() : [];
     const list: PhoneCandidate[] = Array.isArray(data) ? data : [];
     if (list.length === 1) setForm((f) => (f.customerPhone ? f : { ...f, customerPhone: list[0].phone, actualBooker: list[0].bookerName ?? f.actualBooker }));
@@ -88,8 +89,8 @@ export default function ImportSmsPage() {
   };
 
   // 電話已經有了（簡訊前面寫「姓名/電話」）：查這支電話在哪份名單，只在剛好一份時帶入實際訂位人員
-  const lookupListByPhone = async (phone: string) => {
-    const res = await fetch(`/api/customer-phones?phone=${encodeURIComponent(phone)}`);
+  const lookupListByPhone = async (phone: string, branch = form.branch ?? "") => {
+    const res = await fetch(`/api/customer-phones?phone=${encodeURIComponent(phone)}&branch=${encodeURIComponent(branch)}`);
     const data = res.ok ? await res.json() : [];
     const bookerNames = [...new Set((Array.isArray(data) ? data : []).map((c: PhoneCandidate) => c.bookerName).filter(Boolean))] as string[];
     if (bookerNames.length === 1) setForm((f) => ({ ...f, actualBooker: bookerNames[0] }));
@@ -171,8 +172,8 @@ export default function ImportSmsPage() {
       // 「姓名/電話」已經帶了電話就不用再用姓名查
       if (result.customerPhone) {
         setPhoneCandidates([]);
-        await lookupListByPhone(result.customerPhone);
-      } else if (result.customerName) await lookupPhone(result.customerName);
+        await lookupListByPhone(result.customerPhone, branch);
+      } else if (result.customerName) await lookupPhone(result.customerName, branch);
       else setPhoneCandidates([]);
     }
 

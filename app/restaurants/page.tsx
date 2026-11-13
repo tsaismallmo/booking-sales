@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-type Restaurant = { id: string; name: string; active: boolean; sortOrder: number; cancelDaysBefore: number };
+type Restaurant = { id: string; name: string; active: boolean; sortOrder: number; cancelDaysBefore: number; groupId: string | null };
+type Group = { id: string; name: string };
 type Branch = { id: string; name: string; restaurantId: string; restaurantName: string; active: boolean };
 
 // 餐廳／分店主檔：只有管理員能維護。不提供刪除，只能停用（舊單據、備份都還指著它們）；
@@ -16,12 +17,16 @@ export default function RestaurantsPage() {
   const [newBranch, setNewBranch] = useState<Record<string, string>>({});
   const [renaming, setRenaming] = useState<Record<string, string>>({});
   const [cancelDays, setCancelDays] = useState<Record<string, string>>({});
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [newGroup, setNewGroup] = useState("");
 
   const load = () =>
     Promise.all([
       fetch("/api/restaurants").then((res) => res.json()),
       fetch("/api/branches?all=1").then((res) => res.json()),
-    ]).then(([r, b]) => {
+      fetch("/api/restaurant-groups").then((res) => res.json()),
+    ]).then(([r, b, g]) => {
+      setGroups(Array.isArray(g) ? g : []);
       setRestaurants(Array.isArray(r) ? r : []);
       setBranches(Array.isArray(b) ? b : []);
       setLoading(false);
@@ -41,6 +46,15 @@ export default function RestaurantsPage() {
     }
     await load();
     return true;
+  };
+
+  const addGroup = async () => {
+    if (!newGroup.trim()) return;
+    if (await call("/api/restaurant-groups", "POST", { name: newGroup.trim() })) setNewGroup("");
+  };
+  const renameGroup = (g: Group) => {
+    const name = window.prompt("集團新名稱", g.name)?.trim();
+    if (name && name !== g.name) void call(`/api/restaurant-groups/${g.id}`, "PATCH", { name });
   };
 
   const addRestaurant = async () => {
@@ -103,6 +117,22 @@ export default function RestaurantsPage() {
         </div>
       </div>
 
+      <div className="erp-card" style={{ marginBottom: 16 }}>
+        <div className="erp-card-header">
+          <span className="erp-card-title">餐廳集團</span>
+          <span style={{ fontSize: 12, color: "var(--gray-500)" }}>同一支電話在不同集團登記的名字可能不同；廠商名單成員可以標集團，查名字／電話時只看該餐廳所屬集團</span>
+        </div>
+        <div className="erp-card-body" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          {groups.map((g) => (
+            <button key={g.id} className="btn btn-secondary" style={{ padding: "4px 12px", fontSize: 13 }} title="點一下改名" onClick={() => renameGroup(g)}>
+              {g.name}（{restaurants.filter((r) => r.groupId === g.id).length} 間）
+            </button>
+          ))}
+          <input className="erp-input" style={{ width: 140 }} placeholder="新增集團" value={newGroup} onChange={(e) => setNewGroup(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addGroup(); }} />
+          <button className="btn btn-primary" style={{ padding: "4px 12px", fontSize: 13 }} disabled={!newGroup.trim()} onClick={addGroup}>新增</button>
+        </div>
+      </div>
+
       {loading && <div style={{ color: "var(--gray-400)" }}>載入中...</div>}
       {!loading && restaurants.length === 0 && <div style={{ color: "var(--gray-400)" }}>還沒有任何餐廳</div>}
 
@@ -114,6 +144,13 @@ export default function RestaurantsPage() {
               {nameInput("restaurants", r.id, r.name, 160)}
               {!r.active && <span className="badge badge-gray">已停用</span>}
               <span style={{ fontSize: 12, color: "var(--gray-500)" }}>{own.length} 間分店</span>
+              <span style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 13 }}>
+                集團
+                <select className="erp-select" style={{ width: "auto", fontSize: 13, padding: "4px 8px" }} value={r.groupId ?? ""} onChange={(e) => call(`/api/restaurants/${r.id}`, "PATCH", { groupId: e.target.value || null })}>
+                  <option value="">（未設定）</option>
+                  {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+              </span>
               <span style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 13 }}>
                 退訂期限：訂位日前
                 <input

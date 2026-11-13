@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { eq, and, desc, isNotNull, sql } from 'drizzle-orm'
+import { eq, and, desc, isNotNull, isNull, or, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { bookings, users, vendorRosterEntries, vendorRosterLists } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
 import { vendorScope, scopeEq } from '@/lib/vendor-scope'
+import { groupIdOfBranch } from '@/lib/branches'
 
 // 用訂位姓名查電話，給「解析簡訊」自動帶入訂位電話用（簡訊本身不含電話）。
 // 來源：同一個廠商底下的廠商名單＋這個廠商以前建過的單據；同一支電話只列一次，名單優先。
@@ -20,6 +21,10 @@ export async function GET(req: NextRequest) {
   const ownerId = await vendorScope(session)
   if (!ownerId) return NextResponse.json([])
 
+  // 帶了分店（branch／branchId）就只看那間餐廳所屬集團的名單成員（沒標集團的成員所有集團都適用）：
+  // 同一支電話在不同集團登記的名字可能不一樣
+  const groupId = await groupIdOfBranch({ branchId: req.nextUrl.searchParams.get('branchId'), branch: req.nextUrl.searchParams.get('branch') })
+
   // 已經知道電話（簡訊前面寫了「姓名/電話」）：只查這支電話在哪幾份名單，給前端帶「實際訂位人員」
   // （名單裡的電話可能有 - 或空白，去掉非數字再比）
   if (phoneDigits) {
@@ -28,7 +33,7 @@ export async function GET(req: NextRequest) {
       .from(vendorRosterEntries)
       .innerJoin(vendorRosterLists, eq(vendorRosterEntries.listId, vendorRosterLists.id))
       .leftJoin(users, sql`lower(${users.email}) = lower(${vendorRosterLists.ownerEmail})`)
-      .where(and(scopeEq(vendorRosterEntries.vendorId, ownerId), sql`regexp_replace(${vendorRosterEntries.phone}, '\\D', '', 'g') = ${phoneDigits}`))
+      .where(and(scopeEq(vendorRosterEntries.vendorId, ownerId), (groupId ? or(isNull(vendorRosterEntries.groupId), eq(vendorRosterEntries.groupId, groupId)) : undefined), sql`regexp_replace(${vendorRosterEntries.phone}, '\\D', '', 'g') = ${phoneDigits}`))
     return NextResponse.json(rows.map((r) => ({ phone: r.phone, source: 'roster', label: `名單：${r.listName}`, listName: r.listName, bookerName: r.bookerName })))
   }
   if (!name) return NextResponse.json([])
@@ -39,7 +44,7 @@ export async function GET(req: NextRequest) {
       .from(vendorRosterEntries)
       .innerJoin(vendorRosterLists, eq(vendorRosterEntries.listId, vendorRosterLists.id))
       .leftJoin(users, sql`lower(${users.email}) = lower(${vendorRosterLists.ownerEmail})`)
-      .where(and(scopeEq(vendorRosterEntries.vendorId, ownerId), eq(vendorRosterEntries.name, name))),
+      .where(and(scopeEq(vendorRosterEntries.vendorId, ownerId), (groupId ? or(isNull(vendorRosterEntries.groupId), eq(vendorRosterEntries.groupId, groupId)) : undefined), eq(vendorRosterEntries.name, name))),
     db
       .select({ phone: bookings.customerPhone, branch: bookings.branch, bookingDate: bookings.bookingDate })
       .from(bookings)

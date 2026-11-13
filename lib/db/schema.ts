@@ -17,12 +17,22 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
+// 餐廳集團（漢來、饗賓…）：可以自己新增。同一支電話在不同集團登記的名字可能不一樣，
+// 廠商名單成員可以標集團，查名字／電話時只看那間餐廳所屬集團的（沒標集團的成員所有集團都適用）
+export const restaurantGroups = pgTable('restaurant_groups', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: text('name').notNull().unique(),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
 // 餐廳／分店主檔：只有管理員能維護。單據用 branchId 指到分店，餐廳由分店推得。
 // 不提供刪除只能停用——單據、備份快照都會指到這些 id，刪掉會讓舊資料或還原對不上。
 export const restaurants = pgTable('restaurants', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: text('name').notNull().unique(),
   cancelDaysBefore: integer('cancel_days_before').notNull().default(7), // 退訂期限＝訂位日期往前幾天（單據沒填退訂期限時自動算）
+  groupId: uuid('group_id').references(() => restaurantGroups.id), // 所屬集團
   active: boolean('active').notNull().default(true),
   sortOrder: integer('sort_order').notNull().default(0),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -196,6 +206,7 @@ export const vendorRosterEntries = pgTable('vendor_roster_entries', {
   id: uuid('id').defaultRandom().primaryKey(),
   vendorId: uuid('vendor_id').notNull().references(() => users.id),
   listId: uuid('list_id').notNull().references(() => vendorRosterLists.id),
+  groupId: uuid('group_id').references(() => restaurantGroups.id), // 這個名字是在哪個集團登記的；空的＝所有集團都適用
   name: text('name').notNull(),
   phone: text('phone'),
   note: text('note'),

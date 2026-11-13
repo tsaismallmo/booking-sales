@@ -144,16 +144,17 @@ export default function ImportSmsBulkPage() {
     return { ...row, matchState: "notfound", matched: null };
   };
 
-  const fetchPhones = async (name: string): Promise<PhoneCandidate[]> => {
+  // branch：只查那間餐廳所屬集團的名單（同一支電話在不同集團可能登記不同名字）
+  const fetchPhones = async (name: string, branch: string): Promise<PhoneCandidate[]> => {
     if (!name.trim()) return [];
-    const res = await fetch(`/api/customer-phones?name=${encodeURIComponent(name.trim())}`);
+    const res = await fetch(`/api/customer-phones?name=${encodeURIComponent(name.trim())}&branch=${encodeURIComponent(branch)}`);
     const data = res.ok ? await res.json() : [];
     return Array.isArray(data) ? data : [];
   };
 
   // 電話已知時，查這支電話在哪幾份名單
-  const fetchListsByPhone = async (phone: string): Promise<PhoneCandidate[]> => {
-    const res = await fetch(`/api/customer-phones?phone=${encodeURIComponent(phone)}`);
+  const fetchListsByPhone = async (phone: string, branch: string): Promise<PhoneCandidate[]> => {
+    const res = await fetch(`/api/customer-phones?phone=${encodeURIComponent(phone)}&branch=${encodeURIComponent(branch)}`);
     const data = res.ok ? await res.json() : [];
     return Array.isArray(data) ? data : [];
   };
@@ -173,23 +174,26 @@ export default function ImportSmsBulkPage() {
 
   // 沒電話的列用姓名查電話；「姓名/電話」已經帶了電話的列改用電話查是哪份名單
   const lookupPhonesForRows = async (rows: NoticeRow[]) => {
-    const names = [...new Set(rows.filter((r) => !r.customerPhone).map((r) => r.customerName.trim()).filter(Boolean))];
-    const phones = [...new Set(rows.map((r) => r.customerPhone).filter(Boolean))];
+    // 同名／同電話但分店不同集團的要分開查，所以用「姓名（電話）＋分店」當 key
+    const keyOf = (v: string, branch: string) => `${v}|${branch}`;
+    const names = [...new Set(rows.filter((r) => !r.customerPhone && r.customerName.trim()).map((r) => keyOf(r.customerName.trim(), r.branch)))];
+    const phones = [...new Set(rows.filter((r) => r.customerPhone).map((r) => keyOf(r.customerPhone, r.branch)))];
     const byName = new Map<string, PhoneCandidate[]>();
     const byPhone = new Map<string, PhoneCandidate[]>();
+    const split = (k: string) => k.split("|") as [string, string];
     const jobs = [
-      ...names.map((n) => async () => { byName.set(n, await fetchPhones(n)); }),
-      ...phones.map((p) => async () => { byPhone.set(p, await fetchListsByPhone(p)); }),
+      ...names.map((k) => async () => { byName.set(k, await fetchPhones(...split(k))); }),
+      ...phones.map((k) => async () => { byPhone.set(k, await fetchListsByPhone(...split(k))); }),
     ];
     for (let i = 0; i < jobs.length; i += LOOKUP_CONCURRENCY) {
       await Promise.all(jobs.slice(i, i + LOOKUP_CONCURRENCY).map((job) => job()));
     }
     setNoticeRows((rs) => rs.map((r) => {
       if (r.customerPhone) {
-        const list = byPhone.get(r.customerPhone);
+        const list = byPhone.get(keyOf(r.customerPhone, r.branch));
         return list ? applyListsByPhone(r, list) : r;
       }
-      const list = byName.get(r.customerName.trim());
+      const list = byName.get(keyOf(r.customerName.trim(), r.branch));
       return list ? applyPhones(r, list) : r;
     }));
   };
@@ -197,7 +201,7 @@ export default function ImportSmsBulkPage() {
   const handleNameBlur = async (key: string) => {
     const row = noticeRows.find((r) => r.key === key);
     if (!row || row.customerPhone) return;
-    const list = await fetchPhones(row.customerName);
+    const list = await fetchPhones(row.customerName, row.branch);
     setNoticeRows((rs) => rs.map((r) => (r.key === key ? applyPhones(r, list) : r)));
   };
 

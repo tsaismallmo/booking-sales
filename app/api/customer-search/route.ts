@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { eq, and, ilike, sql } from 'drizzle-orm'
+import { eq, and, ilike, isNull, or, sql } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { users, vendorRosterEntries, vendorRosterLists } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
 import { vendorScope, scopeEq } from '@/lib/vendor-scope'
+import { groupIdOfBranch } from '@/lib/branches'
 
 // 模糊搜尋客人（姓名 + 電話），供「解析簡訊」頁面的客人選擇器用。
 export async function GET(req: NextRequest) {
@@ -15,6 +16,8 @@ export async function GET(req: NextRequest) {
 
   const ownerId = await vendorScope(session)
   if (!ownerId) return NextResponse.json([])
+  // 帶了分店就只看那間餐廳所屬集團的名單成員（沒標集團的所有集團都適用）
+  const groupId = await groupIdOfBranch({ branchId: req.nextUrl.searchParams.get('branchId'), branch: req.nextUrl.searchParams.get('branch') })
 
   const rosterRows = await db
     .select({ name: vendorRosterEntries.name, phone: vendorRosterEntries.phone, listName: vendorRosterLists.name, bookerName: sql<string>`coalesce(${users.name}, ${vendorRosterLists.name})` })
@@ -23,6 +26,7 @@ export async function GET(req: NextRequest) {
     .leftJoin(users, sql`lower(${users.email}) = lower(${vendorRosterLists.ownerEmail})`)
     .where(and(
       scopeEq(vendorRosterEntries.vendorId, ownerId),
+      (groupId ? or(isNull(vendorRosterEntries.groupId), eq(vendorRosterEntries.groupId, groupId)) : undefined),
       ilike(vendorRosterEntries.name, `%${q}%`),
     ))
     .limit(20)

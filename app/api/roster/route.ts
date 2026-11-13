@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
       name: body.name,
       phone: body.phone || null,
       note: body.note || null,
+      groupId: body.groupId || null, // 這個名字是在哪個集團登記的；空的＝所有集團都適用
     })
     .returning()
 

@@ -28,6 +28,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     active: body.active ?? existing.active,
     cancelDaysBefore: body.cancelDaysBefore !== undefined ? Math.max(0, Math.floor(Number(body.cancelDaysBefore)) || 0) : existing.cancelDaysBefore,
     sortOrder: body.sortOrder ?? existing.sortOrder,
+    groupId: body.groupId !== undefined ? (body.groupId || null) : existing.groupId,
   }).where(eq(restaurants.id, id)).returning()
 
   if (name !== existing.name) await syncBranchTexts(await branchIdsOfRestaurant(id))

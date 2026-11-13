@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import {
   backups,
   bookings, bookingRequests, vendorRosterLists, vendorRosterEntries,
-  csShareRates, vendorPlatformRates, branchAliases, smsLogs, branches, salesChannels,
+  csShareRates, vendorPlatformRates, branchAliases, smsLogs, branches, salesChannels, restaurantGroups,
 } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
 import { createSafetyBackup } from '@/lib/backup'
@@ -64,6 +64,9 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const keepBranch = <T extends { branchId?: string | null }>(r: T): T =>
     r.branchId && !existingBranchIds.has(r.branchId) ? { ...r, branchId: null } : r
   snapshot.bookings = snapshot.bookings.map(keepBranch)
+  // 餐廳集團也是主檔、不在備份範圍內，名單成員指到不存在的集團就改回「所有集團都適用」
+  const existingGroupIds = new Set((await db.select({ id: restaurantGroups.id }).from(restaurantGroups)).map((g) => g.id))
+  snapshot.vendorRosterEntries = snapshot.vendorRosterEntries.map((e) => (e.groupId && !existingGroupIds.has(e.groupId) ? { ...e, groupId: null } : e))
   // 銷售平台也是主檔、不在備份範圍內，指到不存在的平台就改回預設平台（空的）
   const existingChannelIds = new Set((await db.select({ id: salesChannels.id }).from(salesChannels)).map((c) => c.id))
   snapshot.bookings = snapshot.bookings.map((b) => (b.salesChannelId && !existingChannelIds.has(b.salesChannelId) ? { ...b, salesChannelId: null } : b))

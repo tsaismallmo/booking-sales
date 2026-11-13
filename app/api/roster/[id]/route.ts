@@ -28,6 +28,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       name: body.name ?? existing.name,
       phone: body.phone ?? existing.phone,
       note: body.note ?? existing.note,
+      groupId: body.groupId !== undefined ? (body.groupId || null) : existing.groupId,
     })
     .where(eq(vendorRosterEntries.id, id))
     .returning()
