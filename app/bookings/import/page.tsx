@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSalesChannels, type SalesChannel } from "@/components/SalesChannelSelect";
 
@@ -20,7 +20,7 @@ const PLATFORM_OPTIONS: { value: PlatformValue; label: string }[] = [
 
 type ParsedRow = {
   salesChannelRaw: string; // 表格裡「銷售平台」那格的原文
-  salesChannelId: string | null; // 對到的銷售平台；null＝預設平台（空白）；UNMATCHED＝填了但對不到
+  salesChannelId: string; // 對到的銷售平台 id；UNMATCHED＝空白或對不到設定的平台
   vendorName: string;
   status: StatusValue;
   branch: string;
@@ -152,13 +152,13 @@ function splitNamePhone(raw: string): { name: string; phone: string } {
 }
 
 const UNMATCHED = "__unmatched__";
-// 銷售平台：空白＝預設平台；有填就照名稱對（完全相同或互相包含，例如「樂園售出」也對得到樂園）
-function matchChannel(channels: SalesChannel[], raw: string): string | null {
+// 銷售平台：一定要是分潤設定裡有的平台，照名稱對（完全相同或互相包含，例如「樂園售出」也對得到樂園）；
+// 空白或對不到的要在預覽裡選好才能匯入
+function matchChannel(channels: SalesChannel[], raw: string): string {
   const s = raw.trim();
-  if (!s) return null;
+  if (!s) return UNMATCHED;
   const hit = channels.find((c) => c.name === s) ?? channels.find((c) => s.includes(c.name) || c.name.includes(s));
-  if (!hit) return UNMATCHED;
-  return hit.isDefault ? null : hit.id;
+  return hit ? hit.id : UNMATCHED;
 }
 
 function parseTsv(raw: string, channels: SalesChannel[]): ParsedRow[] {
@@ -215,8 +215,14 @@ export default function ImportBookingsPage() {
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<{ inserted: number; errors: string[] } | null>(null);
   const channels = useSalesChannels();
-  const defaultChannel = channels.find((c) => c.isDefault);
+  // 訂單歸屬一定要是廠商帳號的名字（管理員／客服：全部廠商；廠商：只有自己）
+  const [vendorNames, setVendorNames] = useState<string[]>([]);
+  useEffect(() => {
+    fetch("/api/vendor-names").then((res) => (res.ok ? res.json() : [])).then((d) => setVendorNames(Array.isArray(d) ? d : []));
+  }, []);
+  const vendorOk = (r: ParsedRow) => vendorNames.includes(r.vendorName.trim());
   const unmatchedCount = rows.filter((r) => r.salesChannelId === UNMATCHED).length;
+  const badVendorCount = rows.filter((r) => !vendorOk(r)).length;
 
   const handleParse = () => {
     const r = parseTsv(raw, channels);
@@ -229,7 +235,7 @@ export default function ImportBookingsPage() {
     setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
 
   const handleImport = async () => {
-    if (unmatchedCount > 0) return;
+    if (unmatchedCount > 0 || badVendorCount > 0) return;
     setImporting(true);
     const res = await fetch("/api/bookings/bulk", {
       method: "POST",
@@ -319,13 +325,20 @@ export default function ImportBookingsPage() {
                       <td>{i + 1}</td>
                       <td>
                         <select className="erp-select" style={{ fontSize: 13, ...(r.salesChannelId === UNMATCHED ? { borderColor: "var(--color-danger)" } : {}) }}
-                          value={r.salesChannelId === UNMATCHED ? UNMATCHED : (r.salesChannelId ?? defaultChannel?.id ?? "")}
-                          onChange={(e) => updateRow(i, { salesChannelId: e.target.value === defaultChannel?.id ? null : e.target.value })}>
-                          {r.salesChannelId === UNMATCHED && <option value={UNMATCHED}>？{r.salesChannelRaw}</option>}
+                          value={r.salesChannelId}
+                          onChange={(e) => updateRow(i, { salesChannelId: e.target.value })}>
+                          {r.salesChannelId === UNMATCHED && <option value={UNMATCHED}>？{r.salesChannelRaw || "（空白）"}</option>}
                           {channels.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                       </td>
-                      <td>{r.vendorName || <span style={{ color: "var(--gray-400)" }}>—</span>}</td>
+                      <td>
+                        <select className="erp-select" style={{ fontSize: 13, ...(vendorOk(r) ? {} : { borderColor: "var(--color-danger)" }) }}
+                          value={vendorOk(r) ? r.vendorName.trim() : "__bad__"}
+                          onChange={(e) => updateRow(i, { vendorName: e.target.value })}>
+                          {!vendorOk(r) && <option value="__bad__">？{r.vendorName || "（空白）"}</option>}
+                          {vendorNames.map((n) => <option key={n} value={n}>{n}</option>)}
+                        </select>
+                      </td>
                       <td>
                         <select className="erp-select" style={{ fontSize: 13 }}
                           value={r.status}
@@ -369,13 +382,13 @@ export default function ImportBookingsPage() {
             </div>
           ) : (
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={handleImport} disabled={importing || unmatchedCount > 0} className="btn btn-primary">
+              <button onClick={handleImport} disabled={importing || unmatchedCount > 0 || badVendorCount > 0} className="btn btn-primary">
                 {importing ? "匯入中..." : `確認匯入 ${rows.length} 筆`}
               </button>
               <button onClick={() => { setParsed(false); setRows([]); }} className="btn btn-secondary">重新貼上</button>
-              {unmatchedCount > 0 && (
+              {(unmatchedCount > 0 || badVendorCount > 0) && (
                 <span style={{ alignSelf: "center", fontSize: 13, color: "var(--color-danger)" }}>
-                  有 {unmatchedCount} 筆的銷售平台對不到（紅框），請先在下拉選好再匯入
+                  {[unmatchedCount > 0 && `${unmatchedCount} 筆銷售平台空白或不是設定的平台`, badVendorCount > 0 && `${badVendorCount} 筆訂單歸屬不是廠商名字`].filter(Boolean).join("、")}（紅框），請先在下拉選好再匯入
                 </span>
               )}
             </div>

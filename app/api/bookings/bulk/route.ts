@@ -24,7 +24,7 @@ type ImportRow = {
   account: string
   salespersonName: string
   agencyFee: string
-  salesChannelId?: string | null // 銷售平台（前端已經照名稱對好；空的＝預設平台）
+  salesChannelId?: string | null // 銷售平台 id（前端已經照名稱對好），一定要是設定裡有的平台
 }
 
 function normalizeDate(raw: string): string {
@@ -66,15 +66,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '沒有資料' }, { status: 400 })
     }
 
-    // 廠商只能匯入自己的單；admin/客服才能用 vendorName 指定歸屬廠商
-    let vendorMap = new Map<string, string>()
-    if (isAdmin || isCS) {
-      const names = [...new Set(rows.map((r) => r.vendorName).filter(Boolean))]
-      if (names.length > 0) {
-        const vendorRows = await db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.name, names))
-        vendorMap = new Map(vendorRows.filter((v): v is { id: string; name: string } => v.name !== null).map((v) => [v.name, v.id]))
-      }
-    }
+    // 訂單歸屬一定要是廠商帳號的名字：admin/客服可以指定任何廠商；純廠商只能是自己
+    const vendorAccounts = (await db.select({ id: users.id, name: users.name, roles: users.roles }).from(users))
+      .filter((u): u is { id: string; name: string; roles: typeof u.roles } => u.roles.includes('vendor') && !!u.name)
+      .filter((u) => isAdmin || isCS || u.id === session.user.id)
+    const vendorMap = new Map(vendorAccounts.map((v) => [v.name, v.id]))
 
     // 銷售平台：只接受存在的平台 id，其他都當預設平台
     const channelIds = new Set((await db.select({ id: salesChannels.id }).from(salesChannels)).map((c) => c.id))
@@ -96,15 +92,14 @@ export async function POST(req: NextRequest) {
       const r = rows[i]
       const rowNum = i + 1
 
-      let vendorId: string | null
-      if (isVendor && !isAdmin) {
-        vendorId = session.user.id ?? null
-      } else {
-        vendorId = vendorMap.get(r.vendorName) ?? null
-        if (r.vendorName && !vendorId) {
-          errors.push(`第 ${rowNum} 行：找不到廠商「${r.vendorName}」`)
-          continue
-        }
+      const vendorId = vendorMap.get(r.vendorName?.trim()) ?? null
+      if (!vendorId) {
+        errors.push(`第 ${rowNum} 行：訂單歸屬「${r.vendorName || '（空白）'}」不是${isAdmin || isCS ? '廠商' : '你自己'}的名字，已略過`)
+        continue
+      }
+      if (!r.salesChannelId || !channelIds.has(r.salesChannelId)) {
+        errors.push(`第 ${rowNum} 行：銷售平台不是設定裡有的平台，已略過`)
+        continue
       }
 
       const bookingDate = normalizeDate(r.bookingDate)
@@ -160,7 +155,7 @@ export async function POST(req: NextRequest) {
         account: r.account || null,
         salespersonId,
         agencyFee,
-        salesChannelId: r.salesChannelId && channelIds.has(r.salesChannelId) ? r.salesChannelId : null,
+        salesChannelId: r.salesChannelId,
       })
     }
 
