@@ -19,6 +19,7 @@ type ExistingBooking = {
   partySize: number | null;
   bookingCode: string | null;
   depositAmount: string | null;
+  depositPayer: string | null;
 };
 
 export default function ImportSmsPage() {
@@ -100,6 +101,8 @@ export default function ImportSmsPage() {
   // 付款完成 → 比對到的既有單據
   const [matched, setMatched] = useState<ExistingBooking | null | undefined>(undefined);
   const [ambiguous, setAmbiguous] = useState(false);
+  // 比對到單據時要寫進單據的付款人員（廠商名單名稱），預設帶單據原本的
+  const [payer, setPayer] = useState("");
   const [checkingMatch, setCheckingMatch] = useState(false);
   const [rawBranch, setRawBranch] = useState(""); // 簡訊裡原始的分店文字，跟最終確認的分店不同時拿來記對應
   const [matchBranch, setMatchBranch] = useState(""); // 付款完成比對用的分店，可手動修正
@@ -135,6 +138,7 @@ export default function ImportSmsPage() {
     const res = await fetch(`/api/bookings/lookup?${qs.toString()}`);
     const data = await res.json();
     setMatched(data.match ?? null);
+    setPayer(data.match?.depositPayer ?? "");
     setAmbiguous(Boolean(data.ambiguous));
     if (data.error) setError(data.error);
     setCheckingMatch(false);
@@ -234,6 +238,7 @@ export default function ImportSmsPage() {
         rawText: text,
         bookingId: matched ? matched.id : null,
         parsedData: parsed,
+        ...(matched ? { depositPayer: payer } : {}),
       }),
     });
     setSaving(false);
@@ -453,6 +458,13 @@ export default function ImportSmsPage() {
             {!checkingMatch && matched && (
               <div className="erp-alert info">
                 已比對到唯一一筆單據：{matched.branch} {matched.bookingDate} {matched.timeSlot}，訂金 {formatCurrency(matched.depositAmount)}
+              </div>
+            )}
+            {!checkingMatch && matched && (
+              <div style={{ marginBottom: 12, maxWidth: 320 }}>
+                <label className="erp-label">付款人員</label>
+                <RosterListSelect value={payer} onChange={setPayer} />
+                <span style={{ fontSize: 12, color: "var(--gray-400)" }}>留存時會一起寫進這筆單據</span>
               </div>
             )}
             {!checkingMatch && matched === null && ambiguous && (

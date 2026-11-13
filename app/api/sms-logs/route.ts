@@ -37,6 +37,11 @@ export async function POST(req: NextRequest) {
     if (!booking) return NextResponse.json({ error: '找不到這筆單據' }, { status: 404 })
   }
 
+  // 付款完成簡訊關聯到單據時，順便寫入付款人員（有傳才寫，空字串＝清掉）
+  if (body.bookingId && typeof body.depositPayer === 'string') {
+    await db.update(bookings).set({ depositPayer: body.depositPayer.trim() || null }).where(eq(bookings.id, body.bookingId))
+  }
+
   const [row] = await db
     .insert(smsLogs)
     .values({
