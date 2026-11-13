@@ -518,8 +518,8 @@ export default function ImportSmsBulkPage() {
                     <td><input type="number" className="erp-input" style={{ width: 60, fontSize: 13 }} value={r.partySize} onChange={(e) => updateNotice(r.key, { partySize: e.target.value })} /></td>
                     <td><input className="erp-input" style={{ width: 90, fontSize: 13 }} value={r.bookingCode} onChange={(e) => updateNotice(r.key, { bookingCode: e.target.value })} /></td>
                     <td><input type="number" className="erp-input" style={{ width: 80, fontSize: 13 }} value={r.depositAmount} onChange={(e) => updateNotice(r.key, { depositAmount: e.target.value })} /></td>
-                    <td><StaffOptionSelect kind="payer" style={{ width: 110, fontSize: 13 }} value={r.depositPayer} onChange={(v) => updateNotice(r.key, { depositPayer: v })} /></td>
-                    <td><StaffOptionSelect kind="booker" style={{ width: 110, fontSize: 13 }} value={r.actualBooker} onChange={(v) => updateNotice(r.key, { actualBooker: v })} /></td>
+                    <td><StaffOptionSelect style={{ width: 110, fontSize: 13 }} value={r.depositPayer} onChange={(v) => updateNotice(r.key, { depositPayer: v })} /></td>
+                    <td><StaffOptionSelect style={{ width: 110, fontSize: 13 }} value={r.actualBooker} onChange={(v) => updateNotice(r.key, { actualBooker: v })} /></td>
                     <td><input className="erp-input" style={{ width: 90, fontSize: 13 }} value={r.customerName} onChange={(e) => updateNotice(r.key, { customerName: e.target.value })} onBlur={() => handleNameBlur(r.key)} /></td>
                     <td>
                       <input className="erp-input" style={{ width: 110, fontSize: 13 }} value={r.customerPhone} onChange={(e) => updateNotice(r.key, { customerPhone: e.target.value })} />
@@ -591,7 +591,7 @@ export default function ImportSmsBulkPage() {
                     <td>{formatCurrency(r.amount)}</td>
                     <td>
                       {r.matched
-                        ? <StaffOptionSelect kind="payer" style={{ width: 110, fontSize: 13 }} value={r.payer} onChange={(v) => updateCompletion(r.key, { payer: v })} />
+                        ? <StaffOptionSelect style={{ width: 110, fontSize: 13 }} value={r.payer} onChange={(v) => updateCompletion(r.key, { payer: v })} />
                         : <span style={{ color: "var(--gray-400)" }}>—</span>}
                     </td>
                     <td style={{ fontSize: 12 }}>

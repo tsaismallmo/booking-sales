@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { ClipboardList, Users, LogOut, MapPinned, Store, Wrench, Package, CalendarClock, BookUser, UserCog, CalendarDays, PieChart, BellRing, BadgeCheck, TableProperties, HandCoins, Landmark, Archive, Wallet, Scale } from "lucide-react";
+import { ClipboardList, Users, LogOut, MapPinned, Store, Wrench, Package, CalendarClock, BookUser, CalendarDays, PieChart, BellRing, BadgeCheck, TableProperties, HandCoins, Landmark, Archive, Wallet, Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ActingVendorSelect } from "@/components/ActingVendorSelect";
 import type { Role } from "@/types/next-auth";
@@ -112,12 +112,6 @@ export function Sidebar({ roles }: { roles: Role[] }) {
           <Link href="/roster" className={cn("erp-sidebar-item", pathname.startsWith("/roster") && "active")}>
             <BookUser size={15} />
             廠商名單
-          </Link>
-        )}
-        {(isVendor || isAdmin) && (
-          <Link href="/staff-options" className={cn("erp-sidebar-item", pathname.startsWith("/staff-options") && "active")}>
-            <UserCog size={15} />
-            人員選項
           </Link>
         )}
         {(isVendor || isAdmin || isLogistics || isVendorStaff) && (

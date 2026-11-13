@@ -328,11 +328,11 @@ export default function ImportSmsPage() {
               </div>
               <div className="erp-form-group">
                 <label className="erp-label">付款人員</label>
-                <StaffOptionSelect kind="payer" value={form.depositPayer ?? ""} onChange={(v) => setForm((f) => ({ ...f, depositPayer: v }))} />
+                <StaffOptionSelect value={form.depositPayer ?? ""} onChange={(v) => setForm((f) => ({ ...f, depositPayer: v }))} />
               </div>
               <div className="erp-form-group">
                 <label className="erp-label">實際訂位人員</label>
-                <StaffOptionSelect kind="booker" value={form.actualBooker} onChange={(v) => setForm((f) => ({ ...f, actualBooker: v }))} />
+                <StaffOptionSelect value={form.actualBooker} onChange={(v) => setForm((f) => ({ ...f, actualBooker: v }))} />
               </div>
               <div className="erp-form-group" style={{ gridColumn: "1 / -1" }}>
                 <label className="erp-label">搜尋客人（點選帶入姓名＋電話）</label>
@@ -463,7 +463,7 @@ export default function ImportSmsPage() {
             {!checkingMatch && matched && (
               <div style={{ marginBottom: 12, maxWidth: 320 }}>
                 <label className="erp-label">付款人員</label>
-                <StaffOptionSelect kind="payer" value={payer} onChange={setPayer} />
+                <StaffOptionSelect value={payer} onChange={setPayer} />
                 <span style={{ fontSize: 12, color: "var(--gray-400)" }}>留存時會一起寫進這筆單據</span>
               </div>
             )}
