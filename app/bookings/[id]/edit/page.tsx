@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { RosterListSelect } from "@/components/RosterListSelect";
+import { StaffOptionSelect } from "@/components/StaffOptionSelect";
 import { BranchSelect } from "@/components/BranchSelect";
 import { SalesChannelSelect } from "@/components/SalesChannelSelect";
 
@@ -166,7 +166,7 @@ export default function EditBookingPage() {
               </div>
               <div className="erp-form-group">
                 <label className="erp-label">實際訂位人員</label>
-                <RosterListSelect value={form.actualBooker ?? ""} onChange={(v) => setForm((f) => ({ ...f, actualBooker: v }))} />
+                <StaffOptionSelect kind="booker" value={form.actualBooker ?? ""} onChange={(v) => setForm((f) => ({ ...f, actualBooker: v }))} />
               </div>
             </div>
           </div>
@@ -184,7 +184,7 @@ export default function EditBookingPage() {
               </div>
               <div className="erp-form-group">
                 <label className="erp-label">付款人員</label>
-                <RosterListSelect value={form.depositPayer ?? ""} onChange={(v) => setForm((f) => ({ ...f, depositPayer: v }))} />
+                <StaffOptionSelect kind="payer" value={form.depositPayer ?? ""} onChange={(v) => setForm((f) => ({ ...f, depositPayer: v }))} />
               </div>
             </div>
           </div>

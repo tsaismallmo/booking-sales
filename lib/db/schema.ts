@@ -202,6 +202,18 @@ export const vendorRosterEntries = pgTable('vendor_roster_entries', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
+// 人員選項：單據上「實際訂位人員」（kind=booker）和「付款人員」（kind=payer）下拉的選項，
+// 每個廠商各自設定、兩種各一份清單，可排序。存進單據的是名稱文字。
+export const staffOptionKindEnum = pgEnum('staff_option_kind', ['booker', 'payer'])
+export const vendorStaffOptions = pgTable('vendor_staff_options', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  vendorId: uuid('vendor_id').notNull().references(() => users.id),
+  kind: staffOptionKindEnum('kind').notNull(),
+  name: text('name').notNull(),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (t) => [unique('vendor_staff_options_unique').on(t.vendorId, t.kind, t.name)])
+
 // 客服分潤比例：全部客服共用同一個比例，但依月份各別設定（改某個月不會動到其他月份，
 // 沒設定過的月份用預設 20%）。只有管理員能改。
 export const csShareRates = pgTable('cs_share_rates', {

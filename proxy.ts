@@ -67,8 +67,8 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
-  // 廠商名單：只給廠商本人（廠商員工只需要單據管理）
-  if (pathname.startsWith('/roster') && !isVendor) {
+  // 廠商名單、人員選項：只給廠商本人（管理員在最前面已經放行）
+  if ((pathname.startsWith('/roster') || pathname.startsWith('/staff-options')) && !isVendor) {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
