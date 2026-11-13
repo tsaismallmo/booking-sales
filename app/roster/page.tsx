@@ -47,6 +47,20 @@ export default function RosterPage() {
     fetch("/api/restaurant-groups").then((res) => (res.ok ? res.json() : [])).then((g) => setGroups(Array.isArray(g) ? g : []));
   }, []);
   const groupName = (id: string | null | undefined) => groups.find((g) => g.id === id)?.name;
+  // 同一支電話在不同集團登記的名字放在同一張卡片（沒電話的各自一張）
+  const phoneGroups = useMemo(() => {
+    const map = new Map<string, { key: string; phone: string | null; items: RosterEntry[] }>();
+    for (const e of entries) {
+      const digits = e.phone?.replace(/\D/g, "");
+      const key = digits ? `p:${digits}` : `id:${e.id}`;
+      const cur = map.get(key) ?? { key, phone: e.phone, items: [] };
+      cur.items.push(e);
+      map.set(key, cur);
+    }
+    return [...map.values()];
+  }, [entries]);
+  // 正在幫哪一支電話加「其他集團的名字」
+  const [addingFor, setAddingFor] = useState<{ key: string; name: string; groupId: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -171,6 +185,26 @@ export default function RosterPage() {
     loadLists();
   };
 
+  // 同一支電話加一筆「在某個集團登記的名字」（存成同一份名單裡、同電話、標了集團的另一筆成員）
+  const addGroupName = async (phone: string) => {
+    if (!addingFor || !selectedListId || !addingFor.name.trim() || !addingFor.groupId) return;
+    setError("");
+    const res = await fetch("/api/roster", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ listId: selectedListId, name: addingFor.name.trim(), phone, groupId: addingFor.groupId }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return setError(data.error || "新增失敗");
+    }
+    setAddingFor(null);
+    fetch(`/api/roster?listId=${selectedListId}`)
+      .then((r) => r.json())
+      .then((data) => setEntries(Array.isArray(data) ? data : []));
+    loadLists();
+  };
+
   const handleRemoveEntry = async (id: string) => {
     if (!window.confirm("確定要刪除這位名單成員嗎？")) return;
     await fetch(`/api/roster/${id}`, { method: "DELETE" });
@@ -283,32 +317,57 @@ export default function RosterPage() {
             )}
             {selectedListId && !loadingEntries && entries.length > 0 && (
               <div className="erp-person-grid">
-                {entries.map((e) => (
-                  <div key={e.id} className="erp-roster-card">
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--gray-800)" }}>{e.name}</div>
-                      <div style={{ fontSize: 12, color: "var(--gray-500)" }}>{e.phone ?? "—"}</div>
-                      {canEdit ? (
-                        <select
-                          className="erp-select"
-                          style={{ fontSize: 11, padding: "1px 4px", marginTop: 2, width: "auto" }}
-                          value={e.groupId ?? ""}
-                          onChange={async (ev) => {
-                            const groupId = ev.target.value || null;
-                            await fetch(`/api/roster/${e.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ groupId }) });
-                            setEntries((es) => es.map((x) => (x.id === e.id ? { ...x, groupId } : x)));
-                          }}
-                        >
-                          <option value="">所有集團</option>
+                {phoneGroups.map(({ key, phone, items }) => (
+                  <div key={key} className="erp-roster-card" style={{ flexDirection: "column", alignItems: "stretch" }}>
+                    <div style={{ fontSize: 12, color: "var(--gray-500)" }}>{phone ?? "—"}</div>
+                    {items.map((e) => (
+                      <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--gray-800)", flex: 1 }}>{e.name}</span>
+                        {canEdit ? (
+                          <select
+                            className="erp-select"
+                            style={{ fontSize: 11, padding: "1px 4px", width: "auto" }}
+                            value={e.groupId ?? ""}
+                            onChange={async (ev) => {
+                              const groupId = ev.target.value || null;
+                              await fetch(`/api/roster/${e.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ groupId }) });
+                              setEntries((es) => es.map((x) => (x.id === e.id ? { ...x, groupId } : x)));
+                            }}
+                          >
+                            <option value="">所有集團</option>
+                            {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                          </select>
+                        ) : (
+                          <span className="badge badge-gray" style={{ fontSize: 11 }}>{groupName(e.groupId) ?? "所有集團"}</span>
+                        )}
+                        {canEdit && <button className="erp-roster-card-remove" onClick={() => handleRemoveEntry(e.id)}>✕</button>}
+                      </div>
+                    ))}
+                    {canEdit && phone && (addingFor?.key === key ? (
+                      <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
+                        <input
+                          className="erp-input"
+                          style={{ flex: 1, minWidth: 80, fontSize: 12, padding: "3px 6px" }}
+                          placeholder="在這個集團的名字"
+                          value={addingFor.name}
+                          onChange={(ev) => setAddingFor({ ...addingFor, name: ev.target.value })}
+                          onKeyDown={(ev) => { if (ev.key === "Enter") void addGroupName(phone); }}
+                        />
+                        <select className="erp-select" style={{ fontSize: 11, padding: "1px 4px", width: "auto" }} value={addingFor.groupId} onChange={(ev) => setAddingFor({ ...addingFor, groupId: ev.target.value })}>
                           {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
                         </select>
-                      ) : (
-                        e.groupId && <span className="badge badge-gray" style={{ fontSize: 11 }}>{groupName(e.groupId)}</span>
-                      )}
-                    </div>
-                    {canEdit && (
-                      <button className="erp-roster-card-remove" onClick={() => handleRemoveEntry(e.id)}>✕</button>
-                    )}
+                        <button className="btn btn-primary" style={{ padding: "2px 8px", fontSize: 12 }} disabled={!addingFor.name.trim() || !addingFor.groupId} onClick={() => addGroupName(phone)}>新增</button>
+                        <button className="btn btn-ghost" style={{ padding: "2px 8px", fontSize: 12 }} onClick={() => setAddingFor(null)}>取消</button>
+                      </div>
+                    ) : (
+                      <button
+                        className="btn btn-ghost"
+                        style={{ padding: "2px 6px", fontSize: 12, alignSelf: "flex-start" }}
+                        onClick={() => setAddingFor({ key, name: "", groupId: groups.find((g) => !items.some((e) => e.groupId === g.id))?.id ?? groups[0]?.id ?? "" })}
+                      >
+                        ＋ 其他集團的名字
+                      </button>
+                    ))}
                   </div>
                 ))}
               </div>
