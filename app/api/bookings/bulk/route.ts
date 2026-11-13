@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { inArray } from 'drizzle-orm'
 import { db } from '@/lib/db'
-import { bookings, users } from '@/lib/db/schema'
+import { bookings, salesChannels, users } from '@/lib/db/schema'
 import { auth } from '@/auth'
 import { defaultCancelDeadline, listBranchOptions, resolveBranch } from '@/lib/branches'
 
@@ -24,6 +24,7 @@ type ImportRow = {
   account: string
   salespersonName: string
   agencyFee: string
+  salesChannelId?: string | null // 銷售平台（前端已經照名稱對好；空的＝預設平台）
 }
 
 function normalizeDate(raw: string): string {
@@ -74,6 +75,9 @@ export async function POST(req: NextRequest) {
         vendorMap = new Map(vendorRows.filter((v): v is { id: string; name: string } => v.name !== null).map((v) => [v.name, v.id]))
       }
     }
+
+    // 銷售平台：只接受存在的平台 id，其他都當預設平台
+    const channelIds = new Set((await db.select({ id: salesChannels.id }).from(salesChannels)).map((c) => c.id))
 
     // 銷售人員（客服）用姓名比對帳號，不限角色，跟填名字建單的邏輯一樣
     const salespersonNames = [...new Set(rows.map((r) => r.salespersonName).filter(Boolean))]
@@ -156,6 +160,7 @@ export async function POST(req: NextRequest) {
         account: r.account || null,
         salespersonId,
         agencyFee,
+        salesChannelId: r.salesChannelId && channelIds.has(r.salesChannelId) ? r.salesChannelId : null,
       })
     }
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSalesChannels, type SalesChannel } from "@/components/SalesChannelSelect";
 
 type StatusValue = "unsold" | "sold" | "refunded";
 type PlatformValue = "" | "eztable" | "inline";
@@ -18,6 +19,8 @@ const PLATFORM_OPTIONS: { value: PlatformValue; label: string }[] = [
 ];
 
 type ParsedRow = {
+  salesChannelRaw: string; // 表格裡「銷售平台」那格的原文
+  salesChannelId: string | null; // 對到的銷售平台；null＝預設平台（空白）；UNMATCHED＝填了但對不到
   vendorName: string;
   status: StatusValue;
   branch: string;
@@ -39,6 +42,7 @@ type ParsedRow = {
 };
 
 type ColMap = {
+  salesChannel: number;
   vendorRaw: number;
   status: number;
   branch: number;
@@ -63,6 +67,7 @@ type ColMap = {
 // 標題關鍵字對應欄位名稱。customerRaw（姓名電話合併欄）要放在 customerName 前面比對，
 // 不然像「姓名+電話」這種標題會先被 customerName 的「姓名」關鍵字誤判掉
 const HEADER_ALIASES: Record<keyof ColMap, string[]> = {
+  salesChannel:    ["銷售平台", "售出平台", "哪邊售出", "售出管道", "銷售管道"],
   vendorRaw:       ["訂單歸屬", "廠商", "vendor"],
   status:          ["狀態", "status"],
   branch:          ["分店", "branch"],
@@ -84,13 +89,14 @@ const HEADER_ALIASES: Record<keyof ColMap, string[]> = {
   agencyFee:       ["代訂費", "agency fee"],
 };
 
-// 沒有標題列時的固定欄位順序（新版）：訂單歸屬、狀態、分店、日期、時段、人數、訂位代號、
+// 沒有標題列時的固定欄位順序（新版）：銷售平台、訂單歸屬、狀態、分店、日期、時段、人數、訂位代號、
 // 姓名+電話（合併在同一欄）、訂金、付款人員、退訂期限、資料來源、售出日期、收款金額、帳戶、銷售人員、代訂費
 // （最後幾欄如果整批資料都用不到，Excel 複製時常常會被裁掉，留空也沒關係）；
 // 姓名/電話分開這種格式沒有固定位置可以對應，只有貼標題列才抓得到
 const DEFAULT_MAP: ColMap = {
-  vendorRaw: 0, status: 1, branch: 2, bookingDate: 3, timeSlot: 4, partySize: 5, bookingCode: 6, customerRaw: 7, deposit: 8, depositPayer: 9, cancelDeadline: 10, platform: 11,
-  soldDate: 12, collectedAmount: 13, account: 14, salespersonRaw: 15, agencyFee: 16,
+  salesChannel: 0,
+  vendorRaw: 1, status: 2, branch: 3, bookingDate: 4, timeSlot: 5, partySize: 6, bookingCode: 7, customerRaw: 8, deposit: 9, depositPayer: 10, cancelDeadline: 11, platform: 12,
+  soldDate: 13, collectedAmount: 14, account: 15, salespersonRaw: 16, agencyFee: 17,
   customerName: -1, customerPhone: -1,
 };
 
@@ -145,7 +151,17 @@ function splitNamePhone(raw: string): { name: string; phone: string } {
   return { name: s, phone: "" };
 }
 
-function parseTsv(raw: string): ParsedRow[] {
+const UNMATCHED = "__unmatched__";
+// 銷售平台：空白＝預設平台；有填就照名稱對（完全相同或互相包含，例如「樂園售出」也對得到樂園）
+function matchChannel(channels: SalesChannel[], raw: string): string | null {
+  const s = raw.trim();
+  if (!s) return null;
+  const hit = channels.find((c) => c.name === s) ?? channels.find((c) => s.includes(c.name) || c.name.includes(s));
+  if (!hit) return UNMATCHED;
+  return hit.isDefault ? null : hit.id;
+}
+
+function parseTsv(raw: string, channels: SalesChannel[]): ParsedRow[] {
   const lines = raw.trim().split(/\r?\n/).filter(Boolean);
   if (lines.length === 0) return [];
 
@@ -165,7 +181,10 @@ function parseTsv(raw: string): ParsedRow[] {
     const customerName = get(cols, finalMap.customerName) || split.name;
     const customerPhone = get(cols, finalMap.customerPhone) || split.phone;
 
+    const salesChannelRaw = get(cols, finalMap.salesChannel);
     return {
+      salesChannelRaw,
+      salesChannelId:  matchChannel(channels, salesChannelRaw),
       vendorName:      get(cols, finalMap.vendorRaw),
       status:          normaliseStatus(get(cols, finalMap.status)),
       branch:          get(cols, finalMap.branch),
@@ -195,9 +214,12 @@ export default function ImportBookingsPage() {
   const [parsed, setParsed] = useState(false);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<{ inserted: number; errors: string[] } | null>(null);
+  const channels = useSalesChannels();
+  const defaultChannel = channels.find((c) => c.isDefault);
+  const unmatchedCount = rows.filter((r) => r.salesChannelId === UNMATCHED).length;
 
   const handleParse = () => {
-    const r = parseTsv(raw);
+    const r = parseTsv(raw, channels);
     setRows(r);
     setParsed(true);
     setResult(null);
@@ -207,6 +229,7 @@ export default function ImportBookingsPage() {
     setRows((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
 
   const handleImport = async () => {
+    if (unmatchedCount > 0) return;
     setImporting(true);
     const res = await fetch("/api/bookings/bulk", {
       method: "POST",
@@ -236,8 +259,8 @@ export default function ImportBookingsPage() {
         <div className="erp-card-body">
           <p style={{ fontSize: 13, color: "var(--gray-500)", marginBottom: 10, lineHeight: 1.8 }}>
             <strong>直接貼入含標題列的試算表</strong>（推薦），系統會自動偵測標題列，識別以下欄位（欄位順序不限）：
-            訂單歸屬、狀態、分店、日期、時段、人數、訂位代號、姓名+電話（或分開的姓名／電話）、訂金、付款人、退訂期限、資料來源、售出日期、收款金額、帳戶、銷售、代訂費。<br />
-            沒有標題列時，固定欄位順序：訂單歸屬、狀態、分店、日期、時段、人數、訂位代號、姓名+電話（同一格）、訂金、付款人員、退訂期限、資料來源、售出日期、收款金額、帳戶、銷售人員、代訂費（後面用不到的欄位可以不用貼，留空也沒關係）；只有「姓名／電話分開」這種格式沒有固定位置可以對應，要用才需要貼標題列。
+            銷售平台、訂單歸屬、狀態、分店、日期、時段、人數、訂位代號、姓名+電話（或分開的姓名／電話）、訂金、付款人、退訂期限、資料來源、售出日期、收款金額、帳戶、銷售、代訂費。<br />
+            沒有標題列時，固定欄位順序：<strong>銷售平台</strong>、訂單歸屬、狀態、分店、日期、時段、人數、訂位代號、姓名+電話（同一格）、訂金、付款人員、退訂期限、資料來源、售出日期、收款金額、帳戶、銷售人員、代訂費（後面用不到的欄位可以不用貼，留空也沒關係）；只有「姓名／電話分開」這種格式沒有固定位置可以對應，要用才需要貼標題列。
           </p>
           <textarea
             className="erp-textarea"
@@ -269,6 +292,7 @@ export default function ImportBookingsPage() {
                 <thead>
                   <tr>
                     <th>#</th>
+                    <th>銷售平台</th>
                     <th>訂單歸屬</th>
                     <th>狀態</th>
                     <th>分店</th>
@@ -293,6 +317,14 @@ export default function ImportBookingsPage() {
                   {rows.map((r, i) => (
                     <tr key={i}>
                       <td>{i + 1}</td>
+                      <td>
+                        <select className="erp-select" style={{ fontSize: 13, ...(r.salesChannelId === UNMATCHED ? { borderColor: "var(--color-danger)" } : {}) }}
+                          value={r.salesChannelId === UNMATCHED ? UNMATCHED : (r.salesChannelId ?? defaultChannel?.id ?? "")}
+                          onChange={(e) => updateRow(i, { salesChannelId: e.target.value === defaultChannel?.id ? null : e.target.value })}>
+                          {r.salesChannelId === UNMATCHED && <option value={UNMATCHED}>？{r.salesChannelRaw}</option>}
+                          {channels.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                      </td>
                       <td>{r.vendorName || <span style={{ color: "var(--gray-400)" }}>—</span>}</td>
                       <td>
                         <select className="erp-select" style={{ fontSize: 13 }}
@@ -337,10 +369,15 @@ export default function ImportBookingsPage() {
             </div>
           ) : (
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={handleImport} disabled={importing} className="btn btn-primary">
+              <button onClick={handleImport} disabled={importing || unmatchedCount > 0} className="btn btn-primary">
                 {importing ? "匯入中..." : `確認匯入 ${rows.length} 筆`}
               </button>
               <button onClick={() => { setParsed(false); setRows([]); }} className="btn btn-secondary">重新貼上</button>
+              {unmatchedCount > 0 && (
+                <span style={{ alignSelf: "center", fontSize: 13, color: "var(--color-danger)" }}>
+                  有 {unmatchedCount} 筆的銷售平台對不到（紅框），請先在下拉選好再匯入
+                </span>
+              )}
             </div>
           )}
         </>
