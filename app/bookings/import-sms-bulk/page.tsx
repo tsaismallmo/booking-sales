@@ -518,7 +518,7 @@ export default function ImportSmsBulkPage() {
                     <td><input type="number" className="erp-input" style={{ width: 60, fontSize: 13 }} value={r.partySize} onChange={(e) => updateNotice(r.key, { partySize: e.target.value })} /></td>
                     <td><input className="erp-input" style={{ width: 90, fontSize: 13 }} value={r.bookingCode} onChange={(e) => updateNotice(r.key, { bookingCode: e.target.value })} /></td>
                     <td><input type="number" className="erp-input" style={{ width: 80, fontSize: 13 }} value={r.depositAmount} onChange={(e) => updateNotice(r.key, { depositAmount: e.target.value })} /></td>
-                    <td><input className="erp-input" style={{ width: 90, fontSize: 13 }} value={r.depositPayer} onChange={(e) => updateNotice(r.key, { depositPayer: e.target.value })} /></td>
+                    <td><RosterListSelect style={{ width: 110, fontSize: 13 }} value={r.depositPayer} onChange={(v) => updateNotice(r.key, { depositPayer: v })} /></td>
                     <td><RosterListSelect style={{ width: 110, fontSize: 13 }} value={r.actualBooker} onChange={(v) => updateNotice(r.key, { actualBooker: v })} /></td>
                     <td><input className="erp-input" style={{ width: 90, fontSize: 13 }} value={r.customerName} onChange={(e) => updateNotice(r.key, { customerName: e.target.value })} onBlur={() => handleNameBlur(r.key)} /></td>
                     <td>
