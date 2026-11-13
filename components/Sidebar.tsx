@@ -84,8 +84,8 @@ export function Sidebar({ roles }: { roles: Role[] }) {
           </>
         )}
 
-        {/* ── 廠商 ── 廠商本人 / 管理員（代理廠商）/ 後勤（只有訂位看板）；廠商員工只需要單據管理 */}
-        {(isVendor || isAdmin || isLogistics) && (
+        {/* ── 廠商 ── 廠商本人 / 管理員（代理廠商）/ 後勤、廠商員工（只有訂位看板） */}
+        {(isVendor || isAdmin || isLogistics || isVendorStaff) && (
           <>
             <div className="erp-sidebar-divider" />
             <div className="erp-sidebar-section">廠商</div>
@@ -98,7 +98,7 @@ export function Sidebar({ roles }: { roles: Role[] }) {
             廠商名單
           </Link>
         )}
-        {(isVendor || isAdmin || isLogistics) && (
+        {(isVendor || isAdmin || isLogistics || isVendorStaff) && (
           <Link href="/booking-board" className={cn("erp-sidebar-item", pathname.startsWith("/booking-board") && "active")}>
             <CalendarDays size={15} />
             訂位看板

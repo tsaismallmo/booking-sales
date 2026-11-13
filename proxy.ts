@@ -72,8 +72,8 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
-  // 訂位看板（月曆/Inline/EZTABLE）：廠商本人、後勤（看全部廠商）
-  if (pathname.startsWith('/booking-board') && !isVendor && !isLogistics) {
+  // 訂位看板（月曆/Inline/EZTABLE）：廠商本人、廠商員工（看所屬廠商）、後勤（看全部廠商）
+  if (pathname.startsWith('/booking-board') && !isVendor && !isLogistics && !isVendorStaff) {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
