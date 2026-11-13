@@ -67,11 +67,6 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
-  // 臨時單看板：客服／管理員／後勤
-  if (pathname.startsWith('/dashboard/temp') && !isAdmin && !roles.includes('customer_service') && !isLogistics) {
-    return NextResponse.redirect(new URL(fallback, req.url))
-  }
-
   // 廠商名單：只給廠商本人（廠商員工只需要單據管理）
   if (pathname.startsWith('/roster') && !isVendor) {
     return NextResponse.redirect(new URL(fallback, req.url))

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { ClipboardList, Users, LogOut, MapPinned, Store, Wrench, Package, Clock3, CalendarClock, BookUser, CalendarDays, PieChart, BellRing, BadgeCheck, TableProperties, HandCoins, Landmark, Archive, Wallet, Scale } from "lucide-react";
+import { ClipboardList, Users, LogOut, MapPinned, Store, Wrench, Package, CalendarClock, BookUser, CalendarDays, PieChart, BellRing, BadgeCheck, TableProperties, HandCoins, Landmark, Archive, Wallet, Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ActingVendorSelect } from "@/components/ActingVendorSelect";
 import type { Role } from "@/types/next-auth";
@@ -22,7 +22,6 @@ export function Sidebar({ roles }: { roles: Role[] }) {
   const fromParam = searchParams.get("from");
   const fromAdmin = fromParam === "admin";
   const fromSold = fromParam === "sold";
-  const fromTemp = fromParam === "temp";
   const fromReserved = fromParam === "reserved";
   const isAdmin = roles.includes("admin");
   const isVendor = roles.includes("vendor");
@@ -46,12 +45,6 @@ export function Sidebar({ roles }: { roles: Role[] }) {
           <Link href="/dashboard" className={cn("erp-sidebar-item", pathname === "/dashboard" && "active")}>
             <Package size={15} />
             現貨單看板
-          </Link>
-        )}
-        {(isCustomerService || isAdmin || isLogistics) && (
-          <Link href="/dashboard/temp" className={cn("erp-sidebar-item", (pathname.startsWith("/dashboard/temp") || (pathname.startsWith("/bookings") && fromTemp)) && "active")}>
-            <Clock3 size={15} />
-            臨時單看板
           </Link>
         )}
         {(isCustomerService || isAdmin) && (
@@ -78,7 +71,7 @@ export function Sidebar({ roles }: { roles: Role[] }) {
           <>
             <div className="erp-sidebar-divider" />
             <div className="erp-sidebar-section">單據</div>
-            <Link href={isVendor || isAdmin ? "/bookings" : "/bookings/booked"} className={cn("erp-sidebar-item", pathname.startsWith("/bookings") && !pathname.startsWith("/bookings/booked") && !fromAdmin && !fromSold && !fromTemp && !fromReserved && "active", !(isVendor || isAdmin) && pathname.startsWith("/bookings/booked") && "active")}>
+            <Link href={isVendor || isAdmin ? "/bookings" : "/bookings/booked"} className={cn("erp-sidebar-item", pathname.startsWith("/bookings") && !pathname.startsWith("/bookings/booked") && !fromAdmin && !fromSold && !fromReserved && "active", !(isVendor || isAdmin) && pathname.startsWith("/bookings/booked") && "active")}>
               <ClipboardList size={15} />
               單據管理
             </Link>

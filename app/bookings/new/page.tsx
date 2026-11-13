@@ -12,7 +12,7 @@ function NewBookingForm() {
   const presetCategory = searchParams.get("category");
   // 從哪個看板點「＋新增」進來的，儲存/取消後就回那個看板，不要固定跳單據管理
   const fromParam = searchParams.get("from");
-  const RETURN_PATHS: Record<string, string> = { temp: "/dashboard/temp", reserved: "/dashboard/reserved" };
+  const RETURN_PATHS: Record<string, string> = { reserved: "/dashboard/reserved" };
   const returnTo = (fromParam && RETURN_PATHS[fromParam]) || "/bookings";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
