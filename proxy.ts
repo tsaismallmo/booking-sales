@@ -51,7 +51,7 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(fallback, req.url))
   }
 
-  // 新增單據：有廠商/管理員身份的人可以建任何類別；純客服也能進來，但只能建臨時單/預定單（API 會再擋一次）
+  // 新增單據：有廠商/管理員身份的人可以建任何類別；純客服也能進來，但只能建預定單（API 會再擋一次）
   const canCreateBookings = isVendor || isAdmin || roles.includes('customer_service')
   if (pathname.startsWith('/bookings/new') && !canCreateBookings) {
     return NextResponse.redirect(new URL(fallback, req.url))

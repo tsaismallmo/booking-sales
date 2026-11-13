@@ -50,11 +50,11 @@ export async function POST(req: NextRequest) {
 
   const isVendor = roles.includes('vendor')
   const isAdmin = roles.includes('admin')
-  const csCreatableCategory = body.category === '臨時單' || body.category === '預定單'
+  const csCreatableCategory = body.category === '預定單'
 
-  // 純客服（沒有廠商/管理員身份）只能建立臨時單或預定單，這兩種不是從廠商既有訂位轉過來的
+  // 純客服（沒有廠商/管理員身份）只能建立預定單（不是從廠商既有訂位轉過來的；臨時單看板已移除）
   if (!isVendor && !isAdmin && !csCreatableCategory) {
-    return NextResponse.json({ error: '客服只能建立臨時單或預定單' }, { status: 403 })
+    return NextResponse.json({ error: '客服只能建立預定單' }, { status: 403 })
   }
 
   // 現貨單是真實的餐廳訂位，一定要有訂位姓名/電話才能去報到

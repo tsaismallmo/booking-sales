@@ -17,7 +17,7 @@ function NewBookingForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [vendorId, setVendorId] = useState("");
-  // 純客服（沒有廠商/管理員身份）只能建臨時單／預定單，不用綁廠商
+  // 純客服（沒有廠商/管理員身份）只能建預定單，不用綁廠商（臨時單看板已移除）
   const [pureCustomerService, setPureCustomerService] = useState(false);
   const [form, setForm] = useState({
     branchId: "",
@@ -48,7 +48,7 @@ function NewBookingForm() {
         const roles: string[] = me.roles ?? [];
         const isPureCS = roles.includes("customer_service") && !roles.includes("vendor") && !roles.includes("admin");
         setPureCustomerService(isPureCS);
-        if (isPureCS && !presetCategory) setForm((f) => ({ ...f, category: "臨時單" }));
+        if (isPureCS) setForm((f) => ({ ...f, category: "預定單" }));
       });
   }, [presetCategory]);
 
@@ -104,13 +104,13 @@ function NewBookingForm() {
             </div>
             <div className="erp-form-group">
               <label className="erp-label">類別 <span className="required">*</span></label>
-              {presetCategory ? (
+              {presetCategory || pureCustomerService ? (
                 <input className="erp-input" value={form.category} disabled />
               ) : (
                 <select className="erp-select" value={form.category} onChange={set("category")}>
                   <option value="預定單">預定單</option>
                   <option value="臨時單">臨時單</option>
-                  {!pureCustomerService && <option value="現貨單">現貨單</option>}
+                  <option value="現貨單">現貨單</option>
                 </select>
               )}
             </div>
