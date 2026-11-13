@@ -140,6 +140,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       salespersonId: body.salespersonId !== undefined ? (body.salespersonId || null) : existing.salespersonId,
       agencyFee: blankToNull(body.agencyFee ?? existing.agencyFee),
       salesChannelId: body.salesChannelId !== undefined ? (body.salesChannelId || null) : existing.salesChannelId,
+      buyerName: body.buyerName !== undefined ? (String(body.buyerName).trim() || null) : existing.buyerName,
+      buyerPhone: body.buyerPhone !== undefined ? (String(body.buyerPhone).trim() || null) : existing.buyerPhone,
       soldCount: body.soldCount !== undefined ? (body.soldCount === '' || body.soldCount === null ? null : Number(body.soldCount)) : existing.soldCount,
       platformFeeBase: roles.includes('admin') ? blankToNull(body.platformFeeBase ?? existing.platformFeeBase) : existing.platformFeeBase,
       staffShareAmount: (roles.includes('vendor') || roles.includes('admin')) ? blankToNull(body.staffShareAmount ?? existing.staffShareAmount) : existing.staffShareAmount,

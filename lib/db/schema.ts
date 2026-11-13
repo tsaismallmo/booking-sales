@@ -85,6 +85,8 @@ export const bookings = pgTable('bookings', {
 
   // 銷售/收款
   soldDate: date('sold_date'), // 售出日期
+  buyerName: text('buyer_name'), // 買家：賣給哪位客人（訂位用的姓名電話是訂位身份，跟實際買的客人不一定同一個）
+  buyerPhone: text('buyer_phone'), // 買家電話
   collectedAmount: numeric('collected_amount'), // 收款金額
   account: text('account'), // 帳戶
   salespersonId: uuid('salesperson_id').references(() => users.id), // 銷售（客服）

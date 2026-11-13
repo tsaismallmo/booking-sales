@@ -222,6 +222,7 @@ export default function BookingDetailPage() {
       <div className="erp-card" style={{ marginBottom: 20 }}>
         <div className="erp-card-header"><span className="erp-card-title">銷售/收款</span></div>
         <div className="erp-card-body erp-sysinfo">
+          <Row label="買家" value={[booking.buyerName, booking.buyerPhone].filter(Boolean).join("　") || null} />
           <Row label="銷售平台" value={salesChannelName(channels, booking.salesChannelId as string | null)} />
           <Row label="售出日期" value={booking.soldDate} />
           <Row label="收款金額" value={formatCurrency(booking.collectedAmount)} />

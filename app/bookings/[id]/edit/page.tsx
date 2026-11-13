@@ -71,6 +71,8 @@ export default function EditBookingPage() {
           account: data.account ?? "",
           agencyFee: data.agencyFee ?? "",
           salesChannelId: data.salesChannelId ?? "",
+          buyerName: data.buyerName ?? "",
+          buyerPhone: data.buyerPhone ?? "",
           platformFeeBase: data.platformFeeBase ?? "",
           salespersonId: data.salespersonId ?? "",
           info: data.info ?? "",
@@ -256,6 +258,14 @@ export default function EditBookingPage() {
                   </select>
                 </div>
               )}
+              <div className="erp-form-group">
+                <label className="erp-label">買家姓名</label>
+                <input className="erp-input" placeholder="賣給哪位客人" value={form.buyerName ?? ""} onChange={set("buyerName")} />
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">買家電話</label>
+                <input className="erp-input" value={form.buyerPhone ?? ""} onChange={set("buyerPhone")} />
+              </div>
               <div className="erp-form-group">
                 <label className="erp-label">銷售平台</label>
                 <SalesChannelSelect value={form.salesChannelId ?? ""} onChange={(v) => setForm((f) => ({ ...f, salesChannelId: v }))} />

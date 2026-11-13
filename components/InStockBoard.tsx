@@ -73,7 +73,7 @@ export function InStockBoard() {
 
   // 銷售 modal
   const [saleTarget, setSaleTarget] = useState<Booking | null>(null);
-  const [saleForm, setSaleForm] = useState({ soldDate: "", collectedAmount: "", account: "", agencyFee: "", salespersonId: "", salesChannelId: "" });
+  const [saleForm, setSaleForm] = useState({ soldDate: "", collectedAmount: "", account: "", agencyFee: "", salespersonId: "", salesChannelId: "", buyerName: "", buyerPhone: "" });
   const [submittingSale, setSubmittingSale] = useState(false);
   const [saleError, setSaleError] = useState("");
 
@@ -285,6 +285,8 @@ ${QUOTE_CLOSING}${partyNote}`;
       agencyFee: "",
       salespersonId: "",
       salesChannelId: "",
+      buyerName: "",
+      buyerPhone: "",
     });
     setSaleError("");
   };
@@ -495,6 +497,14 @@ ${QUOTE_CLOSING}${partyNote}`;
                 <div>訂位代號：{saleTarget.bookingCode ?? "—"}　訂金：{formatCurrency(saleTarget.depositAmount)}</div>
               </div>
               <div className="erp-form-grid">
+                <div className="erp-form-group">
+                  <label className="erp-label">買家姓名</label>
+                  <input className="erp-input" placeholder="賣給哪位客人" value={saleForm.buyerName} onChange={(e) => setSaleForm((f) => ({ ...f, buyerName: e.target.value }))} />
+                </div>
+                <div className="erp-form-group">
+                  <label className="erp-label">買家電話</label>
+                  <input className="erp-input" inputMode="tel" value={saleForm.buyerPhone} onChange={(e) => setSaleForm((f) => ({ ...f, buyerPhone: e.target.value }))} />
+                </div>
                 <div className="erp-form-group">
                   <label className="erp-label">售出日期</label>
                   <input type="date" className="erp-input" value={saleForm.soldDate} onChange={(e) => setSaleForm((f) => ({ ...f, soldDate: e.target.value }))} />

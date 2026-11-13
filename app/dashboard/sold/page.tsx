@@ -14,6 +14,8 @@ type Booking = {
   partySize: number | null;
   bookingCode: string | null;
   customerName: string | null;
+  buyerName: string | null;
+  buyerPhone: string | null;
   customerPhone: string | null;
   depositAmount: string | null;
   collectedAmount: string | null;
@@ -144,7 +146,7 @@ export default function SoldDashboardPage() {
     if (search) {
       const q = search.toLowerCase();
       rows = rows.filter(
-        (b) => (b.customerName ?? "").toLowerCase().includes(q) || (b.customerPhone ?? "").includes(q) || (b.bookingCode ?? "").includes(q)
+        (b) => (b.customerName ?? "").toLowerCase().includes(q) || (b.customerPhone ?? "").includes(q) || (b.bookingCode ?? "").includes(q) || (b.buyerName ?? "").toLowerCase().includes(q) || (b.buyerPhone ?? "").includes(q)
       );
     }
     // 合併單據（同一組需求）要排在一起，不能各自照售出日期散開；
@@ -206,6 +208,7 @@ export default function SoldDashboardPage() {
               <tr>
                 <th>廠商</th>
                 <th>售出日期</th>
+                <th>買家</th>
                 <th>分店</th>
                 <th>日期</th>
                 <th>時段</th>
@@ -223,12 +226,13 @@ export default function SoldDashboardPage() {
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={15} style={{ textAlign: "center", color: "var(--gray-400)" }}>載入中...</td></tr>
+                <tr><td colSpan={16} style={{ textAlign: "center", color: "var(--gray-400)" }}>載入中...</td></tr>
               )}
               {!loading && filtered.map((b) => (
                 <tr key={b.id}>
                   <td>{b.vendorId ? (vendorMap.get(b.vendorId) ?? "—") : "—"}</td>
                   <td>{b.soldDate ?? "—"}</td>
+                  <td>{b.buyerName || b.buyerPhone ? <>{b.buyerName ?? ""}{b.buyerPhone && <div style={{ fontSize: 12, color: "var(--gray-500)" }}>{b.buyerPhone}</div>}</> : "—"}</td>
                   <td>{b.branch ?? "—"}</td>
                   <td>{b.bookingDate}</td>
                   <td>{b.timeSlot ?? "—"}</td>
@@ -288,7 +292,7 @@ export default function SoldDashboardPage() {
                 </tr>
               ))}
               {!loading && filtered.length === 0 && (
-                <tr><td colSpan={15} style={{ textAlign: "center", color: "var(--gray-400)" }}>尚無已售單據</td></tr>
+                <tr><td colSpan={16} style={{ textAlign: "center", color: "var(--gray-400)" }}>尚無已售單據</td></tr>
               )}
             </tbody>
           </table>
