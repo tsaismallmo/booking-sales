@@ -19,7 +19,11 @@ type Booking = {
   customerPhone: string | null;
   collectedAmount: string | null;
   depositAmount: string | null;
+  paymentDeadline: string | null;
 };
+
+// 沒有訂金＝還沒繳費
+const isUnpaid = (b: Booking) => !b.depositAmount || Number(b.depositAmount) === 0;
 
 const statusLabel: Record<Booking["status"], string> = {
   unsold: "未售出",
@@ -40,6 +44,8 @@ export default function BookingsPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [q, setQ] = useState("");
+  // 繳費期限篩選：選一個日期，列出繳費期限在這天以前（含已過期）、還沒繳費（沒有訂金）的單據
+  const [deadlineBy, setDeadlineBy] = useState("");
 
   useEffect(() => {
     fetch("/api/bookings")
@@ -53,16 +59,25 @@ export default function BookingsPage() {
   }, []);
 
   const filtered = useMemo(() => {
-    return bookings.filter((b) => {
+    const list = bookings.filter((b) => {
       if (statusFilter !== "all" && b.status !== statusFilter) return false;
+      if (deadlineBy) {
+        // 已退的單不用再繳
+        if (b.status === "refunded" || !isUnpaid(b) || !b.paymentDeadline || b.paymentDeadline > deadlineBy) return false;
+      }
       if (q) {
         const lq = q.toLowerCase();
         const hay = `${b.customerName ?? ""}${b.customerPhone ?? ""}${b.bookingCode ?? ""}`.toLowerCase();
         if (!hay.includes(lq)) return false;
       }
       return true;
-    }).sort(compareBookings);
-  }, [bookings, statusFilter, q]);
+    });
+    // 篩繳費期限時，期限最早（最急）的排前面
+    return deadlineBy
+      ? list.sort((a, b) => (a.paymentDeadline ?? "").localeCompare(b.paymentDeadline ?? "") || compareBookings(a, b))
+      : list.sort(compareBookings);
+  }, [bookings, statusFilter, q, deadlineBy]);
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Taipei" }).format(new Date());
 
   return (
     <div className="erp-page">
@@ -95,6 +110,12 @@ export default function BookingsPage() {
             <option value="sold">售</option>
             <option value="refunded">退</option>
           </select>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 14, color: "var(--gray-500)", whiteSpace: "nowrap" }}>未繳費，繳費期限到</span>
+            <input type="date" className="erp-input" style={{ width: 160 }} value={deadlineBy} onChange={(e) => setDeadlineBy(e.target.value)} />
+            <span style={{ fontSize: 14, color: "var(--gray-500)", whiteSpace: "nowrap" }}>為止</span>
+            {deadlineBy && <button className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: 13 }} onClick={() => setDeadlineBy("")}>清除</button>}
+          </div>
         </div>
       </div>
 
@@ -112,13 +133,14 @@ export default function BookingsPage() {
                 <th>姓名</th>
                 <th>電話</th>
                 <th>訂金</th>
+                <th>繳費期限</th>
                 <th>收款金額</th>
                 <th>操作</th>
               </tr>
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={11} style={{ textAlign: "center", color: "var(--gray-400)" }}>載入中...</td></tr>
+                <tr><td colSpan={12} style={{ textAlign: "center", color: "var(--gray-400)" }}>載入中...</td></tr>
               )}
               {!loading && filtered.map((b) => (
                 <tr key={b.id}>
@@ -131,6 +153,9 @@ export default function BookingsPage() {
                   <td>{b.customerName ?? "—"}</td>
                   <td>{b.customerPhone ?? "—"}</td>
                   <td>{formatCurrency(b.depositAmount)}</td>
+                  <td style={isUnpaid(b) && b.status !== "refunded" && b.paymentDeadline && b.paymentDeadline <= today ? { color: "var(--color-danger)", fontWeight: 600 } : undefined}>
+                    {b.paymentDeadline ?? "—"}
+                  </td>
                   <td>{formatCurrency(b.collectedAmount)}</td>
                   <td>
                     <Link href={`/bookings/${b.id}`} className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: 13 }}>查看</Link>
@@ -138,7 +163,7 @@ export default function BookingsPage() {
                 </tr>
               ))}
               {!loading && filtered.length === 0 && (
-                <tr><td colSpan={11} style={{ textAlign: "center", color: "var(--gray-400)" }}>尚無單據</td></tr>
+                <tr><td colSpan={12} style={{ textAlign: "center", color: "var(--gray-400)" }}>尚無單據</td></tr>
               )}
             </tbody>
           </table>
