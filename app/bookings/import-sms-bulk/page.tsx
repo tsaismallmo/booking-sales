@@ -18,6 +18,7 @@ type ExistingBooking = {
   partySize: number | null;
   bookingCode: string | null;
   depositAmount: string | null;
+  depositPayer: string | null;
 };
 
 type NoticeRow = {
@@ -58,6 +59,7 @@ type CompletionRow = {
   transactionNo: string | null;
   matchState: MatchState;
   matched: ExistingBooking | null;
+  payer: string; // 付款人員（廠商名單名稱），比對到單據時留存一起寫進單據
   status: "idle" | "saving" | "ok" | "error";
   message: string;
 };
@@ -137,7 +139,7 @@ export default function ImportSmsBulkPage() {
     });
     const res = await fetch(`/api/bookings/lookup?${qs.toString()}`);
     const data = await res.json();
-    if (data.match) return { ...row, matchState: "matched", matched: data.match };
+    if (data.match) return { ...row, matchState: "matched", matched: data.match, payer: row.payer || data.match.depositPayer || "" };
     if (data.ambiguous) return { ...row, matchState: "ambiguous", matched: null };
     return { ...row, matchState: "notfound", matched: null };
   };
@@ -272,6 +274,7 @@ export default function ImportSmsBulkPage() {
           transactionNo: r.transactionNo,
           matchState: "checking",
           matched: null,
+          payer: "",
           status: "idle",
           message: "",
         });
@@ -407,6 +410,7 @@ export default function ImportSmsBulkPage() {
           rawText: r.raw,
           bookingId: r.matched ? r.matched.id : null,
           parsedData: { bookingCode: r.bookingCode, amount: r.amount, paidAt: r.paidAt, transactionNo: r.transactionNo },
+          ...(r.matched ? { depositPayer: r.payer } : {}),
         }),
       });
       if (!res.ok) {
@@ -569,7 +573,7 @@ export default function ImportSmsBulkPage() {
               <thead>
                 <tr>
                   <th>#</th><th>比對用分店</th><th>訂位代號</th><th>日期</th><th>時段</th><th>人數</th><th>金額</th>
-                  <th>比對結果</th><th>結果</th>
+                  <th>付款人員</th><th>比對結果</th><th>結果</th>
                 </tr>
               </thead>
               <tbody>
@@ -585,6 +589,11 @@ export default function ImportSmsBulkPage() {
                     <td>{r.timeSlot ?? "—"}</td>
                     <td>{r.partySize ?? "—"}</td>
                     <td>{formatCurrency(r.amount)}</td>
+                    <td>
+                      {r.matched
+                        ? <RosterListSelect style={{ width: 110, fontSize: 13 }} value={r.payer} onChange={(v) => updateCompletion(r.key, { payer: v })} />
+                        : <span style={{ color: "var(--gray-400)" }}>—</span>}
+                    </td>
                     <td style={{ fontSize: 12 }}>
                       {r.matchState === "checking" && "比對中..."}
                       {r.matchState === "matched" && r.matched && (
