@@ -143,13 +143,12 @@ function buildMonitorFile(requests: SeatRequest[]) {
 }
 
 // ── 饗賓監控程式的參數檔：每行「客人 分店 日期 餐期 人數」，只放監控程式認得的饗賓分店 ──
-// 系統分店（餐廳｜分店）→ 監控程式 STORES 的正式名稱。監控程式只查這 5 間，其他分店不放
-const FEAST_BRANCHES: Record<string, string> = {
-  "旭集｜台中大遠百店": "旭集台中大遠百店",
-  "旭集｜信義店": "旭集信義店",
-  "旭集｜微風廣場店": "旭集微風廣場店",
-  "饗AJOY｜101店": "饗AJOY101店",
-  "饗饗｜微風店": "饗饗微風店",
+// 系統分店（餐廳｜分店）→ 監控程式 STORES 的正式名稱＝把「｜」拿掉（旭集｜中茂店 → 旭集中茂店）。
+// 饗賓的餐廳都放，新開的分店不用再改這裡，只要監控程式 STORES 有加那間店
+const FEAST_RESTAURANTS = ["旭集", "饗饗", "饗AJOY"];
+const feastBranch = (branch: string) => {
+  const [restaurant, store] = branch.split("｜");
+  return FEAST_RESTAURANTS.includes(restaurant) && store ? `${restaurant}${store}` : undefined;
 };
 function buildFeastFile(requests: SeatRequest[]) {
   const lines = new Map<string, { text: string; sort: string }>();
@@ -157,7 +156,7 @@ function buildFeastFile(requests: SeatRequest[]) {
     if (r.status !== "pending") continue;
     const name = (r.customerName || r.customerPhone || "客人").replace(/\s+/g, "");
     for (const o of r.options) {
-      const branch = o.status === "pending" && o.branch ? FEAST_BRANCHES[o.branch] : undefined;
+      const branch = o.status === "pending" && o.branch ? feastBranch(o.branch) : undefined;
       if (!branch) continue;
       const meal = getMealPeriod(o.timeSlot) ?? "都可";
       const date = `${Number(o.bookingDate.slice(5, 7))}/${Number(o.bookingDate.slice(8, 10))}`;
@@ -169,7 +168,7 @@ function buildFeastFile(requests: SeatRequest[]) {
   }
   return [
     "# 饗賓客人需求：每行「客人 分店 日期 餐期 人數」",
-    "# 分店：旭集台中 / 旭集信義 / 旭集微風 / 饗AJOY / 饗饗（全名也可以）",
+    "# 分店：旭集台中 / 旭集信義 / 旭集微風 / 旭集天母 / 旭集中茂 / 旭集竹北 / 旭集台南 / 旭集義享 / 饗AJOY / 饗饗（全名也可以）",
     "# 餐期：午餐 / 下午茶 / 晚餐 / 都可",
     "# 人數：可省略（旭集台中＝人數不限；其他分店會用 2 人去查）",
     "# 日期過了自動不比對；訂到的客人直接刪掉那一行",
