@@ -307,7 +307,7 @@ export default function RosterPage() {
         {/* 右：名單成員 */}
         <div className="erp-card" style={{ flex: 1, minWidth: 320 }}>
           <div className="erp-card-header">
-            <span className="erp-card-title">{selectedList ? `${selectedList.name}（${entries.length} 位）` : "名單成員"}</span>
+            <span className="erp-card-title">{selectedList ? `${selectedList.name}（${phoneGroups.length} 位）` : "名單成員"}</span>
           </div>
           <div className="erp-card-body">
             {!selectedListId && <div style={{ color: "var(--gray-400)", textAlign: "center", padding: 30 }}>請先選擇或建立一份名單</div>}

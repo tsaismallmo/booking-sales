@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { eq, asc, count } from 'drizzle-orm'
+import { eq, asc } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { vendorRosterLists, vendorRosterEntries } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
@@ -14,12 +14,19 @@ export async function GET() {
   if (!ownerId) return NextResponse.json([])
 
   const lists = await db.select().from(vendorRosterLists).where(scopeEq(vendorRosterLists.vendorId, ownerId)).orderBy(asc(vendorRosterLists.sortOrder))
-  const counts = await db
-    .select({ listId: vendorRosterEntries.listId, entryCount: count() })
+  // 同一支電話在不同集團登記多個名字只算一位（跟名單頁的卡片數一致），沒電話的各自算一位
+  const entryRows = await db
+    .select({ id: vendorRosterEntries.id, listId: vendorRosterEntries.listId, phone: vendorRosterEntries.phone })
     .from(vendorRosterEntries)
     .where(scopeEq(vendorRosterEntries.vendorId, ownerId))
-    .groupBy(vendorRosterEntries.listId)
-  const countMap = new Map(counts.map((c) => [c.listId, c.entryCount]))
+  const keysByList = new Map<string, Set<string>>()
+  for (const r of entryRows) {
+    const digits = r.phone?.replace(/\D/g, '')
+    const set = keysByList.get(r.listId) ?? new Set<string>()
+    set.add(digits ? `p:${digits}` : `id:${r.id}`)
+    keysByList.set(r.listId, set)
+  }
+  const countMap = new Map([...keysByList].map(([listId, keys]) => [listId, keys.size]))
 
   return NextResponse.json(lists.map((l) => ({ ...l, entryCount: countMap.get(l.id) ?? 0 })))
 }
