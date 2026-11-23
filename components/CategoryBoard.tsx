@@ -7,6 +7,7 @@ import { WEEKDAYS, parseDateOnly } from "@/lib/quote";
 import { SalesChannelSelect } from "@/components/SalesChannelSelect";
 import { formatAltDates } from "@/components/AltDatesEditor";
 import { StaffOptionSelect } from "@/components/StaffOptionSelect";
+import { ReservedCalendar, optionsOf, matchBranch } from "@/components/ReservedCalendar";
 
 type Booking = {
   id: string;
@@ -16,7 +17,7 @@ type Booking = {
   timeSlot: string | null;
   partySize: number | null;
   bookingCode: string | null;
-  altDates?: { date: string; timeSlot: string | null }[] | null;
+  altDates?: { date: string; timeSlot: string | null; branch?: string | null; partySize?: number | null }[] | null;
   customerName: string | null;
   customerPhone: string | null;
   status: "unsold" | "reserved" | "sold" | "refunded";
@@ -152,14 +153,20 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
   const nameFirst = category === "預定單";
   const colCount = nameFirst ? 9 : 11;
 
-  const visibleBookings = restrictedView ? bookings.filter((b) => !b.bookingCode) : bookings;
+  // 預定單月曆：點日期／選分店，下面表格只列有符合候選的客人
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [branchFilter, setBranchFilter] = useState("");
+  const baseBookings = restrictedView ? bookings.filter((b) => !b.bookingCode) : bookings;
+  const visibleBookings = nameFirst && (selectedDate || branchFilter)
+    ? baseBookings.filter((b) => optionsOf(b).some((o) => (!selectedDate || o.date === selectedDate) && matchBranch(branchFilter, o.branch)))
+    : baseBookings;
 
   return (
     <div className="erp-page">
       <div className="erp-page-header">
         <div>
           <h1 className="erp-page-title">{title}</h1>
-          <p className="erp-page-subtitle">目前可以銷售（未售出）的{category}，共 {loading ? "…" : visibleBookings.length} 筆</p>
+          <p className="erp-page-subtitle">目前可以銷售（未售出）的{category}，共 {loading ? "…" : baseBookings.length} 筆</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           {canCreate && (
@@ -170,6 +177,22 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
           {canSeeManagement && <Link href="/bookings" className="btn btn-secondary">前往單據管理</Link>}
         </div>
       </div>
+
+      {nameFirst && !loading && (
+        <ReservedCalendar
+          bookings={baseBookings}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+          branchFilter={branchFilter}
+          onBranchFilter={setBranchFilter}
+        />
+      )}
+      {nameFirst && selectedDate && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+          <strong>{selectedDate.replace(/-/g, "/")}（週{WEEKDAYS[parseDateOnly(selectedDate).getDay()]}）的客人（{visibleBookings.length} 組）</strong>
+          <button className="btn btn-ghost" style={{ fontSize: 12, padding: "2px 10px" }} onClick={() => setSelectedDate(null)}>顯示全部</button>
+        </div>
+      )}
 
       <div className="erp-card">
         <div className="erp-table-wrap">
