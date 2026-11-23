@@ -190,10 +190,13 @@ function NewBookingForm() {
               </div>
               </>
             )}
-            <div className="erp-form-group">
-              <label className="erp-label">實際訂位人員</label>
-              <StaffOptionSelect value={form.actualBooker ?? ""} onChange={(v) => setForm((f) => ({ ...f, actualBooker: v }))} />
-            </div>
+            {/* 預定單新增時還沒訂到，誰訂到的等按「訂到了」再選 */}
+            {!isReserved && (
+              <div className="erp-form-group">
+                <label className="erp-label">實際訂位人員</label>
+                <StaffOptionSelect value={form.actualBooker ?? ""} onChange={(v) => setForm((f) => ({ ...f, actualBooker: v }))} />
+              </div>
+            )}
           </div>
         </div>
       </div>
