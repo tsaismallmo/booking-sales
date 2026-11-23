@@ -6,7 +6,7 @@ import { db } from '@/lib/db'
 import { bookings, bookingRequests, users, smsLogs } from '@/lib/db/schema'
 import { auth } from '@/auth'
 import type { Role } from '@/types/next-auth'
-import { LOGISTICS_CATEGORIES } from '@/lib/roles'
+import { LOGISTICS_CATEGORIES, isPureCustomerService } from '@/lib/roles'
 import { computeShare } from '@/lib/platform-share'
 import { getRatesForBooking } from '@/lib/platform-settings'
 import { defaultCancelDeadline, listBranchOptions, resolveBranch } from '@/lib/branches'
@@ -78,7 +78,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const roles = session.user.roles
   // 純客服（沒有廠商/管理員身份）只能改狀態、銷售/收款，不能碰分店/日期/金流/訂位資訊等基本資訊，
   // 那些要走「轉需求」讓後勤人員處理。預定單例外：預定單本來就是客服面對客人時打的，基本資訊客服自己改
-  const pureCustomerService = roles.includes('customer_service') && !roles.includes('vendor') && !roles.includes('admin')
+  const pureCustomerService = isPureCustomerService(roles)
     && existing.category !== '預定單'
 
   // 分給電話歸屬的人／分給實際訂位人員：不能填負數，兩欄相加也不能超過這筆單的廠商利潤，只有改到其中一欄才需要檢查
@@ -170,7 +170,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!existing) return NextResponse.json({ error: 'not found' }, { status: 404 })
 
   // 純客服（沒有廠商/管理員身份）不能刪現貨單，只能刪臨時單/預定單
-  const pureCustomerService = roles.includes('customer_service') && !roles.includes('vendor') && !roles.includes('admin')
+  const pureCustomerService = isPureCustomerService(roles)
   if (pureCustomerService && existing.category === '現貨單') {
     return NextResponse.json({ error: '客服不能刪除現貨單' }, { status: 403 })
   }

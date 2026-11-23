@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { SeatRequestsPanel, prefetchSeatRequests } from "@/components/SeatRequestsPanel";
+import { fetchMe } from "@/lib/use-me";
 
 type BookingRequest = {
   id: string;
@@ -61,8 +62,7 @@ export default function RequestsPage() {
   const [seatRoles, setSeatRoles] = useState({ visible: false, canCreate: false, canHandle: false, canCancel: false });
 
   useEffect(() => {
-    fetch("/api/me")
-      .then((res) => res.json())
+    fetchMe()
       .then((me) => {
         const roles: string[] = me.roles ?? [];
         const isCS = roles.includes("customer_service");

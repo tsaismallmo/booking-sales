@@ -16,6 +16,7 @@ import {
   type PriceSettings,
 } from "@/lib/quote";
 import { todayStr } from "@/lib/dates";
+import { fetchMe } from "@/lib/use-me";
 
 type Booking = {
   id: string;
@@ -111,8 +112,7 @@ export function InStockBoard() {
         setCsStaff(cs);
       });
 
-    fetch("/api/me")
-      .then((res) => res.json())
+    fetchMe()
       .then((me) => {
         const roles: string[] = me.roles ?? [];
         // 客服看全部廠商的現貨單，廠商只看自己的

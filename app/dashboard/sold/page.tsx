@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
+import { fetchMe } from "@/lib/use-me";
 
 type Booking = {
   id: string;
@@ -77,8 +78,7 @@ export default function SoldDashboardPage() {
         const vs = (Array.isArray(data) ? data : []).filter((u: { roles: string[] }) => u.roles.includes("vendor"));
         setVendors(vs);
       });
-    fetch("/api/me")
-      .then((r) => r.json())
+    fetchMe()
       .then((me) => {
         const roles: string[] = me.roles ?? [];
         // 已售看板本來就只有客服／管理員身份能進來（廠商本人不會看到這頁），

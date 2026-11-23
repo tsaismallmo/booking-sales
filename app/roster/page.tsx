@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { fetchMe } from "@/lib/use-me";
 
 type RosterList = {
   id: string;
@@ -77,8 +78,7 @@ export default function RosterPage() {
       });
 
   useEffect(() => {
-    fetch("/api/me")
-      .then((res) => res.json())
+    fetchMe()
       // 廠商本人、管理員（代理廠商）可以新增／改名／刪除名單和成員，後端也是這兩種角色能寫
       .then((me) => setCanEdit((me.roles ?? []).includes("vendor") || (me.roles ?? []).includes("admin")));
     fetch("/api/roster/team")

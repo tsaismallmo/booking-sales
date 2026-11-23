@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { WEEKDAYS, parseDateOnly } from "@/lib/quote";
+import { fetchMe } from "@/lib/use-me";
 
 type Booking = {
   id: string;
@@ -37,8 +38,7 @@ export default function DepositBoardPage() {
   const [tab, setTab] = useState<TabKey>("notDisbursed");
 
   useEffect(() => {
-    fetch("/api/me")
-      .then((res) => res.json())
+    fetchMe()
       .then((me) => setIsVendorStaff((me.roles ?? []).includes("vendor_staff") && !(me.roles ?? []).includes("vendor")));
     fetch("/api/deposit-board")
       .then((res) => res.json())

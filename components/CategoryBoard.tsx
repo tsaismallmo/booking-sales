@@ -9,6 +9,7 @@ import { formatAltDates } from "@/components/AltDatesEditor";
 import { StaffOptionSelect } from "@/components/StaffOptionSelect";
 import { ReservedCalendar, optionsOf, matchBranch } from "@/components/ReservedCalendar";
 import { todayStr } from "@/lib/dates";
+import { fetchMe } from "@/lib/use-me";
 
 type Booking = {
   id: string;
@@ -49,8 +50,7 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
   const fromKey = category === "臨時單" ? "temp" : "reserved";
 
   useEffect(() => {
-    fetch("/api/me")
-      .then((res) => res.json())
+    fetchMe()
       .then((me) => {
         const roles: string[] = me.roles ?? [];
         setCanSeeManagement(roles.includes("vendor") || roles.includes("admin"));

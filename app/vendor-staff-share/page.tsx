@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { WEEKDAYS, parseDateOnly } from "@/lib/quote";
 import { currentMonthStr, monthRange } from "@/lib/dates";
+import { fetchMe } from "@/lib/use-me";
 
 type ShareBooking = {
   id: string;
@@ -52,8 +53,7 @@ export default function VendorStaffSharePage() {
   const [rosterLists, setRosterLists] = useState<RosterList[]>([]);
 
   useEffect(() => {
-    fetch("/api/me")
-      .then((res) => res.json())
+    fetchMe()
       .then((me) => setMyId(me.vendorScopeId && me.vendorScopeId !== "all" ? me.vendorScopeId : me.id)); // 管理員用代理的廠商
   }, []);
 

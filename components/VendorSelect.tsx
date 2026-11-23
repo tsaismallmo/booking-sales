@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { fetchMe } from "@/lib/use-me";
 
 type Vendor = { id: string; email: string; name: string | null };
 
@@ -13,8 +14,7 @@ export function VendorSelect({ value, onChange, required = true }: { value: stri
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/me")
-      .then((res) => res.json())
+    fetchMe()
       .then((me) => {
         const roles: string[] = me.roles ?? [];
         const eligible = !roles.includes("vendor") && (required

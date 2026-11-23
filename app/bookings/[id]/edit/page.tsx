@@ -6,6 +6,7 @@ import { StaffOptionSelect } from "@/components/StaffOptionSelect";
 import { BranchSelect } from "@/components/BranchSelect";
 import { SalesChannelSelect } from "@/components/SalesChannelSelect";
 import { ReservedOptionsEditor, bookingToOptions, optionsToBody, type ReservedOption } from "@/components/AltDatesEditor";
+import { fetchMe } from "@/lib/use-me";
 
 export default function EditBookingPage() {
   const params = useParams<{ id: string }>();
@@ -27,8 +28,7 @@ export default function EditBookingPage() {
   const [vendors, setVendors] = useState<{ id: string; name: string | null; email: string }[]>([]);
 
   useEffect(() => {
-    fetch("/api/me")
-      .then((res) => res.json())
+    fetchMe()
       .then((me) => {
         const roles: string[] = me.roles ?? [];
         const admin = roles.includes("admin");

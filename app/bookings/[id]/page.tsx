@@ -6,6 +6,8 @@ import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
 import { salesChannelName, useSalesChannels } from "@/components/SalesChannelSelect";
 import { bookingToOptions } from "@/components/AltDatesEditor";
+import { fetchMe } from "@/lib/use-me";
+import { isPureCustomerService } from "@/lib/roles";
 
 type Booking = Record<string, string | number | null>;
 
@@ -70,8 +72,7 @@ export default function BookingDetailPage() {
     fetch(`/api/booking-requests?bookingId=${params.id}&status=pending`)
       .then((res) => res.json())
       .then((data) => setPendingRequest(Array.isArray(data) && data.length > 0 ? data[0] : null));
-    fetch("/api/me")
-      .then((res) => res.json())
+    fetchMe()
       .then((me) => {
         const r: string[] = me.roles ?? [];
         setRoles(r);
@@ -81,7 +82,7 @@ export default function BookingDetailPage() {
   }, [params.id]);
 
   const isReserved = booking?.category === "預定單";
-  const pureCustomerService = roles.includes("customer_service") && !roles.includes("vendor") && !roles.includes("admin");
+  const pureCustomerService = isPureCustomerService(roles);
   const isRefunded = booking?.status === "refunded";
   const isSold = booking?.status === "sold";
   // 純廠商員工只能看自己實際訂位的單據，不能改/刪/退回狀態（API 也會擋）

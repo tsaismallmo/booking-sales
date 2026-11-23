@@ -6,6 +6,8 @@ import { StaffOptionSelect } from "@/components/StaffOptionSelect";
 import { BranchSelect } from "@/components/BranchSelect";
 import { VendorSelect } from "@/components/VendorSelect";
 import { ReservedOptionsEditor, optionsToBody, type ReservedOption } from "@/components/AltDatesEditor";
+import { fetchMe } from "@/lib/use-me";
+import { isPureCustomerService } from "@/lib/roles";
 
 function NewBookingForm() {
   const router = useRouter();
@@ -47,11 +49,10 @@ function NewBookingForm() {
   });
 
   useEffect(() => {
-    fetch("/api/me")
-      .then((res) => res.json())
+    fetchMe()
       .then((me) => {
         const roles: string[] = me.roles ?? [];
-        const isPureCS = roles.includes("customer_service") && !roles.includes("vendor") && !roles.includes("admin");
+        const isPureCS = isPureCustomerService(roles);
         setPureCustomerService(isPureCS);
         setCanCreateReserved(roles.includes("customer_service") || roles.includes("admin"));
         if (isPureCS) setForm((f) => ({ ...f, category: "預定單" }));

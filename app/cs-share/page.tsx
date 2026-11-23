@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { WEEKDAYS, parseDateOnly } from "@/lib/quote";
 import { currentMonthStr, monthRange } from "@/lib/dates";
+import { fetchMe } from "@/lib/use-me";
 
 type Staff = { id: string; name: string | null; email: string; roles: string[] };
 
@@ -43,8 +44,7 @@ export default function CsSharePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/me")
-      .then((res) => res.json())
+    fetchMe()
       .then((me) => {
         const roles: string[] = me.roles ?? [];
         setIsAdmin(roles.includes("admin"));

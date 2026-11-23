@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { fetchMe } from "@/lib/use-me";
 
 type Account = { id: string; name: string | null; email: string; roles: string[] };
 
@@ -14,9 +15,8 @@ export function ActingVendorSelect() {
     fetch("/api/accounts")
       .then((res) => (res.ok ? res.json() : []))
       .then((rows: Account[]) => setVendors((Array.isArray(rows) ? rows : []).filter((u) => u.roles.includes("vendor")).sort((a, b) => (a.name ?? a.email).localeCompare(b.name ?? b.email, "zh-Hant"))));
-    fetch("/api/me")
-      .then((res) => (res.ok ? res.json() : {}))
-      .then((me: { vendorScopeId?: string | null }) => setCurrent(me.vendorScopeId && me.vendorScopeId !== "all" ? me.vendorScopeId : ""));
+    fetchMe()
+      .then((me) => setCurrent(me.vendorScopeId && me.vendorScopeId !== "all" ? me.vendorScopeId : ""));
   }, []);
 
   if (vendors.length === 0) return null;
