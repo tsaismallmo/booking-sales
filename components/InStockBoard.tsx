@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
-import { SalesChannelSelect } from "@/components/SalesChannelSelect";
 import {
   WEEKDAYS,
   getMealPeriod,
@@ -15,8 +14,9 @@ import {
   savePriceSettings,
   type PriceSettings,
 } from "@/lib/quote";
-import { todayStr } from "@/lib/dates";
 import { fetchMe } from "@/lib/use-me";
+import { SaleModal } from "@/components/SaleModal";
+import { Modal } from "@/components/Modal";
 
 type Booking = {
   id: string;
@@ -75,9 +75,6 @@ export function InStockBoard() {
 
   // 銷售 modal
   const [saleTarget, setSaleTarget] = useState<Booking | null>(null);
-  const [saleForm, setSaleForm] = useState({ soldDate: "", collectedAmount: "", account: "", agencyFee: "", salespersonId: "", salesChannelId: "", buyerName: "", buyerPhone: "" });
-  const [submittingSale, setSubmittingSale] = useState(false);
-  const [saleError, setSaleError] = useState("");
 
   useEffect(() => {
     fetch("/api/booking-requests?status=pending")
@@ -275,39 +272,7 @@ ${QUOTE_CLOSING}${partyNote}`;
     }
   };
 
-  const handleOpenSale = (b: Booking) => {
-    setSaleTarget(b);
-    setSaleForm({
-      soldDate: todayStr(),
-      collectedAmount: "",
-      account: "",
-      agencyFee: "",
-      salespersonId: "",
-      salesChannelId: "",
-      buyerName: "",
-      buyerPhone: "",
-    });
-    setSaleError("");
-  };
-
-  const handleSubmitSale = async () => {
-    if (!saleTarget) return;
-    setSubmittingSale(true);
-    setSaleError("");
-    const res = await fetch(`/api/bookings/${saleTarget.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "sold", ...saleForm }),
-    });
-    setSubmittingSale(false);
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setSaleError(data.error || "儲存失敗");
-      return;
-    }
-    setAllBookings((prev) => prev.map((b) => (b.id === saleTarget.id ? { ...b, status: "sold" } : b)));
-    setSaleTarget(null);
-  };
+  const handleOpenSale = (b: Booking) => setSaleTarget(b);
 
   return (
     <div className="erp-page">
@@ -428,163 +393,93 @@ ${QUOTE_CLOSING}${partyNote}`;
       </div>
 
       {showRequestModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }} onClick={() => setShowRequestModal(false)}>
-          <div className="erp-card" style={{ width: 460, padding: 0 }} onClick={(e) => e.stopPropagation()}>
-            <div className="erp-card-header">
-              <span className="erp-card-title">轉需求（已選 {selected.size} 筆合併成一組）</span>
-              <button onClick={() => setShowRequestModal(false)} className="btn btn-ghost">✕</button>
+        <Modal title={<>轉需求（已選 {selected.size} 筆合併成一組）</>} onClose={() => setShowRequestModal(false)} width={460}>
+          <div className="erp-card-body">
+            <div style={{ fontSize: 13, color: "var(--gray-600)", marginBottom: 10 }}>
+              {selectedBookings.map((b) => (
+                <div key={b.id}>{b.branch}　{b.bookingDate}　{b.timeSlot}　{b.partySize}人</div>
+              ))}
             </div>
-            <div className="erp-card-body">
-              <div style={{ fontSize: 13, color: "var(--gray-600)", marginBottom: 10 }}>
-                {selectedBookings.map((b) => (
-                  <div key={b.id}>{b.branch}　{b.bookingDate}　{b.timeSlot}　{b.partySize}人</div>
-                ))}
+            <p style={{ fontSize: 12, color: "var(--gray-400)", marginBottom: 10 }}>
+              下面填的內容會一次套用到勾選的全部單據上（同一組要改成一樣的）。
+            </p>
+            <div className="erp-form-grid">
+              <div className="erp-form-group">
+                <label className="erp-label">改成人數</label>
+                <input type="number" className="erp-input" placeholder="不改就留空" value={requestForm.proposedPartySize} onChange={(e) => setRequestForm({ ...requestForm, proposedPartySize: e.target.value })} />
               </div>
-              <p style={{ fontSize: 12, color: "var(--gray-400)", marginBottom: 10 }}>
-                下面填的內容會一次套用到勾選的全部單據上（同一組要改成一樣的）。
-              </p>
-              <div className="erp-form-grid">
-                <div className="erp-form-group">
-                  <label className="erp-label">改成人數</label>
-                  <input type="number" className="erp-input" placeholder="不改就留空" value={requestForm.proposedPartySize} onChange={(e) => setRequestForm({ ...requestForm, proposedPartySize: e.target.value })} />
-                </div>
-                <div className="erp-form-group full">
-                  <label className="erp-label">說明</label>
-                  <textarea className="erp-textarea" rows={2} placeholder="給管理員的說明" value={requestForm.note} onChange={(e) => setRequestForm({ ...requestForm, note: e.target.value })} />
-                </div>
+              <div className="erp-form-group full">
+                <label className="erp-label">說明</label>
+                <textarea className="erp-textarea" rows={2} placeholder="給管理員的說明" value={requestForm.note} onChange={(e) => setRequestForm({ ...requestForm, note: e.target.value })} />
               </div>
-              <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-                <button onClick={handleSubmitRequest} disabled={submittingRequest} className="btn btn-primary">
-                  {submittingRequest ? "送出中..." : "送出需求"}
-                </button>
-                <button onClick={() => setShowRequestModal(false)} className="btn btn-secondary">取消</button>
-              </div>
+            </div>
+            <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+              <button onClick={handleSubmitRequest} disabled={submittingRequest} className="btn btn-primary">
+                {submittingRequest ? "送出中..." : "送出需求"}
+              </button>
+              <button onClick={() => setShowRequestModal(false)} className="btn btn-secondary">取消</button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {showTimeModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }} onClick={() => setShowTimeModal(false)}>
-          <div className="erp-card" style={{ width: 420, padding: 0 }} onClick={(e) => e.stopPropagation()}>
-            <div className="erp-card-header">
-              <span className="erp-card-title">時間清單（已選 {selected.size} 筆）</span>
-              <button onClick={() => setShowTimeModal(false)} className="btn btn-ghost">✕</button>
-            </div>
-            <div className="erp-card-body">
-              <textarea className="erp-textarea" readOnly rows={7} value={timeOutput} />
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
-                <button onClick={handleCopyTime} className="btn btn-primary">複製</button>
-                <span style={{ fontSize: 13, color: "var(--color-success)" }}>{timeCopyMsg}</span>
-              </div>
+        <Modal title={<>時間清單（已選 {selected.size} 筆）</>} onClose={() => setShowTimeModal(false)} width={420}>
+          <div className="erp-card-body">
+            <textarea className="erp-textarea" readOnly rows={7} value={timeOutput} />
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
+              <button onClick={handleCopyTime} className="btn btn-primary">複製</button>
+              <span style={{ fontSize: 13, color: "var(--color-success)" }}>{timeCopyMsg}</span>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {saleTarget && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }} onClick={() => setSaleTarget(null)}>
-          <div className="erp-card" style={{ width: 460, padding: 0 }} onClick={(e) => e.stopPropagation()}>
-            <div className="erp-card-header">
-              <span className="erp-card-title">銷售／收款</span>
-              <button onClick={() => setSaleTarget(null)} className="btn btn-ghost">✕</button>
-            </div>
-            <div className="erp-card-body">
-              <div style={{ fontSize: 13, color: "var(--gray-600)", marginBottom: 14, lineHeight: 1.8 }}>
-                <div>{saleTarget.branch}　{saleTarget.bookingDate}　{saleTarget.timeSlot}　{saleTarget.partySize} 人</div>
-                <div>{saleTarget.customerName}　{saleTarget.customerPhone}</div>
-                <div>訂位代號：{saleTarget.bookingCode ?? "—"}　訂金：{formatCurrency(saleTarget.depositAmount)}</div>
-              </div>
-              <div className="erp-form-grid">
-                <div className="erp-form-group">
-                  <label className="erp-label">買家姓名</label>
-                  <input className="erp-input" placeholder="賣給哪位客人" value={saleForm.buyerName} onChange={(e) => setSaleForm((f) => ({ ...f, buyerName: e.target.value }))} />
-                </div>
-                <div className="erp-form-group">
-                  <label className="erp-label">買家電話</label>
-                  <input className="erp-input" inputMode="tel" value={saleForm.buyerPhone} onChange={(e) => setSaleForm((f) => ({ ...f, buyerPhone: e.target.value }))} />
-                </div>
-                <div className="erp-form-group">
-                  <label className="erp-label">售出日期</label>
-                  <input type="date" className="erp-input" value={saleForm.soldDate} onChange={(e) => setSaleForm((f) => ({ ...f, soldDate: e.target.value }))} />
-                </div>
-                <div className="erp-form-group">
-                  <label className="erp-label">收款金額</label>
-                  <input type="number" step="0.01" className="erp-input" placeholder="0" value={saleForm.collectedAmount} onChange={(e) => setSaleForm((f) => ({ ...f, collectedAmount: e.target.value }))} />
-                </div>
-                <div className="erp-form-group">
-                  <label className="erp-label">帳戶</label>
-                  <input className="erp-input" value={saleForm.account} onChange={(e) => setSaleForm((f) => ({ ...f, account: e.target.value }))} />
-                </div>
-                <div className="erp-form-group">
-                  <label className="erp-label">代訂費（總共）</label>
-                  <input type="number" step="0.01" className="erp-input" placeholder="0" value={saleForm.agencyFee} onChange={(e) => setSaleForm((f) => ({ ...f, agencyFee: e.target.value }))} />
-                </div>
-                <div className="erp-form-group">
-                  <label className="erp-label">銷售平台</label>
-                  <SalesChannelSelect value={saleForm.salesChannelId} onChange={(v) => setSaleForm((f) => ({ ...f, salesChannelId: v }))} />
-                </div>
-                <div className="erp-form-group">
-                  <label className="erp-label">銷售人員</label>
-                  <select className="erp-select" value={saleForm.salespersonId} onChange={(e) => setSaleForm((f) => ({ ...f, salespersonId: e.target.value }))}>
-                    <option value="">— 未指定 —</option>
-                    {csStaff.map((u) => (
-                      <option key={u.id} value={u.id}>{u.name ?? u.id}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              {saleError && <div className="erp-alert danger" style={{ marginTop: 10 }}>{saleError}</div>}
-              <div style={{ marginTop: 14, display: "flex", gap: 8 }}>
-                <button onClick={handleSubmitSale} disabled={submittingSale} className="btn btn-primary">
-                  {submittingSale ? "儲存中..." : "確認售出"}
-                </button>
-                <button onClick={() => setSaleTarget(null)} className="btn btn-secondary">取消</button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <SaleModal
+          booking={saleTarget}
+          csStaff={csStaff}
+          onClose={() => setSaleTarget(null)}
+          onSold={(id) => {
+            setAllBookings((prev) => prev.map((b) => (b.id === id ? { ...b, status: "sold" } : b)));
+            setSaleTarget(null);
+          }}
+        />
       )}
 
       {showQuoteModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }} onClick={() => setShowQuoteModal(false)}>
-          <div className="erp-card" style={{ width: 480, maxHeight: "85vh", overflowY: "auto", padding: 0 }} onClick={(e) => e.stopPropagation()}>
-            <div className="erp-card-header">
-              <span className="erp-card-title">產生報價文字</span>
-              <button onClick={() => setShowQuoteModal(false)} className="btn btn-ghost">✕</button>
+        <Modal title="產生報價文字" onClose={() => setShowQuoteModal(false)} width={480}>
+          <div className="erp-card-body">
+            <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+              <label style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 4 }}>
+                代訂費(平日)
+                <input type="number" min="0" className="erp-input" value={priceSettings.weekdayRate} onChange={(e) => updatePriceSetting("weekdayRate", e.target.value)} />
+              </label>
+              <label style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 4 }}>
+                代訂費(假日)
+                <input type="number" min="0" className="erp-input" value={priceSettings.weekendRate} onChange={(e) => updatePriceSetting("weekendRate", e.target.value)} />
+              </label>
             </div>
-            <div className="erp-card-body">
-              <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-                <label style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 4 }}>
-                  代訂費(平日)
-                  <input type="number" min="0" className="erp-input" value={priceSettings.weekdayRate} onChange={(e) => updatePriceSetting("weekdayRate", e.target.value)} />
-                </label>
-                <label style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 4 }}>
-                  代訂費(假日)
-                  <input type="number" min="0" className="erp-input" value={priceSettings.weekendRate} onChange={(e) => updatePriceSetting("weekendRate", e.target.value)} />
-                </label>
-              </div>
-              <div style={{ fontSize: 13, color: "var(--gray-600)", marginBottom: 10 }}>
-                {selectedBookings.map((b) => (
-                  <div key={b.id}>{b.customerName || "（無姓名）"}　{b.bookingDate}　{b.timeSlot}　{b.partySize}人　{b.branch}</div>
-                ))}
-              </div>
-              <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                代訂費單位數
-                <input type="number" min="0" className="erp-input" placeholder="請輸入" style={{ width: 100 }} value={quoteUnits} onChange={(e) => setQuoteUnits(e.target.value)} />
-              </label>
-              <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                <input type="checkbox" checked={showPartyNote} onChange={(e) => setShowPartyNote(e.target.checked)} />
-                加註：原訂位人數變動說明
-              </label>
-              <textarea className="erp-textarea" readOnly rows={10} value={buildQuoteText()} />
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
-                <button onClick={handleCopyQuote} className="btn btn-primary">複製報價文字</button>
-                <span style={{ fontSize: 13, color: "var(--color-success)" }}>{quoteCopyMsg}</span>
-              </div>
+            <div style={{ fontSize: 13, color: "var(--gray-600)", marginBottom: 10 }}>
+              {selectedBookings.map((b) => (
+                <div key={b.id}>{b.customerName || "（無姓名）"}　{b.bookingDate}　{b.timeSlot}　{b.partySize}人　{b.branch}</div>
+              ))}
+            </div>
+            <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              代訂費單位數
+              <input type="number" min="0" className="erp-input" placeholder="請輸入" style={{ width: 100 }} value={quoteUnits} onChange={(e) => setQuoteUnits(e.target.value)} />
+            </label>
+            <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <input type="checkbox" checked={showPartyNote} onChange={(e) => setShowPartyNote(e.target.checked)} />
+              加註：原訂位人數變動說明
+            </label>
+            <textarea className="erp-textarea" readOnly rows={10} value={buildQuoteText()} />
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
+              <button onClick={handleCopyQuote} className="btn btn-primary">複製報價文字</button>
+              <span style={{ fontSize: 13, color: "var(--color-success)" }}>{quoteCopyMsg}</span>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

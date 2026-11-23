@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
 import { WEEKDAYS, parseDateOnly } from "@/lib/quote";
-import { SalesChannelSelect } from "@/components/SalesChannelSelect";
 import { formatAltDates } from "@/components/AltDatesEditor";
 import { StaffOptionSelect } from "@/components/StaffOptionSelect";
 import { ReservedCalendar, optionsOf, matchBranch } from "@/components/ReservedCalendar";
 import { todayStr } from "@/lib/dates";
 import { fetchMe } from "@/lib/use-me";
+import { SaleModal } from "@/components/SaleModal";
+import { Modal } from "@/components/Modal";
 
 type Booking = {
   id: string;
@@ -41,9 +42,6 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
 
   // 銷售／收款 modal，跟現貨單看板同一套
   const [saleTarget, setSaleTarget] = useState<Booking | null>(null);
-  const [saleForm, setSaleForm] = useState({ soldDate: "", collectedAmount: "", account: "", agencyFee: "", salespersonId: "", salesChannelId: "", buyerName: "", buyerPhone: "" });
-  const [submittingSale, setSubmittingSale] = useState(false);
-  const [saleError, setSaleError] = useState("");
 
   // 帶著 from 參數，這樣從這個看板點進單據詳情/編輯頁時，側邊欄才會繼續亮這個看板，
   // 不會因為網址是 /bookings/... 就被誤判成「單據管理」
@@ -86,39 +84,7 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
       });
   }, [category]);
 
-  const handleOpenSale = (b: Booking) => {
-    setSaleTarget(b);
-    setSaleForm({
-      soldDate: todayStr(),
-      collectedAmount: "",
-      account: "",
-      agencyFee: "",
-      salespersonId: "",
-      salesChannelId: "",
-      buyerName: "",
-      buyerPhone: "",
-    });
-    setSaleError("");
-  };
-
-  const handleSubmitSale = async () => {
-    if (!saleTarget) return;
-    setSubmittingSale(true);
-    setSaleError("");
-    const res = await fetch(`/api/bookings/${saleTarget.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "sold", ...saleForm }),
-    });
-    setSubmittingSale(false);
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setSaleError(data.error || "儲存失敗");
-      return;
-    }
-    setBookings((prev) => prev.filter((b) => b.id !== saleTarget.id));
-    setSaleTarget(null);
-  };
+  const handleOpenSale = (b: Booking) => setSaleTarget(b);
 
   // 預定單：代訂費建單時就先收了，訂到了就完成（算售出、售出日期記今天）；沒訂到就退款（狀態改退）
   // 訂到了要記是誰訂到的（實際訂位人員），用小視窗選；沒訂到直接確認
@@ -266,93 +232,35 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
       </div>
 
       {doneTarget && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }} onClick={() => setDoneTarget(null)}>
-          <div className="erp-card" style={{ width: 400, maxWidth: "calc(100vw - 32px)", padding: 0 }} onClick={(e) => e.stopPropagation()}>
-            <div className="erp-card-header">
-              <span className="erp-card-title">預定單訂到了</span>
-              <button onClick={() => setDoneTarget(null)} className="btn btn-ghost">✕</button>
+        <Modal title={"預定單訂到了"} onClose={() => setDoneTarget(null)} width={400}>
+          <div className="erp-card-body">
+            <div style={{ fontSize: 13, color: "var(--gray-600)", marginBottom: 14, lineHeight: 1.8 }}>
+              <div><strong>{doneTarget.customerName || "（未填姓名）"}</strong>　{doneTarget.customerPhone}</div>
+              <div>{doneTarget.branch}　{doneTarget.bookingDate}　{doneTarget.timeSlot}　{doneTarget.partySize ? `${doneTarget.partySize} 人` : ""}</div>
+              <div>代訂費：{formatCurrency(doneTarget.agencyFee ?? null)}</div>
             </div>
-            <div className="erp-card-body">
-              <div style={{ fontSize: 13, color: "var(--gray-600)", marginBottom: 14, lineHeight: 1.8 }}>
-                <div><strong>{doneTarget.customerName || "（未填姓名）"}</strong>　{doneTarget.customerPhone}</div>
-                <div>{doneTarget.branch}　{doneTarget.bookingDate}　{doneTarget.timeSlot}　{doneTarget.partySize ? `${doneTarget.partySize} 人` : ""}</div>
-                <div>代訂費：{formatCurrency(doneTarget.agencyFee ?? null)}</div>
-              </div>
-              <div className="erp-form-group">
-                <label className="erp-label">誰訂到的</label>
-                <StaffOptionSelect value={doneBooker} onChange={setDoneBooker} />
-              </div>
-              <div style={{ marginTop: 14, display: "flex", gap: 8 }}>
-                <button onClick={() => handleReservedResult(doneTarget, "sold", doneBooker)} className="btn btn-primary">確認訂到</button>
-                <button onClick={() => setDoneTarget(null)} className="btn btn-secondary">取消</button>
-              </div>
+            <div className="erp-form-group">
+              <label className="erp-label">誰訂到的</label>
+              <StaffOptionSelect value={doneBooker} onChange={setDoneBooker} />
+            </div>
+            <div style={{ marginTop: 14, display: "flex", gap: 8 }}>
+              <button onClick={() => handleReservedResult(doneTarget, "sold", doneBooker)} className="btn btn-primary">確認訂到</button>
+              <button onClick={() => setDoneTarget(null)} className="btn btn-secondary">取消</button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {saleTarget && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }} onClick={() => setSaleTarget(null)}>
-          <div className="erp-card" style={{ width: 460, padding: 0 }} onClick={(e) => e.stopPropagation()}>
-            <div className="erp-card-header">
-              <span className="erp-card-title">銷售／收款</span>
-              <button onClick={() => setSaleTarget(null)} className="btn btn-ghost">✕</button>
-            </div>
-            <div className="erp-card-body">
-              <div style={{ fontSize: 13, color: "var(--gray-600)", marginBottom: 14, lineHeight: 1.8 }}>
-                <div>{saleTarget.branch}　{saleTarget.bookingDate}　{saleTarget.timeSlot}　{saleTarget.partySize} 人</div>
-                <div>{saleTarget.customerName}　{saleTarget.customerPhone}</div>
-                <div>訂位代號：{saleTarget.bookingCode ?? "—"}　訂金：{formatCurrency(saleTarget.depositAmount)}</div>
-              </div>
-              <div className="erp-form-grid">
-                <div className="erp-form-group">
-                  <label className="erp-label">買家姓名</label>
-                  <input className="erp-input" placeholder="賣給哪位客人" value={saleForm.buyerName} onChange={(e) => setSaleForm((f) => ({ ...f, buyerName: e.target.value }))} />
-                </div>
-                <div className="erp-form-group">
-                  <label className="erp-label">買家電話</label>
-                  <input className="erp-input" inputMode="tel" value={saleForm.buyerPhone} onChange={(e) => setSaleForm((f) => ({ ...f, buyerPhone: e.target.value }))} />
-                </div>
-                <div className="erp-form-group">
-                  <label className="erp-label">售出日期</label>
-                  <input type="date" className="erp-input" value={saleForm.soldDate} onChange={(e) => setSaleForm((f) => ({ ...f, soldDate: e.target.value }))} />
-                </div>
-                <div className="erp-form-group">
-                  <label className="erp-label">收款金額</label>
-                  <input type="number" step="0.01" className="erp-input" placeholder="0" value={saleForm.collectedAmount} onChange={(e) => setSaleForm((f) => ({ ...f, collectedAmount: e.target.value }))} />
-                </div>
-                <div className="erp-form-group">
-                  <label className="erp-label">帳戶</label>
-                  <input className="erp-input" value={saleForm.account} onChange={(e) => setSaleForm((f) => ({ ...f, account: e.target.value }))} />
-                </div>
-                <div className="erp-form-group">
-                  <label className="erp-label">代訂費（總共）</label>
-                  <input type="number" step="0.01" className="erp-input" placeholder="0" value={saleForm.agencyFee} onChange={(e) => setSaleForm((f) => ({ ...f, agencyFee: e.target.value }))} />
-                </div>
-                <div className="erp-form-group">
-                  <label className="erp-label">銷售平台</label>
-                  <SalesChannelSelect value={saleForm.salesChannelId} onChange={(v) => setSaleForm((f) => ({ ...f, salesChannelId: v }))} />
-                </div>
-                <div className="erp-form-group">
-                  <label className="erp-label">銷售人員</label>
-                  <select className="erp-select" value={saleForm.salespersonId} onChange={(e) => setSaleForm((f) => ({ ...f, salespersonId: e.target.value }))}>
-                    <option value="">— 未指定 —</option>
-                    {csStaff.map((u) => (
-                      <option key={u.id} value={u.id}>{u.name ?? u.id}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              {saleError && <div className="erp-alert danger" style={{ marginTop: 10 }}>{saleError}</div>}
-              <div style={{ marginTop: 14, display: "flex", gap: 8 }}>
-                <button onClick={handleSubmitSale} disabled={submittingSale} className="btn btn-primary">
-                  {submittingSale ? "儲存中..." : "確認售出"}
-                </button>
-                <button onClick={() => setSaleTarget(null)} className="btn btn-secondary">取消</button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <SaleModal
+          booking={saleTarget}
+          csStaff={csStaff}
+          onClose={() => setSaleTarget(null)}
+          onSold={(id) => {
+            setBookings((prev) => prev.filter((b) => b.id !== id));
+            setSaleTarget(null);
+          }}
+        />
       )}
     </div>
   );
