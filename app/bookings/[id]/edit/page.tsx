@@ -288,7 +288,7 @@ export default function EditBookingPage() {
         </div>
       )}
 
-      {isAdmin && form.status !== "refunded" && (
+      {isAdmin && !isReserved && form.status !== "refunded" && (
         <div className="erp-card" style={{ marginTop: 24 }}>
           <div className="erp-card-header"><span className="erp-card-title">銷售/收款</span></div>
           <div className="erp-card-body">
