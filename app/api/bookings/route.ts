@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
       timeSlot: body.timeSlot || null,
       partySize: body.partySize ? Number(body.partySize) : null,
       bookingCode: body.bookingCode || null,
-      altDates: cleanAltDates(body.altDates),
+      altDates: await cleanAltDates(body.altDates),
       status: body.status || 'unsold',
       // 沒填退訂期限就照餐廳設定自動算（例如島語訂位日前 3 天）
       cancelDeadline: body.cancelDeadline || (await defaultCancelDeadline(resolved.branchId, body.bookingDate)),

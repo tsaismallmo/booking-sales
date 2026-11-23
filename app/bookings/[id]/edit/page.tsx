@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { StaffOptionSelect } from "@/components/StaffOptionSelect";
 import { BranchSelect } from "@/components/BranchSelect";
 import { SalesChannelSelect } from "@/components/SalesChannelSelect";
-import { AltDatesEditor, altDatesToRows, type AltDateRow } from "@/components/AltDatesEditor";
+import { ReservedOptionsEditor, bookingToOptions, optionsToBody, type ReservedOption } from "@/components/AltDatesEditor";
 
 export default function EditBookingPage() {
   const params = useParams<{ id: string }>();
@@ -18,7 +18,7 @@ export default function EditBookingPage() {
   const [rolesReady, setRolesReady] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState<Record<string, string>>({});
-  const [altRows, setAltRows] = useState<AltDateRow[]>([]);
+  const [options, setOptions] = useState<ReservedOption[]>([]);
   const [isInline, setIsInline] = useState(false);
   const [isEztable, setIsEztable] = useState(false);
   const [pureCustomerService, setPureCustomerService] = useState(false);
@@ -80,7 +80,7 @@ export default function EditBookingPage() {
           info: data.info ?? "",
           note: data.note ?? "",
         });
-        setAltRows(altDatesToRows(data.altDates));
+        setOptions(bookingToOptions(data));
         setIsInline(!!data.isInline);
         setIsEztable(!!data.isEztable);
         setBookingReady(true);
@@ -91,12 +91,16 @@ export default function EditBookingPage() {
     setForm((f) => ({ ...f, [field]: e.target.value }));
 
   const handleSubmit = async () => {
+    if (form.category === "預定單" && !options[0]?.date) {
+      setError("第 1 順位要填日期");
+      return;
+    }
     setLoading(true);
     setError("");
     const res = await fetch(`/api/bookings/${params.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, isInline, isEztable, ...(form.category === "預定單" ? { altDates: altRows } : {}) }),
+      body: JSON.stringify({ ...form, isInline, isEztable, ...(form.category === "預定單" ? optionsToBody(options) : {}) }),
     });
     setLoading(false);
     if (!res.ok) {
@@ -109,6 +113,8 @@ export default function EditBookingPage() {
 
   // 純客服不能改基本資訊（要走轉需求），但預定單是客服自己打的，可以直接改
   const lockBasic = pureCustomerService && form.category !== "預定單";
+  // 預定單跟需求看板一樣：客人姓名在最上面，底下是好幾個候選（各自的分店／日期／時段／人數）
+  const isReserved = form.category === "預定單";
 
   if (!bookingReady || !rolesReady) return <div className="erp-page">載入中...</div>;
 
@@ -120,6 +126,25 @@ export default function EditBookingPage() {
       </div>
 
       {error && <div className="erp-alert danger">{error}</div>}
+
+      {isReserved && !lockBasic && form.status !== "refunded" && form.status !== "sold" && (
+        <div className="erp-card" style={{ marginBottom: 24 }}>
+          <div className="erp-card-header"><span className="erp-card-title">客人與候選日期</span></div>
+          <div className="erp-card-body">
+            <div className="erp-form-grid" style={{ marginBottom: 16 }}>
+              <div className="erp-form-group">
+                <label className="erp-label">客人姓名（用這個名字訂位）</label>
+                <input className="erp-input" value={form.customerName} onChange={set("customerName")} />
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">客人電話</label>
+                <input className="erp-input" value={form.customerPhone} onChange={set("customerPhone")} />
+              </div>
+            </div>
+            <ReservedOptionsEditor options={options} onChange={setOptions} />
+          </div>
+        </div>
+      )}
 
       {!lockBasic && form.status !== "refunded" && form.status !== "sold" && (
         <div className="erp-card">
@@ -137,26 +162,32 @@ export default function EditBookingPage() {
                   </select>
                 </div>
               )}
+              {!isReserved && (
               <div className="erp-form-group">
                 <label className="erp-label">分店</label>
                 <BranchSelect branchId={form.branchId} branch={form.branch} onChange={(v) => setForm((f) => ({ ...f, ...v }))} />
               </div>
+              )}
               <div className="erp-form-group">
                 <label className="erp-label">類別</label>
                 <input className="erp-input" value={form.category} disabled />
               </div>
-              <div className="erp-form-group">
-                <label className="erp-label">日期</label>
-                <input type="date" className="erp-input" value={form.bookingDate} onChange={set("bookingDate")} />
-              </div>
-              <div className="erp-form-group">
-                <label className="erp-label">時段</label>
-                <input className="erp-input" value={form.timeSlot} onChange={set("timeSlot")} />
-              </div>
-              <div className="erp-form-group">
-                <label className="erp-label">人數</label>
-                <input type="number" className="erp-input" value={form.partySize} onChange={set("partySize")} />
-              </div>
+              {!isReserved && (
+                <>
+                  <div className="erp-form-group">
+                    <label className="erp-label">日期</label>
+                    <input type="date" className="erp-input" value={form.bookingDate} onChange={set("bookingDate")} />
+                  </div>
+                  <div className="erp-form-group">
+                    <label className="erp-label">時段</label>
+                    <input className="erp-input" value={form.timeSlot} onChange={set("timeSlot")} />
+                  </div>
+                  <div className="erp-form-group">
+                    <label className="erp-label">人數</label>
+                    <input type="number" className="erp-input" value={form.partySize} onChange={set("partySize")} />
+                  </div>
+                </>
+              )}
               <div className="erp-form-group">
                 <label className="erp-label">訂位代號</label>
                 <input className="erp-input" value={form.bookingCode} onChange={set("bookingCode")} />
@@ -174,14 +205,6 @@ export default function EditBookingPage() {
                 <label className="erp-label">實際訂位人員</label>
                 <StaffOptionSelect value={form.actualBooker ?? ""} onChange={(v) => setForm((f) => ({ ...f, actualBooker: v }))} />
               </div>
-              {form.category === "預定單" && (
-                <AltDatesEditor
-                  mainDate={form.bookingDate}
-                  mainTimeSlot={form.timeSlot}
-                  rows={altRows}
-                  onChange={(n) => { setForm((f) => ({ ...f, bookingDate: n.mainDate, timeSlot: n.mainTimeSlot })); setAltRows(n.rows); }}
-                />
-              )}
             </div>
           </div>
         </div>
@@ -210,14 +233,18 @@ export default function EditBookingPage() {
           <div className="erp-card-header"><span className="erp-card-title">訂位資訊</span></div>
           <div className="erp-card-body">
             <div className="erp-form-grid">
-              <div className="erp-form-group">
-                <label className="erp-label">姓名</label>
-                <input className="erp-input" value={form.customerName} onChange={set("customerName")} />
-              </div>
-              <div className="erp-form-group">
-                <label className="erp-label">電話</label>
-                <input className="erp-input" value={form.customerPhone} onChange={set("customerPhone")} />
-              </div>
+              {!isReserved && (
+                <>
+                  <div className="erp-form-group">
+                    <label className="erp-label">姓名</label>
+                    <input className="erp-input" value={form.customerName} onChange={set("customerName")} />
+                  </div>
+                  <div className="erp-form-group">
+                    <label className="erp-label">電話</label>
+                    <input className="erp-input" value={form.customerPhone} onChange={set("customerPhone")} />
+                  </div>
+                </>
+              )}
               <div className="erp-form-group">
                 <label className="erp-label">來源</label>
                 <input className="erp-input" value={form.source} onChange={set("source")} />

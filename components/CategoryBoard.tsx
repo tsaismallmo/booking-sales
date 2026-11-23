@@ -117,6 +117,10 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
     setSaleTarget(null);
   };
 
+  // 預定單是用客人的名字去訂位，跟需求看板一樣把客人放第一欄
+  const nameFirst = category === "預定單";
+  const colCount = nameFirst ? 10 : 11;
+
   const visibleBookings = restrictedView ? bookings.filter((b) => !b.bookingCode) : bookings;
 
   return (
@@ -141,13 +145,14 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
           <table className="erp-table">
             <thead>
               <tr>
+                {nameFirst && <th>客人</th>}
                 <th>日期</th>
                 <th>星期</th>
                 <th>時段</th>
                 <th>人數</th>
                 <th>訂位代號</th>
-                <th>姓名</th>
-                <th>電話</th>
+                {!nameFirst && <th>姓名</th>}
+                {!nameFirst && <th>電話</th>}
                 <th>訂金</th>
                 <th>分店</th>
                 <th>備註</th>
@@ -156,10 +161,16 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={11} style={{ textAlign: "center", color: "var(--gray-400)" }}>載入中...</td></tr>
+                <tr><td colSpan={colCount} style={{ textAlign: "center", color: "var(--gray-400)" }}>載入中...</td></tr>
               )}
               {!loading && visibleBookings.map((b) => (
                 <tr key={b.id}>
+                  {nameFirst && (
+                    <td>
+                      <strong>{b.customerName || "（未填姓名）"}</strong>
+                      {b.customerPhone && <div style={{ fontSize: 12, color: "var(--gray-500)" }}>{b.customerPhone}</div>}
+                    </td>
+                  )}
                   <td>
                     {b.bookingDate}
                     {formatAltDates(b.altDates) && (
@@ -170,8 +181,8 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
                   <td>{b.timeSlot ?? "—"}</td>
                   <td>{b.partySize ?? "—"}</td>
                   <td className="font-mono">{b.bookingCode ?? "—"}</td>
-                  <td>{b.customerName ?? "—"}</td>
-                  <td>{b.customerPhone ?? "—"}</td>
+                  {!nameFirst && <td>{b.customerName ?? "—"}</td>}
+                  {!nameFirst && <td>{b.customerPhone ?? "—"}</td>}
                   <td>{formatCurrency(b.depositAmount)}</td>
                   <td>{b.branch ?? "—"}</td>
                   <td>{b.note ?? "—"}</td>
@@ -187,7 +198,7 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
                 </tr>
               ))}
               {!loading && visibleBookings.length === 0 && (
-                <tr><td colSpan={11} style={{ textAlign: "center", color: "var(--gray-400)" }}>目前沒有可以銷售的{category}</td></tr>
+                <tr><td colSpan={colCount} style={{ textAlign: "center", color: "var(--gray-400)" }}>目前沒有可以銷售的{category}</td></tr>
               )}
             </tbody>
           </table>

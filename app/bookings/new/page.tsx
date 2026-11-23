@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { StaffOptionSelect } from "@/components/StaffOptionSelect";
 import { BranchSelect } from "@/components/BranchSelect";
 import { VendorSelect } from "@/components/VendorSelect";
-import { AltDatesEditor, type AltDateRow } from "@/components/AltDatesEditor";
+import { ReservedOptionsEditor, optionsToBody, type ReservedOption } from "@/components/AltDatesEditor";
 
 function NewBookingForm() {
   const router = useRouter();
@@ -22,7 +22,7 @@ function NewBookingForm() {
   const [pureCustomerService, setPureCustomerService] = useState(false);
   // 預定單只有客服／管理員能建（客服面對客人時打的）
   const [canCreateReserved, setCanCreateReserved] = useState(false);
-  const [altRows, setAltRows] = useState<AltDateRow[]>([]);
+  const [options, setOptions] = useState<ReservedOption[]>([{ branchId: "", branch: "", date: "", timeSlot: "", partySize: "" }]);
   const [form, setForm] = useState({
     branchId: "",
     branch: "",
@@ -62,8 +62,15 @@ function NewBookingForm() {
   const setChecked = (field: "isInline" | "isEztable") => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [field]: e.target.checked }));
 
+  // 預定單跟需求看板一樣：客人姓名在最上面，底下是好幾個候選（各自的分店／日期／時段／人數）
+  const isReserved = form.category === "預定單";
+
   const handleSubmit = async () => {
-    if (!form.bookingDate || !form.category) {
+    if (isReserved && !options[0]?.date) {
+      setError("第 1 順位要填日期");
+      return;
+    }
+    if (!isReserved && (!form.bookingDate || !form.category)) {
       setError("請填寫日期與類別");
       return;
     }
@@ -76,7 +83,7 @@ function NewBookingForm() {
     const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, vendorId, ...(form.category === "預定單" ? { altDates: altRows } : {}) }),
+      body: JSON.stringify({ ...form, vendorId, ...(isReserved ? optionsToBody(options) : {}) }),
     });
     setLoading(false);
     if (!res.ok) {
@@ -96,6 +103,25 @@ function NewBookingForm() {
 
       {error && <div className="erp-alert danger">{error}</div>}
 
+      {isReserved && (
+        <div className="erp-card" style={{ marginBottom: 24 }}>
+          <div className="erp-card-header"><span className="erp-card-title">客人與候選日期</span></div>
+          <div className="erp-card-body">
+            <div className="erp-form-grid" style={{ marginBottom: 16 }}>
+              <div className="erp-form-group">
+                <label className="erp-label">客人姓名（用這個名字訂位）</label>
+                <input className="erp-input" value={form.customerName} onChange={set("customerName")} />
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">客人電話</label>
+                <input className="erp-input" value={form.customerPhone} onChange={set("customerPhone")} />
+              </div>
+            </div>
+            <ReservedOptionsEditor options={options} onChange={setOptions} />
+          </div>
+        </div>
+      )}
+
       <div className="erp-card">
         <div className="erp-card-header"><span className="erp-card-title">基本資訊</span></div>
         <div className="erp-card-body">
@@ -103,10 +129,12 @@ function NewBookingForm() {
             {form.category !== "預定單" && (
               <VendorSelect value={vendorId} onChange={setVendorId} required={form.category === "現貨單"} />
             )}
+            {!isReserved && (
             <div className="erp-form-group">
               <label className="erp-label">分店</label>
               <BranchSelect branchId={form.branchId} branch={form.branch} onChange={(v) => setForm((f) => ({ ...f, ...v }))} />
             </div>
+            )}
             <div className="erp-form-group">
               <label className="erp-label">類別 <span className="required">*</span></label>
               {presetCategory || pureCustomerService ? (
@@ -119,18 +147,22 @@ function NewBookingForm() {
                 </select>
               )}
             </div>
-            <div className="erp-form-group">
-              <label className="erp-label">日期 <span className="required">*</span></label>
-              <input type="date" className="erp-input" value={form.bookingDate} onChange={set("bookingDate")} />
-            </div>
-            <div className="erp-form-group">
-              <label className="erp-label">時段</label>
-              <input className="erp-input" placeholder="例如 11:30" value={form.timeSlot} onChange={set("timeSlot")} />
-            </div>
-            <div className="erp-form-group">
-              <label className="erp-label">人數</label>
-              <input type="number" className="erp-input" value={form.partySize} onChange={set("partySize")} />
-            </div>
+            {!isReserved && (
+              <>
+                <div className="erp-form-group">
+                  <label className="erp-label">日期 <span className="required">*</span></label>
+                  <input type="date" className="erp-input" value={form.bookingDate} onChange={set("bookingDate")} />
+                </div>
+                <div className="erp-form-group">
+                  <label className="erp-label">時段</label>
+                  <input className="erp-input" placeholder="例如 11:30" value={form.timeSlot} onChange={set("timeSlot")} />
+                </div>
+                <div className="erp-form-group">
+                  <label className="erp-label">人數</label>
+                  <input type="number" className="erp-input" value={form.partySize} onChange={set("partySize")} />
+                </div>
+              </>
+            )}
             <div className="erp-form-group">
               <label className="erp-label">訂位代號</label>
               <input className="erp-input" value={form.bookingCode} onChange={set("bookingCode")} />
@@ -148,14 +180,6 @@ function NewBookingForm() {
               <label className="erp-label">實際訂位人員</label>
               <StaffOptionSelect value={form.actualBooker ?? ""} onChange={(v) => setForm((f) => ({ ...f, actualBooker: v }))} />
             </div>
-            {form.category === "預定單" && (
-              <AltDatesEditor
-                mainDate={form.bookingDate}
-                mainTimeSlot={form.timeSlot}
-                rows={altRows}
-                onChange={(n) => { setForm((f) => ({ ...f, bookingDate: n.mainDate, timeSlot: n.mainTimeSlot })); setAltRows(n.rows); }}
-              />
-            )}
           </div>
         </div>
       </div>
@@ -182,14 +206,18 @@ function NewBookingForm() {
         </div>
         <div className="erp-card-body">
           <div className="erp-form-grid">
-            <div className="erp-form-group">
-              <label className="erp-label">姓名{form.category === "現貨單" && <span className="required">*</span>}</label>
-              <input className="erp-input" value={form.customerName} onChange={set("customerName")} />
-            </div>
-            <div className="erp-form-group">
-              <label className="erp-label">電話{form.category === "現貨單" && <span className="required">*</span>}</label>
-              <input className="erp-input" value={form.customerPhone} onChange={set("customerPhone")} />
-            </div>
+            {!isReserved && (
+              <>
+                <div className="erp-form-group">
+                  <label className="erp-label">姓名{form.category === "現貨單" && <span className="required">*</span>}</label>
+                  <input className="erp-input" value={form.customerName} onChange={set("customerName")} />
+                </div>
+                <div className="erp-form-group">
+                  <label className="erp-label">電話{form.category === "現貨單" && <span className="required">*</span>}</label>
+                  <input className="erp-input" value={form.customerPhone} onChange={set("customerPhone")} />
+                </div>
+              </>
+            )}
             <div className="erp-form-group">
               <label className="erp-label">來源</label>
               <input className="erp-input" value={form.source} onChange={set("source")} />

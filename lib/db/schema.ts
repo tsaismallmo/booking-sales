@@ -59,7 +59,8 @@ export const salesChannels = pgTable('sales_channels', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
-export type AltDate = { date: string; timeSlot: string | null }
+// 預定單的候選（第 2、3… 順位），跟需求看板的候選一樣：每個候選各自有餐廳分店／日期／時段／人數
+export type AltDate = { date: string; timeSlot: string | null; branchId?: string | null; branch?: string | null; partySize?: number | null }
 
 // 單據：廠商建立，客服銷售
 export const bookings = pgTable('bookings', {
@@ -75,7 +76,7 @@ export const bookings = pgTable('bookings', {
   timeSlot: text('time_slot'), // 時段
   partySize: integer('party_size'), // 人數
   bookingCode: text('booking_code'), // 訂位代號
-  altDates: jsonb('alt_dates').$type<AltDate[]>(), // 預定單：客人給的其他候選日期（依順位排；主要日期/時段還是 bookingDate/timeSlot）
+  altDates: jsonb('alt_dates').$type<AltDate[]>(), // 預定單：客人給的其他候選（依順位排；第 1 順位就是這筆單本身的分店/日期/時段/人數）
 
   // 訂位/退訂
   status: bookingStatusEnum('status').notNull().default('unsold'), // 狀態：未售出/訂/售/退
