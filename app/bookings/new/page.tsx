@@ -41,6 +41,7 @@ function NewBookingForm() {
     source: "",
     isInline: false,
     isEztable: false,
+    agencyFee: "",
     info: "",
     note: "",
   });
@@ -115,6 +116,10 @@ function NewBookingForm() {
               <div className="erp-form-group">
                 <label className="erp-label">客人電話</label>
                 <input className="erp-input" value={form.customerPhone} onChange={set("customerPhone")} />
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">代訂費（總共，先收；沒訂到會退）</label>
+                <input type="number" step="0.01" className="erp-input" value={form.agencyFee} onChange={set("agencyFee")} />
               </div>
               <div className="erp-form-group full">
                 <label className="erp-label">備註</label>

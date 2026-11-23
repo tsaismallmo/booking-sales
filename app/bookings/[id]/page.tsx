@@ -123,7 +123,7 @@ export default function BookingDetailPage() {
   };
 
   const handleUndoSold = async () => {
-    if (!confirm(isReserved ? "確定要退回未完成？" : "確定要退回售出，將狀態改為未售出？")) return;
+    if (!confirm(isReserved ? "確定要改回訂位中？" : "確定要退回售出，將狀態改為未售出？")) return;
     const res = await fetch(`/api/bookings/${params.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -144,7 +144,7 @@ export default function BookingDetailPage() {
         <div>
           <h1 className="erp-page-title">單據詳細資料</h1>
           <p className="erp-page-subtitle">
-            {isReserved && isSold ? "已完成" : statusLabel[String(booking.status)]} · {booking.bookingDate}
+            {isReserved && isSold ? "已訂到（完成）" : isReserved && isRefunded ? "沒訂到（已退款）" : isReserved && booking.status === "unsold" ? "訂位中" : statusLabel[String(booking.status)]} · {booking.bookingDate}
             {pendingRequest && <span className="badge badge-warning" style={{ marginLeft: 8 }}>需求處理中</span>}
           </p>
         </div>
@@ -153,10 +153,10 @@ export default function BookingDetailPage() {
             <button onClick={() => setShowRequestForm((s) => !s)} className="btn btn-secondary">轉需求</button>
           )}
           {isRefunded && !pureVendorStaff && (
-            <button onClick={handleUndoRefund} className="btn btn-secondary">撤銷退訂</button>
+            <button onClick={handleUndoRefund} className="btn btn-secondary">{isReserved ? "改回訂位中" : "撤銷退訂"}</button>
           )}
           {isSold && !pureVendorStaff && (
-            <button onClick={handleUndoSold} className="btn btn-secondary">{isReserved ? "退回未完成" : "退回售出"}</button>
+            <button onClick={handleUndoSold} className="btn btn-secondary">{isReserved ? "改回訂位中" : "退回售出"}</button>
           )}
           {canEdit && <Link href={editHref} className="btn btn-primary">編輯</Link>}
           {canDelete && <button onClick={handleDelete} className="btn btn-danger">刪除</button>}
@@ -197,7 +197,8 @@ export default function BookingDetailPage() {
               <Row label="客人姓名" value={booking.customerName} />
               <Row label="客人電話" value={booking.customerPhone} />
               <Row label="備註" value={booking.note} />
-              {isSold && <Row label="代訂費" value={formatCurrency(booking.agencyFee)} />}
+              <Row label="代訂費" value={formatCurrency(booking.agencyFee)} />
+              {isSold && <Row label="誰訂到的" value={booking.actualBooker} />}
               {isSold && <Row label="完成日期" value={booking.soldDate} />}
             </div>
           </div>

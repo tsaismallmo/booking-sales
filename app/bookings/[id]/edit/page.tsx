@@ -128,7 +128,7 @@ export default function EditBookingPage() {
 
       {error && <div className="erp-alert danger">{error}</div>}
 
-      {isReserved && !lockBasic && form.status !== "refunded" && form.status !== "sold" && (
+      {isReserved && !lockBasic && form.status !== "refunded" && (
         <div className="erp-card" style={{ marginBottom: 24 }}>
           <div className="erp-card-header"><span className="erp-card-title">客人與候選日期</span></div>
           <div className="erp-card-body">
@@ -140,6 +140,14 @@ export default function EditBookingPage() {
               <div className="erp-form-group">
                 <label className="erp-label">客人電話</label>
                 <input className="erp-input" value={form.customerPhone} onChange={set("customerPhone")} />
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">代訂費（總共，先收；沒訂到會退）</label>
+                <input type="number" step="0.01" className="erp-input" value={form.agencyFee} onChange={set("agencyFee")} />
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">誰訂到的</label>
+                <StaffOptionSelect value={form.actualBooker ?? ""} onChange={(v) => setForm((f) => ({ ...f, actualBooker: v }))} />
               </div>
               <div className="erp-form-group full">
                 <label className="erp-label">備註</label>
