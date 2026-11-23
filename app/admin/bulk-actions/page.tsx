@@ -65,7 +65,6 @@ type ColMap = {
   account: number;
   salespersonRaw: number;
   agencyFee: number;
-  soldCount: number;
   note: number;
   cancelDeadline: number;
 };
@@ -89,7 +88,6 @@ type ParsedRow = {
   account: string;
   salespersonRaw: string;
   agencyFee: string;
-  soldCount: string;
   note: string;
   cancelDeadline: string;
   // resolved
@@ -124,7 +122,6 @@ const HEADER_ALIASES: Record<keyof ColMap, string[]> = {
   account:         ["帳戶", "account"],
   salespersonRaw:  ["銷售人員", "銷售", "salesperson"],
   agencyFee:       ["代訂費", "agency fee"],
-  soldCount:       ["實賣人數", "實售", "sold count"],
   note:            ["備註", "退訂原因", "note"],
   cancelDeadline:  ["退訂期限", "退訂截止", "cancel deadline"],
 };
@@ -134,7 +131,7 @@ const HEADER_ALIASES: Record<keyof ColMap, string[]> = {
 const DEFAULT_MAP: ColMap = {
   vendorRaw: 0, branch: 1, bookingDate: 2, timeSlot: 3, partySize: 4, bookingCode: 5, customerRaw: 6, deposit: 7,
   customerName: -1, customerPhone: -1,
-  status: -1, platform: -1, soldDate: -1, collectedAmount: -1, account: -1, salespersonRaw: -1, agencyFee: -1, soldCount: -1, note: -1, cancelDeadline: -1,
+  status: -1, platform: -1, soldDate: -1, collectedAmount: -1, account: -1, salespersonRaw: -1, agencyFee: -1, note: -1, cancelDeadline: -1,
 };
 
 function detectColMap(headerCols: string[]): Partial<ColMap> {
@@ -234,7 +231,6 @@ export default function BulkActionsPage() {
         account:     get(cols, finalMap.account),
         salespersonRaw: get(cols, finalMap.salespersonRaw),
         agencyFee:   get(cols, finalMap.agencyFee),
-        soldCount:   get(cols, finalMap.soldCount),
         note:        get(cols, finalMap.note),
         cancelDeadline: normaliseDate(get(cols, finalMap.cancelDeadline)),
         lookupResult: null,
@@ -297,7 +293,6 @@ export default function BulkActionsPage() {
       account:         r.account || undefined,
       salespersonId:   r.salespersonId || null,
       agencyFee:       r.agencyFee ? stripCommas(r.agencyFee) : undefined,
-      soldCount:       r.soldCount ? Number(stripCommas(r.soldCount)) : undefined,
       depositAmount:   r.deposit ? stripCommas(r.deposit) : undefined,
       cancelDeadline:  r.cancelDeadline || undefined,
     };
@@ -449,7 +444,6 @@ export default function BulkActionsPage() {
                   <th style={{ minWidth: 120 }}>帳戶</th>
                   <th style={{ minWidth: 120 }}>銷售人員</th>
                   <th style={{ minWidth: 90 }}>代訂費（總共）</th>
-                  <th style={{ minWidth: 80 }}>實賣人數</th>
                   <th style={{ minWidth: 100 }}>餐廳訂金</th>
                   <th style={{ minWidth: 120 }}>退訂期限</th>
                   <th style={{ minWidth: 160 }}>備註</th>
@@ -558,10 +552,6 @@ export default function BulkActionsPage() {
                       <td>
                         <input type="number" className="erp-input" style={{ fontSize: 13 }} placeholder="0"
                           value={r.agencyFee} onChange={(e) => updateRow(r.lineNo, { agencyFee: e.target.value })} />
-                      </td>
-                      <td>
-                        <input type="number" min={1} className="erp-input" style={{ fontSize: 13 }} placeholder="全售可不填"
-                          value={r.soldCount} onChange={(e) => updateRow(r.lineNo, { soldCount: e.target.value })} />
                       </td>
                       <td>
                         <input type="number" className="erp-input" style={{ fontSize: 13 }} placeholder="0"
