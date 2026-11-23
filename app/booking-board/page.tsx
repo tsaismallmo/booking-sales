@@ -5,6 +5,7 @@ import { formatCurrency } from "@/lib/utils";
 import { WEEKDAYS, parseDateOnly, dateLabel } from "@/lib/quote";
 import { fetchCached } from "@/lib/offline-cache";
 import { pad2, todayStr } from "@/lib/dates";
+import type { Booking } from "@/lib/booking-types";
 
 // 斷網時如果有用到上次的快取資料，用這個提示；savedAt 是那份快取資料抓下來的時間
 function OfflineBanner({ savedAt }: { savedAt: number | null }) {
@@ -41,33 +42,10 @@ type RosterList = {
   ownerEmail: string | null;
 };
 
-type MyBooking = {
-  id: string;
-  branch: string | null;
-  category: string;
-  bookingDate: string;
-  timeSlot: string | null;
-  partySize: number | null;
-  bookingCode: string | null;
-  customerName: string | null;
-  customerPhone: string | null;
-  depositAmount: string | null;
-  source: string | null;
-  isInline: boolean;
-  isEztable: boolean;
-  note: string | null;
-  status: "unsold" | "reserved" | "sold" | "refunded";
-};
+type MyBooking = Pick<Booking, "id" | "branch" | "category" | "bookingDate" | "timeSlot" | "partySize" | "bookingCode" | "customerName" | "customerPhone" | "depositAmount" | "source" | "isInline" | "isEztable" | "note" | "status">;
 
 // 需求只會發生在臨時單／預定單，不歸屬特定廠商，所以是全平台當天的資料
-type DemandBooking = {
-  id: string;
-  branch: string | null;
-  category: string;
-  timeSlot: string | null;
-  partySize: number | null;
-  customerName: string | null;
-};
+type DemandBooking = Pick<Booking, "id" | "branch" | "category" | "timeSlot" | "partySize" | "customerName">;
 
 // b 的日期減 target 的日期，正數代表 b 在 target 之後
 function daysBetween(bDate: string, targetDate: string) {

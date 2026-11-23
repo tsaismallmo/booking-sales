@@ -5,18 +5,9 @@ import { Modal } from "@/components/Modal";
 import { SalesChannelSelect } from "@/components/SalesChannelSelect";
 import { formatCurrency } from "@/lib/utils";
 import { todayStr } from "@/lib/dates";
+import type { Booking } from "@/lib/booking-types";
 
-export type SaleBooking = {
-  id: string;
-  branch: string | null;
-  bookingDate: string;
-  timeSlot: string | null;
-  partySize: number | null;
-  customerName: string | null;
-  customerPhone: string | null;
-  bookingCode: string | null;
-  depositAmount: string | null;
-};
+export type SaleBooking = Pick<Booking, "id" | "branch" | "bookingDate" | "timeSlot" | "partySize" | "customerName" | "customerPhone" | "bookingCode" | "depositAmount">;
 
 // 銷售／收款視窗（現貨單看板、臨時單看板共用）：填完按「確認售出」把單據改成售出
 export function SaleModal({

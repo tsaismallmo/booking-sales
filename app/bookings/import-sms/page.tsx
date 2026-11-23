@@ -7,20 +7,12 @@ import { formatCurrency } from "@/lib/utils";
 import { VendorSelect } from "@/components/VendorSelect";
 import { StaffOptionSelect } from "@/components/StaffOptionSelect";
 import { BranchSelect, findBranch, loadBranchOptions } from "@/components/BranchSelect";
+import type { Booking } from "@/lib/booking-types";
 
 type PhoneCandidate = { phone: string; source: "roster" | "booking"; label: string; listName: string | null; bookerName: string | null };
 type CustomerCandidate = { name: string; phone: string; source: "roster" | "booking"; label: string; bookerName?: string };
 
-type ExistingBooking = {
-  id: string;
-  branch: string | null;
-  bookingDate: string;
-  timeSlot: string | null;
-  partySize: number | null;
-  bookingCode: string | null;
-  depositAmount: string | null;
-  depositPayer: string | null;
-};
+type ExistingBooking = Pick<Booking, "id" | "branch" | "bookingDate" | "timeSlot" | "partySize" | "bookingCode" | "depositAmount" | "depositPayer">;
 
 export default function ImportSmsPage() {
   const router = useRouter();

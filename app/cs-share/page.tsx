@@ -5,18 +5,11 @@ import { formatCurrency } from "@/lib/utils";
 import { WEEKDAYS, parseDateOnly } from "@/lib/quote";
 import { currentMonthStr, monthRange } from "@/lib/dates";
 import { fetchMe } from "@/lib/use-me";
+import type { Booking } from "@/lib/booking-types";
 
 type Staff = { id: string; name: string | null; email: string; roles: string[] };
 
-type ShareBooking = {
-  id: string;
-  category: string;
-  bookingDate: string;
-  partySize: number | null;
-  branch: string | null;
-  customerName: string | null;
-  bookingCode: string | null;
-};
+type ShareBooking = Pick<Booking, "id" | "category" | "bookingDate" | "partySize" | "branch" | "customerName" | "bookingCode">;
 
 type DetailReport = {
   mode: "detail";

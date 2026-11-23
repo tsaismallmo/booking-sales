@@ -4,14 +4,10 @@ import { useEffect, useState } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { WEEKDAYS, parseDateOnly } from "@/lib/quote";
 import { currentMonthStr, monthRange } from "@/lib/dates";
+import type { Booking } from "@/lib/booking-types";
 
-type SettlementBooking = {
-  id: string;
-  bookingDate: string;
-  branch: string | null;
-  bookingCode: string | null;
+type SettlementBooking = Pick<Booking, "id" | "bookingDate" | "branch" | "bookingCode" | "vendorId"> & {
   account: string;
-  vendorId: string | null;
   vendorName: string;
   actualFee: number;
   vendorProfit: number;

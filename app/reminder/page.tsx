@@ -2,21 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { todayStr as today, toYmd } from "@/lib/dates";
+import type { Booking as BookingRow } from "@/lib/booking-types";
 
-type Booking = {
-  id: string;
-  branch: string | null;
-  category: string;
-  bookingDate: string;
-  timeSlot: string | null;
-  partySize: number | null;
-  bookingCode: string | null;
-  customerName: string | null;
-  customerPhone: string | null;
-  depositAmount: string | null;
-  cancelDeadline: string | null;
-  status: "unsold" | "reserved" | "sold" | "refunded";
-};
+type Booking = Pick<BookingRow, "id" | "branch" | "category" | "bookingDate" | "timeSlot" | "partySize" | "bookingCode" | "customerName" | "customerPhone" | "depositAmount" | "cancelDeadline" | "status">;
 
 const statusLabel: Record<Booking["status"], string> = {
   unsold: "未售出",

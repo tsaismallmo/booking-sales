@@ -2,23 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { normalizeDate } from "@/lib/dates";
+import type { Booking } from "@/lib/booking-types";
 
 type Account = { id: string; name: string | null; email: string; roles: string[] };
 
-type BookingMatch = {
-  id: string;
-  bookingCode: string | null;
-  bookingDate: string;
-  branch: string | null;
-  timeSlot: string | null;
-  category: string;
-  customerName: string | null;
-  customerPhone: string | null;
-  partySize: number | null;
-  status: string;
-  isInline: boolean;
-  isEztable: boolean;
-};
+type BookingMatch = Pick<Booking, "id" | "bookingCode" | "bookingDate" | "branch" | "timeSlot" | "category" | "customerName" | "customerPhone" | "partySize" | "status" | "isInline" | "isEztable">;
 
 type LookupResult = {
   code: string;

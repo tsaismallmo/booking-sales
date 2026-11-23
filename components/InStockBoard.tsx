@@ -17,22 +17,9 @@ import {
 import { fetchMe } from "@/lib/use-me";
 import { SaleModal } from "@/components/SaleModal";
 import { Modal } from "@/components/Modal";
+import type { Booking as BookingRow } from "@/lib/booking-types";
 
-type Booking = {
-  id: string;
-  vendorId: string | null;
-  branch: string | null;
-  category: string;
-  bookingDate: string;
-  timeSlot: string | null;
-  partySize: number | null;
-  bookingCode: string | null;
-  customerName: string | null;
-  customerPhone: string | null;
-  depositAmount: string | null;
-  note: string | null;
-  status: "unsold" | "reserved" | "sold" | "refunded";
-};
+type Booking = Pick<BookingRow, "id" | "vendorId" | "branch" | "category" | "bookingDate" | "timeSlot" | "partySize" | "bookingCode" | "customerName" | "customerPhone" | "depositAmount" | "note" | "status">;
 
 export function InStockBoard() {
   const [allBookings, setAllBookings] = useState<Booking[]>([]);

@@ -5,26 +5,9 @@ import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
 import { fetchMe } from "@/lib/use-me";
 import { Modal } from "@/components/Modal";
+import type { Booking as BookingRow } from "@/lib/booking-types";
 
-type Booking = {
-  id: string;
-  vendorId: string | null;
-  branch: string | null;
-  category: string;
-  bookingDate: string;
-  timeSlot: string | null;
-  partySize: number | null;
-  bookingCode: string | null;
-  customerName: string | null;
-  buyerName: string | null;
-  buyerPhone: string | null;
-  customerPhone: string | null;
-  depositAmount: string | null;
-  collectedAmount: string | null;
-  soldDate: string | null;
-  account: string | null;
-  agencyFee: string | null;
-};
+type Booking = Pick<BookingRow, "id" | "vendorId" | "branch" | "category" | "bookingDate" | "timeSlot" | "partySize" | "bookingCode" | "customerName" | "buyerName" | "buyerPhone" | "customerPhone" | "depositAmount" | "collectedAmount" | "soldDate" | "account" | "agencyFee">;
 
 type Vendor = { id: string; name: string | null };
 

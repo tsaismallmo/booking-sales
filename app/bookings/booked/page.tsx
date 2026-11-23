@@ -4,21 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
 import { compareBookings } from "@/lib/booking-sort";
+import type { Booking as BookingRow } from "@/lib/booking-types";
 
-type Booking = {
-  id: string;
-  branch: string | null;
-  category: string;
-  bookingDate: string;
-  timeSlot: string | null;
-  partySize: number | null;
-  bookingCode: string | null;
-  status: "unsold" | "reserved" | "sold" | "refunded";
-  customerName: string | null;
-  customerPhone: string | null;
-  collectedAmount: string | null;
-  depositAmount: string | null;
-};
+type Booking = Pick<BookingRow, "id" | "branch" | "category" | "bookingDate" | "timeSlot" | "partySize" | "bookingCode" | "status" | "customerName" | "customerPhone" | "collectedAmount" | "depositAmount">;
 
 const statusLabel: Record<Booking["status"], string> = {
   unsold: "未售出",

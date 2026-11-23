@@ -3,18 +3,12 @@
 import { useMemo, useState } from "react";
 import { getMealPeriod } from "@/lib/quote";
 import { todayStr, ymd } from "@/lib/dates";
+import type { Booking } from "@/lib/booking-types";
 
 // 預定單月曆：跟需求看板的月曆一樣，每一天列出 餐廳分店 → 餐期 → 幾組、各幾人。
 // 一張預定單的每個候選（第 1 順位＝單據本身，加上 altDates）都會算在各自的日期上。
 
-export type CalendarBooking = {
-  id: string;
-  branch: string | null;
-  bookingDate: string;
-  timeSlot: string | null;
-  partySize: number | null;
-  altDates?: { date: string; timeSlot: string | null; branch?: string | null; partySize?: number | null }[] | null;
-};
+export type CalendarBooking = Pick<Booking, "id" | "branch" | "bookingDate" | "timeSlot" | "partySize" | "altDates">;
 
 export type CalendarOption = { date: string; branch: string | null; timeSlot: string | null; partySize: number | null };
 

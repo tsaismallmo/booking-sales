@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { SeatRequestsPanel, prefetchSeatRequests } from "@/components/SeatRequestsPanel";
 import { fetchMe } from "@/lib/use-me";
+import type { Booking as BookingRow } from "@/lib/booking-types";
 
 type BookingRequest = {
   id: string;
@@ -18,18 +19,8 @@ type BookingRequest = {
   createdAt: string;
 };
 
-type Booking = {
-  id: string;
-  vendorId: string | null;
+type Booking = Pick<BookingRow, "id" | "vendorId" | "branch" | "category" | "bookingDate" | "timeSlot" | "partySize" | "bookingCode" | "customerName" | "customerPhone"> & {
   vendorName: string | null;
-  branch: string | null;
-  category: string;
-  bookingDate: string;
-  timeSlot: string | null;
-  partySize: number | null;
-  bookingCode: string | null;
-  customerName: string | null;
-  customerPhone: string | null;
 };
 
 // 合併需求可能跨廠商，看的人不一定對每一筆都有查看權限（例如廠商只能看自己的），

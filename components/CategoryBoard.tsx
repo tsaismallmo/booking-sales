@@ -11,24 +11,9 @@ import { todayStr } from "@/lib/dates";
 import { fetchMe } from "@/lib/use-me";
 import { SaleModal } from "@/components/SaleModal";
 import { Modal } from "@/components/Modal";
+import type { Booking as BookingRow } from "@/lib/booking-types";
 
-type Booking = {
-  id: string;
-  branch: string | null;
-  category: string;
-  bookingDate: string;
-  timeSlot: string | null;
-  partySize: number | null;
-  bookingCode: string | null;
-  altDates?: { date: string; timeSlot: string | null; branch?: string | null; partySize?: number | null }[] | null;
-  customerName: string | null;
-  customerPhone: string | null;
-  status: "unsold" | "reserved" | "sold" | "refunded";
-  depositAmount: string | null;
-  agencyFee?: string | null;
-  actualBooker?: string | null;
-  note: string | null;
-};
+type Booking = Pick<BookingRow, "id" | "branch" | "category" | "bookingDate" | "timeSlot" | "partySize" | "bookingCode" | "altDates" | "customerName" | "customerPhone" | "status" | "depositAmount" | "agencyFee" | "actualBooker" | "note">;
 
 // 給臨時單／預定單用的看板，欄位順序跟現貨單看板保持一致
 export function CategoryBoard({ category, title }: { category: "臨時單" | "預定單"; title: string }) {

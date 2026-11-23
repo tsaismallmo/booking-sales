@@ -4,20 +4,10 @@ import { useEffect, useState } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { WEEKDAYS, parseDateOnly } from "@/lib/quote";
 import { fetchMe } from "@/lib/use-me";
+import type { Booking as BookingRow } from "@/lib/booking-types";
 
-type Booking = {
-  id: string;
-  category: string;
-  branch: string | null;
-  bookingDate: string;
-  bookingCode: string | null;
-  customerName: string | null;
-  customerPhone: string | null;
-  status: "unsold" | "reserved" | "sold" | "refunded";
+type Booking = Pick<BookingRow, "id" | "category" | "branch" | "bookingDate" | "bookingCode" | "customerName" | "customerPhone" | "status" | "depositPayer" | "depositDisbursed" | "depositConfirmed"> & {
   depositAmount: string | number | null;
-  depositPayer: string | null;
-  depositDisbursed: boolean;
-  depositConfirmed: boolean;
 };
 
 type CheckField = "depositDisbursed" | "depositConfirmed";

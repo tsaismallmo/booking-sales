@@ -3,27 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
+import type { Booking as BookingRow } from "@/lib/booking-types";
 
-type Booking = {
-  id: string;
-  vendorId: string | null;
-  branch: string | null;
-  category: string;
-  bookingDate: string;
-  timeSlot: string | null;
-  partySize: number | null;
-  bookingCode: string | null;
-  status: "unsold" | "reserved" | "sold" | "refunded";
-  customerName: string | null;
-  customerPhone: string | null;
-  collectedAmount: string | null;
-  depositAmount: string | null;
-  depositPayer: string | null;
-  actualBooker: string | null;
-  agencyFee: string | null;
-  account: string | null;
-  soldDate: string | null;
-};
+type Booking = Pick<BookingRow, "id" | "vendorId" | "branch" | "category" | "bookingDate" | "timeSlot" | "partySize" | "bookingCode" | "status" | "customerName" | "customerPhone" | "collectedAmount" | "depositAmount" | "depositPayer" | "actualBooker" | "agencyFee" | "account" | "soldDate">;
 
 // 把逗號、雙引號、換行的欄位用雙引號包起來，裡面的雙引號變成兩個雙引號，符合 CSV 標準格式
 function csvCell(value: string | number | null | undefined): string {
