@@ -116,6 +116,10 @@ function NewBookingForm() {
                 <label className="erp-label">客人電話</label>
                 <input className="erp-input" value={form.customerPhone} onChange={set("customerPhone")} />
               </div>
+              <div className="erp-form-group full">
+                <label className="erp-label">備註</label>
+                <input className="erp-input" placeholder="例如：兩大一小、需要兒童椅" value={form.note} onChange={set("note")} />
+              </div>
             </div>
             <ReservedOptionsEditor options={options} onChange={setOptions} />
           </div>
@@ -189,68 +193,73 @@ function NewBookingForm() {
         </div>
       </div>
 
-      <div className="erp-card" style={{ marginTop: 24 }}>
-        <div className="erp-card-header"><span className="erp-card-title">餐廳端金流</span></div>
-        <div className="erp-card-body">
-          <div className="erp-form-grid">
-            <div className="erp-form-group">
-              <label className="erp-label">訂金</label>
-              <input type="number" step="0.01" className="erp-input" value={form.depositAmount} onChange={set("depositAmount")} />
-            </div>
-            <div className="erp-form-group">
-              <label className="erp-label">付款人員</label>
-              <StaffOptionSelect value={form.depositPayer ?? ""} onChange={(v) => setForm((f) => ({ ...f, depositPayer: v }))} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="erp-card" style={{ marginTop: 24 }}>
-        <div className="erp-card-header">
-          <span className="erp-card-title">訂位資訊{form.category !== "現貨單" && "（選填）"}</span>
-        </div>
-        <div className="erp-card-body">
-          <div className="erp-form-grid">
-            {!isReserved && (
-              <>
+      {/* 預定單還沒訂到，餐廳端金流、來源／平台都還沒有；備註放在上面客人那塊 */}
+      {!isReserved && (
+        <>
+          <div className="erp-card" style={{ marginTop: 24 }}>
+            <div className="erp-card-header"><span className="erp-card-title">餐廳端金流</span></div>
+            <div className="erp-card-body">
+              <div className="erp-form-grid">
                 <div className="erp-form-group">
-                  <label className="erp-label">姓名{form.category === "現貨單" && <span className="required">*</span>}</label>
-                  <input className="erp-input" value={form.customerName} onChange={set("customerName")} />
+                  <label className="erp-label">訂金</label>
+                  <input type="number" step="0.01" className="erp-input" value={form.depositAmount} onChange={set("depositAmount")} />
                 </div>
                 <div className="erp-form-group">
-                  <label className="erp-label">電話{form.category === "現貨單" && <span className="required">*</span>}</label>
-                  <input className="erp-input" value={form.customerPhone} onChange={set("customerPhone")} />
+                  <label className="erp-label">付款人員</label>
+                  <StaffOptionSelect value={form.depositPayer ?? ""} onChange={(v) => setForm((f) => ({ ...f, depositPayer: v }))} />
                 </div>
-              </>
-            )}
-            <div className="erp-form-group">
-              <label className="erp-label">來源</label>
-              <input className="erp-input" value={form.source} onChange={set("source")} />
-            </div>
-            <div className="erp-form-group">
-              <label className="erp-label">訂位平台</label>
-              <div style={{ display: "flex", gap: 16, alignItems: "center", height: 38 }}>
-                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
-                  <input type="checkbox" checked={form.isInline} onChange={setChecked("isInline")} />
-                  Inline
-                </label>
-                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
-                  <input type="checkbox" checked={form.isEztable} onChange={setChecked("isEztable")} />
-                  EZTABLE
-                </label>
               </div>
             </div>
-            <div className="erp-form-group full">
-              <label className="erp-label">資訊</label>
-              <input className="erp-input" placeholder="快速註記" value={form.info} onChange={set("info")} />
+          </div>
+
+          <div className="erp-card" style={{ marginTop: 24 }}>
+            <div className="erp-card-header">
+              <span className="erp-card-title">訂位資訊{form.category !== "現貨單" && "（選填）"}</span>
             </div>
-            <div className="erp-form-group full">
-              <label className="erp-label">備註</label>
-              <textarea className="erp-textarea" rows={2} value={form.note} onChange={set("note")} />
+            <div className="erp-card-body">
+              <div className="erp-form-grid">
+                {!isReserved && (
+                  <>
+                    <div className="erp-form-group">
+                      <label className="erp-label">姓名{form.category === "現貨單" && <span className="required">*</span>}</label>
+                      <input className="erp-input" value={form.customerName} onChange={set("customerName")} />
+                    </div>
+                    <div className="erp-form-group">
+                      <label className="erp-label">電話{form.category === "現貨單" && <span className="required">*</span>}</label>
+                      <input className="erp-input" value={form.customerPhone} onChange={set("customerPhone")} />
+                    </div>
+                  </>
+                )}
+                <div className="erp-form-group">
+                  <label className="erp-label">來源</label>
+                  <input className="erp-input" value={form.source} onChange={set("source")} />
+                </div>
+                <div className="erp-form-group">
+                  <label className="erp-label">訂位平台</label>
+                  <div style={{ display: "flex", gap: 16, alignItems: "center", height: 38 }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                      <input type="checkbox" checked={form.isInline} onChange={setChecked("isInline")} />
+                      Inline
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                      <input type="checkbox" checked={form.isEztable} onChange={setChecked("isEztable")} />
+                      EZTABLE
+                    </label>
+                  </div>
+                </div>
+                <div className="erp-form-group full">
+                  <label className="erp-label">資訊</label>
+                  <input className="erp-input" placeholder="快速註記" value={form.info} onChange={set("info")} />
+                </div>
+                <div className="erp-form-group full">
+                  <label className="erp-label">備註</label>
+                  <textarea className="erp-textarea" rows={2} value={form.note} onChange={set("note")} />
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
 
       <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
         <button onClick={handleSubmit} disabled={loading} className="btn btn-primary">
