@@ -188,7 +188,13 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
                   <td>{b.note ?? "—"}</td>
                   <td>
                     {!restrictedView && (
-                      b.bookingCode ? (
+                      nameFirst ? (
+                        // 預定單沒有訂位代號欄位，銷售和編輯都直接給
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button onClick={() => handleOpenSale(b)} className="btn btn-primary" style={{ padding: "4px 10px", fontSize: 13 }}>銷售</button>
+                          <Link href={`/bookings/${b.id}/edit?from=${fromKey}`} className="btn btn-secondary" style={{ padding: "4px 10px", fontSize: 13 }}>編輯</Link>
+                        </div>
+                      ) : b.bookingCode ? (
                         <button onClick={() => handleOpenSale(b)} className="btn btn-primary" style={{ padding: "4px 10px", fontSize: 13 }}>銷售</button>
                       ) : (
                         <Link href={`/bookings/${b.id}/edit?from=${fromKey}`} className="btn btn-secondary" style={{ padding: "4px 10px", fontSize: 13 }}>編輯</Link>

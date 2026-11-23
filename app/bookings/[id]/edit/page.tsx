@@ -113,7 +113,8 @@ export default function EditBookingPage() {
 
   // 純客服不能改基本資訊（要走轉需求），但預定單是客服自己打的，可以直接改
   const lockBasic = pureCustomerService && form.category !== "預定單";
-  // 預定單跟需求看板一樣：客人姓名在最上面，底下是好幾個候選（各自的分店／日期／時段／人數）
+  // 預定單跟需求看板一樣：客人姓名電話備註在最上面，底下是好幾個候選（各自的分店／日期／時段／人數），
+  // 訂位代號、期限、餐廳端金流、來源等欄位都不顯示
   const isReserved = form.category === "預定單";
 
   if (!bookingReady || !rolesReady) return <div className="erp-page">載入中...</div>;
@@ -140,13 +141,17 @@ export default function EditBookingPage() {
                 <label className="erp-label">客人電話</label>
                 <input className="erp-input" value={form.customerPhone} onChange={set("customerPhone")} />
               </div>
+              <div className="erp-form-group full">
+                <label className="erp-label">備註</label>
+                <input className="erp-input" placeholder="例如：兩大一小、需要兒童椅" value={form.note} onChange={set("note")} />
+              </div>
             </div>
             <ReservedOptionsEditor options={options} onChange={setOptions} />
           </div>
         </div>
       )}
 
-      {!lockBasic && form.status !== "refunded" && form.status !== "sold" && (
+      {!lockBasic && !isReserved && form.status !== "refunded" && form.status !== "sold" && (
         <div className="erp-card">
           <div className="erp-card-header"><span className="erp-card-title">基本資訊</span></div>
           <div className="erp-card-body">
@@ -210,7 +215,7 @@ export default function EditBookingPage() {
         </div>
       )}
 
-      {!lockBasic && form.status !== "refunded" && form.status !== "sold" && (
+      {!lockBasic && !isReserved && form.status !== "refunded" && form.status !== "sold" && (
         <div className="erp-card" style={{ marginTop: 24 }}>
           <div className="erp-card-header"><span className="erp-card-title">餐廳端金流</span></div>
           <div className="erp-card-body">
@@ -228,7 +233,7 @@ export default function EditBookingPage() {
         </div>
       )}
 
-      {!lockBasic && form.status !== "refunded" && form.status !== "sold" && (
+      {!lockBasic && !isReserved && form.status !== "refunded" && form.status !== "sold" && (
         <div className="erp-card" style={{ marginTop: 24 }}>
           <div className="erp-card-header"><span className="erp-card-title">訂位資訊</span></div>
           <div className="erp-card-body">
@@ -346,7 +351,7 @@ export default function EditBookingPage() {
         </div>
       )}
 
-      {form.status !== "refunded" && form.status !== "sold" && (
+      {!isReserved && form.status !== "refunded" && form.status !== "sold" && (
         <div className="erp-card" style={{ marginTop: 24 }}>
           <div className="erp-card-header"><span className="erp-card-title">其他</span></div>
           <div className="erp-card-body">
