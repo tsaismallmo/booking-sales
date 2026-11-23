@@ -58,6 +58,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '客服只能建立預定單' }, { status: 403 })
   }
 
+  // 預定單是客服面對客人時打的，只有客服／管理員可以建立
+  if (body.category === '預定單' && !isAdmin && !roles.includes('customer_service')) {
+    return NextResponse.json({ error: '預定單只能由客服建立' }, { status: 403 })
+  }
+
   // 現貨單是真實的餐廳訂位，一定要有訂位姓名/電話才能去報到
   if (body.category === '現貨單' && (!body.customerName || !body.customerPhone)) {
     return NextResponse.json({ error: '現貨單要填訂位姓名與電話' }, { status: 400 })

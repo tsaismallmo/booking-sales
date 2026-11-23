@@ -20,6 +20,8 @@ function NewBookingForm() {
   const [vendorId, setVendorId] = useState("");
   // 純客服（沒有廠商/管理員身份）只能建預定單，不用綁廠商（臨時單看板已移除）
   const [pureCustomerService, setPureCustomerService] = useState(false);
+  // 預定單只有客服／管理員能建（客服面對客人時打的）
+  const [canCreateReserved, setCanCreateReserved] = useState(false);
   const [altRows, setAltRows] = useState<AltDateRow[]>([]);
   const [form, setForm] = useState({
     branchId: "",
@@ -50,6 +52,7 @@ function NewBookingForm() {
         const roles: string[] = me.roles ?? [];
         const isPureCS = roles.includes("customer_service") && !roles.includes("vendor") && !roles.includes("admin");
         setPureCustomerService(isPureCS);
+        setCanCreateReserved(roles.includes("customer_service") || roles.includes("admin"));
         if (isPureCS) setForm((f) => ({ ...f, category: "預定單" }));
       });
   }, [presetCategory]);
@@ -110,7 +113,7 @@ function NewBookingForm() {
                 <input className="erp-input" value={form.category} disabled />
               ) : (
                 <select className="erp-select" value={form.category} onChange={set("category")}>
-                  <option value="預定單">預定單</option>
+                  {canCreateReserved && <option value="預定單">預定單</option>}
                   <option value="臨時單">臨時單</option>
                   <option value="現貨單">現貨單</option>
                 </select>

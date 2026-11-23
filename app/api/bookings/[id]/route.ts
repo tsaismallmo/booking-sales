@@ -77,8 +77,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = await req.json()
   const roles = session.user.roles
   // 純客服（沒有廠商/管理員身份）只能改狀態、銷售/收款，不能碰分店/日期/金流/訂位資訊等基本資訊，
-  // 那些要走「轉需求」讓後勤人員處理
+  // 那些要走「轉需求」讓後勤人員處理。預定單例外：預定單本來就是客服面對客人時打的，基本資訊客服自己改
   const pureCustomerService = roles.includes('customer_service') && !roles.includes('vendor') && !roles.includes('admin')
+    && existing.category !== '預定單'
 
   // 分給電話歸屬的人／分給實際訂位人員：不能填負數，兩欄相加也不能超過這筆單的廠商利潤，只有改到其中一欄才需要檢查
   if ((roles.includes('vendor') || roles.includes('admin')) && (body.staffShareAmount !== undefined || body.bookerShareAmount !== undefined)) {

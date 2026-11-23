@@ -107,6 +107,9 @@ export default function EditBookingPage() {
     router.replace(`/bookings/${params.id}${fromSuffix}`);
   };
 
+  // 純客服不能改基本資訊（要走轉需求），但預定單是客服自己打的，可以直接改
+  const lockBasic = pureCustomerService && form.category !== "預定單";
+
   if (!bookingReady || !rolesReady) return <div className="erp-page">載入中...</div>;
 
   return (
@@ -118,7 +121,7 @@ export default function EditBookingPage() {
 
       {error && <div className="erp-alert danger">{error}</div>}
 
-      {!pureCustomerService && form.status !== "refunded" && form.status !== "sold" && (
+      {!lockBasic && form.status !== "refunded" && form.status !== "sold" && (
         <div className="erp-card">
           <div className="erp-card-header"><span className="erp-card-title">基本資訊</span></div>
           <div className="erp-card-body">
@@ -184,7 +187,7 @@ export default function EditBookingPage() {
         </div>
       )}
 
-      {!pureCustomerService && form.status !== "refunded" && form.status !== "sold" && (
+      {!lockBasic && form.status !== "refunded" && form.status !== "sold" && (
         <div className="erp-card" style={{ marginTop: 24 }}>
           <div className="erp-card-header"><span className="erp-card-title">餐廳端金流</span></div>
           <div className="erp-card-body">
@@ -202,7 +205,7 @@ export default function EditBookingPage() {
         </div>
       )}
 
-      {!pureCustomerService && form.status !== "refunded" && form.status !== "sold" && (
+      {!lockBasic && form.status !== "refunded" && form.status !== "sold" && (
         <div className="erp-card" style={{ marginTop: 24 }}>
           <div className="erp-card-header"><span className="erp-card-title">訂位資訊</span></div>
           <div className="erp-card-body">
