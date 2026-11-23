@@ -5,6 +5,7 @@ import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
 import { WEEKDAYS, parseDateOnly } from "@/lib/quote";
 import { SalesChannelSelect } from "@/components/SalesChannelSelect";
+import { formatAltDates } from "@/components/AltDatesEditor";
 
 type Booking = {
   id: string;
@@ -14,6 +15,7 @@ type Booking = {
   timeSlot: string | null;
   partySize: number | null;
   bookingCode: string | null;
+  altDates?: { date: string; timeSlot: string | null }[] | null;
   customerName: string | null;
   customerPhone: string | null;
   status: "unsold" | "reserved" | "sold" | "refunded";
@@ -158,7 +160,12 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
               )}
               {!loading && visibleBookings.map((b) => (
                 <tr key={b.id}>
-                  <td>{b.bookingDate}</td>
+                  <td>
+                    {b.bookingDate}
+                    {formatAltDates(b.altDates) && (
+                      <div style={{ fontSize: 12, color: "var(--gray-500)" }}>候選：{formatAltDates(b.altDates)}</div>
+                    )}
+                  </td>
                   <td>週{WEEKDAYS[parseDateOnly(b.bookingDate).getDay()]}</td>
                   <td>{b.timeSlot ?? "—"}</td>
                   <td>{b.partySize ?? "—"}</td>

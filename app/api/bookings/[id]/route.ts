@@ -1,3 +1,4 @@
+import { cleanAltDates } from '@/lib/alt-dates'
 import { staffBookerNames } from '@/lib/staff-booker'
 import { NextRequest, NextResponse } from 'next/server'
 import { eq, and, inArray, arrayOverlaps } from 'drizzle-orm'
@@ -120,6 +121,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       timeSlot: pureCustomerService ? existing.timeSlot : (body.timeSlot ?? existing.timeSlot),
       partySize: pureCustomerService ? existing.partySize : (body.partySize !== undefined ? Number(body.partySize) || null : existing.partySize),
       bookingCode: pureCustomerService ? existing.bookingCode : (body.bookingCode ?? existing.bookingCode),
+      altDates: pureCustomerService || body.altDates === undefined ? existing.altDates : cleanAltDates(body.altDates),
       status: body.status ?? existing.status,
       cancelDeadline,
       paymentDeadline: pureCustomerService ? existing.paymentDeadline : blankToNull(body.paymentDeadline ?? existing.paymentDeadline),

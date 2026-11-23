@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
 import { salesChannelName, useSalesChannels } from "@/components/SalesChannelSelect";
+import { formatAltDates } from "@/components/AltDatesEditor";
 
 type Booking = Record<string, string | number | null>;
 
@@ -193,6 +194,7 @@ export default function BookingDetailPage() {
           <Row label="類別" value={booking.category} />
           <Row label="日期" value={booking.bookingDate} />
           <Row label="時段" value={booking.timeSlot} />
+          {booking.category === "預定單" && formatAltDates(booking.altDates) && <Row label="其他候選日期" value={formatAltDates(booking.altDates)} />}
           <Row label="人數" value={booking.partySize} />
           <Row label="訂位代號" value={booking.bookingCode} />
           <Row label="退訂期限" value={booking.cancelDeadline} />

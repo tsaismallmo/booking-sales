@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { StaffOptionSelect } from "@/components/StaffOptionSelect";
 import { BranchSelect } from "@/components/BranchSelect";
 import { VendorSelect } from "@/components/VendorSelect";
+import { AltDatesEditor, type AltDateRow } from "@/components/AltDatesEditor";
 
 function NewBookingForm() {
   const router = useRouter();
@@ -19,6 +20,7 @@ function NewBookingForm() {
   const [vendorId, setVendorId] = useState("");
   // 純客服（沒有廠商/管理員身份）只能建預定單，不用綁廠商（臨時單看板已移除）
   const [pureCustomerService, setPureCustomerService] = useState(false);
+  const [altRows, setAltRows] = useState<AltDateRow[]>([]);
   const [form, setForm] = useState({
     branchId: "",
     branch: "",
@@ -71,7 +73,7 @@ function NewBookingForm() {
     const res = await fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, vendorId }),
+      body: JSON.stringify({ ...form, vendorId, ...(form.category === "預定單" ? { altDates: altRows } : {}) }),
     });
     setLoading(false);
     if (!res.ok) {
@@ -143,6 +145,14 @@ function NewBookingForm() {
               <label className="erp-label">實際訂位人員</label>
               <StaffOptionSelect value={form.actualBooker ?? ""} onChange={(v) => setForm((f) => ({ ...f, actualBooker: v }))} />
             </div>
+            {form.category === "預定單" && (
+              <AltDatesEditor
+                mainDate={form.bookingDate}
+                mainTimeSlot={form.timeSlot}
+                rows={altRows}
+                onChange={(n) => { setForm((f) => ({ ...f, bookingDate: n.mainDate, timeSlot: n.mainTimeSlot })); setAltRows(n.rows); }}
+              />
+            )}
           </div>
         </div>
       </div>

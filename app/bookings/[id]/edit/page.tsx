@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { StaffOptionSelect } from "@/components/StaffOptionSelect";
 import { BranchSelect } from "@/components/BranchSelect";
 import { SalesChannelSelect } from "@/components/SalesChannelSelect";
+import { AltDatesEditor, altDatesToRows, type AltDateRow } from "@/components/AltDatesEditor";
 
 export default function EditBookingPage() {
   const params = useParams<{ id: string }>();
@@ -17,6 +18,7 @@ export default function EditBookingPage() {
   const [rolesReady, setRolesReady] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState<Record<string, string>>({});
+  const [altRows, setAltRows] = useState<AltDateRow[]>([]);
   const [isInline, setIsInline] = useState(false);
   const [isEztable, setIsEztable] = useState(false);
   const [pureCustomerService, setPureCustomerService] = useState(false);
@@ -78,6 +80,7 @@ export default function EditBookingPage() {
           info: data.info ?? "",
           note: data.note ?? "",
         });
+        setAltRows(altDatesToRows(data.altDates));
         setIsInline(!!data.isInline);
         setIsEztable(!!data.isEztable);
         setBookingReady(true);
@@ -93,7 +96,7 @@ export default function EditBookingPage() {
     const res = await fetch(`/api/bookings/${params.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, isInline, isEztable }),
+      body: JSON.stringify({ ...form, isInline, isEztable, ...(form.category === "預定單" ? { altDates: altRows } : {}) }),
     });
     setLoading(false);
     if (!res.ok) {
@@ -168,6 +171,14 @@ export default function EditBookingPage() {
                 <label className="erp-label">實際訂位人員</label>
                 <StaffOptionSelect value={form.actualBooker ?? ""} onChange={(v) => setForm((f) => ({ ...f, actualBooker: v }))} />
               </div>
+              {form.category === "預定單" && (
+                <AltDatesEditor
+                  mainDate={form.bookingDate}
+                  mainTimeSlot={form.timeSlot}
+                  rows={altRows}
+                  onChange={(n) => { setForm((f) => ({ ...f, bookingDate: n.mainDate, timeSlot: n.mainTimeSlot })); setAltRows(n.rows); }}
+                />
+              )}
             </div>
           </div>
         </div>
