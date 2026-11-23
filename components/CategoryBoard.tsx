@@ -119,7 +119,7 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
 
   // 預定單是用客人的名字去訂位，跟需求看板一樣把客人放第一欄
   const nameFirst = category === "預定單";
-  const colCount = nameFirst ? 10 : 11;
+  const colCount = nameFirst ? 8 : 11;
 
   const visibleBookings = restrictedView ? bookings.filter((b) => !b.bookingCode) : bookings;
 
@@ -150,10 +150,10 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
                 <th>星期</th>
                 <th>時段</th>
                 <th>人數</th>
-                <th>訂位代號</th>
+                {!nameFirst && <th>訂位代號</th>}
                 {!nameFirst && <th>姓名</th>}
                 {!nameFirst && <th>電話</th>}
-                <th>訂金</th>
+                {!nameFirst && <th>訂金</th>}
                 <th>分店</th>
                 <th>備註</th>
                 <th>操作</th>
@@ -180,18 +180,18 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
                   <td>週{WEEKDAYS[parseDateOnly(b.bookingDate).getDay()]}</td>
                   <td>{b.timeSlot ?? "—"}</td>
                   <td>{b.partySize ?? "—"}</td>
-                  <td className="font-mono">{b.bookingCode ?? "—"}</td>
+                  {!nameFirst && <td className="font-mono">{b.bookingCode ?? "—"}</td>}
                   {!nameFirst && <td>{b.customerName ?? "—"}</td>}
                   {!nameFirst && <td>{b.customerPhone ?? "—"}</td>}
-                  <td>{formatCurrency(b.depositAmount)}</td>
+                  {!nameFirst && <td>{formatCurrency(b.depositAmount)}</td>}
                   <td>{b.branch ?? "—"}</td>
                   <td>{b.note ?? "—"}</td>
                   <td>
                     {!restrictedView && (
                       nameFirst ? (
-                        // 預定單沒有訂位代號欄位，銷售和編輯都直接給
+                        // 預定單沒有訂位代號欄位，完成（收代訂費）和編輯都直接給
                         <div style={{ display: "flex", gap: 6 }}>
-                          <button onClick={() => handleOpenSale(b)} className="btn btn-primary" style={{ padding: "4px 10px", fontSize: 13 }}>銷售</button>
+                          <button onClick={() => handleOpenSale(b)} className="btn btn-primary" style={{ padding: "4px 10px", fontSize: 13 }}>完成</button>
                           <Link href={`/bookings/${b.id}/edit?from=${fromKey}`} className="btn btn-secondary" style={{ padding: "4px 10px", fontSize: 13 }}>編輯</Link>
                         </div>
                       ) : b.bookingCode ? (
@@ -215,58 +215,66 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }} onClick={() => setSaleTarget(null)}>
           <div className="erp-card" style={{ width: 460, padding: 0 }} onClick={(e) => e.stopPropagation()}>
             <div className="erp-card-header">
-              <span className="erp-card-title">銷售／收款</span>
+              <span className="erp-card-title">{nameFirst ? "完成預定單" : "銷售／收款"}</span>
               <button onClick={() => setSaleTarget(null)} className="btn btn-ghost">✕</button>
             </div>
             <div className="erp-card-body">
               <div style={{ fontSize: 13, color: "var(--gray-600)", marginBottom: 14, lineHeight: 1.8 }}>
                 <div>{saleTarget.branch}　{saleTarget.bookingDate}　{saleTarget.timeSlot}　{saleTarget.partySize} 人</div>
                 <div>{saleTarget.customerName}　{saleTarget.customerPhone}</div>
-                <div>訂位代號：{saleTarget.bookingCode ?? "—"}　訂金：{formatCurrency(saleTarget.depositAmount)}</div>
+                {!nameFirst && <div>訂位代號：{saleTarget.bookingCode ?? "—"}　訂金：{formatCurrency(saleTarget.depositAmount)}</div>}
               </div>
-              <div className="erp-form-grid">
+              {nameFirst ? (
+                // 預定單完成：只收代訂費
                 <div className="erp-form-group">
-                  <label className="erp-label">買家姓名</label>
-                  <input className="erp-input" placeholder="賣給哪位客人" value={saleForm.buyerName} onChange={(e) => setSaleForm((f) => ({ ...f, buyerName: e.target.value }))} />
-                </div>
-                <div className="erp-form-group">
-                  <label className="erp-label">買家電話</label>
-                  <input className="erp-input" inputMode="tel" value={saleForm.buyerPhone} onChange={(e) => setSaleForm((f) => ({ ...f, buyerPhone: e.target.value }))} />
-                </div>
-                <div className="erp-form-group">
-                  <label className="erp-label">售出日期</label>
-                  <input type="date" className="erp-input" value={saleForm.soldDate} onChange={(e) => setSaleForm((f) => ({ ...f, soldDate: e.target.value }))} />
-                </div>
-                <div className="erp-form-group">
-                  <label className="erp-label">收款金額</label>
-                  <input type="number" step="0.01" className="erp-input" placeholder="0" value={saleForm.collectedAmount} onChange={(e) => setSaleForm((f) => ({ ...f, collectedAmount: e.target.value }))} />
-                </div>
-                <div className="erp-form-group">
-                  <label className="erp-label">帳戶</label>
-                  <input className="erp-input" value={saleForm.account} onChange={(e) => setSaleForm((f) => ({ ...f, account: e.target.value }))} />
-                </div>
-                <div className="erp-form-group">
-                  <label className="erp-label">代訂費（全座）</label>
+                  <label className="erp-label">代訂費</label>
                   <input type="number" step="0.01" className="erp-input" placeholder="0" value={saleForm.agencyFee} onChange={(e) => setSaleForm((f) => ({ ...f, agencyFee: e.target.value }))} />
                 </div>
-                <div className="erp-form-group">
-                  <label className="erp-label">銷售平台</label>
-                  <SalesChannelSelect value={saleForm.salesChannelId} onChange={(v) => setSaleForm((f) => ({ ...f, salesChannelId: v }))} />
+              ) : (
+                <div className="erp-form-grid">
+                  <div className="erp-form-group">
+                    <label className="erp-label">買家姓名</label>
+                    <input className="erp-input" placeholder="賣給哪位客人" value={saleForm.buyerName} onChange={(e) => setSaleForm((f) => ({ ...f, buyerName: e.target.value }))} />
+                  </div>
+                  <div className="erp-form-group">
+                    <label className="erp-label">買家電話</label>
+                    <input className="erp-input" inputMode="tel" value={saleForm.buyerPhone} onChange={(e) => setSaleForm((f) => ({ ...f, buyerPhone: e.target.value }))} />
+                  </div>
+                  <div className="erp-form-group">
+                    <label className="erp-label">售出日期</label>
+                    <input type="date" className="erp-input" value={saleForm.soldDate} onChange={(e) => setSaleForm((f) => ({ ...f, soldDate: e.target.value }))} />
+                  </div>
+                  <div className="erp-form-group">
+                    <label className="erp-label">收款金額</label>
+                    <input type="number" step="0.01" className="erp-input" placeholder="0" value={saleForm.collectedAmount} onChange={(e) => setSaleForm((f) => ({ ...f, collectedAmount: e.target.value }))} />
+                  </div>
+                  <div className="erp-form-group">
+                    <label className="erp-label">帳戶</label>
+                    <input className="erp-input" value={saleForm.account} onChange={(e) => setSaleForm((f) => ({ ...f, account: e.target.value }))} />
+                  </div>
+                  <div className="erp-form-group">
+                    <label className="erp-label">代訂費（全座）</label>
+                    <input type="number" step="0.01" className="erp-input" placeholder="0" value={saleForm.agencyFee} onChange={(e) => setSaleForm((f) => ({ ...f, agencyFee: e.target.value }))} />
+                  </div>
+                  <div className="erp-form-group">
+                    <label className="erp-label">銷售平台</label>
+                    <SalesChannelSelect value={saleForm.salesChannelId} onChange={(v) => setSaleForm((f) => ({ ...f, salesChannelId: v }))} />
+                  </div>
+                  <div className="erp-form-group">
+                    <label className="erp-label">銷售人員</label>
+                    <select className="erp-select" value={saleForm.salespersonId} onChange={(e) => setSaleForm((f) => ({ ...f, salespersonId: e.target.value }))}>
+                      <option value="">— 未指定 —</option>
+                      {csStaff.map((u) => (
+                        <option key={u.id} value={u.id}>{u.name ?? u.id}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-                <div className="erp-form-group">
-                  <label className="erp-label">銷售人員</label>
-                  <select className="erp-select" value={saleForm.salespersonId} onChange={(e) => setSaleForm((f) => ({ ...f, salespersonId: e.target.value }))}>
-                    <option value="">— 未指定 —</option>
-                    {csStaff.map((u) => (
-                      <option key={u.id} value={u.id}>{u.name ?? u.id}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+              )}
               {saleError && <div className="erp-alert danger" style={{ marginTop: 10 }}>{saleError}</div>}
               <div style={{ marginTop: 14, display: "flex", gap: 8 }}>
                 <button onClick={handleSubmitSale} disabled={submittingSale} className="btn btn-primary">
-                  {submittingSale ? "儲存中..." : "確認售出"}
+                  {submittingSale ? "儲存中..." : nameFirst ? "確認完成" : "確認售出"}
                 </button>
                 <button onClick={() => setSaleTarget(null)} className="btn btn-secondary">取消</button>
               </div>

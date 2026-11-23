@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
 import { salesChannelName, useSalesChannels } from "@/components/SalesChannelSelect";
-import { formatAltDates } from "@/components/AltDatesEditor";
+import { bookingToOptions } from "@/components/AltDatesEditor";
 
 type Booking = Record<string, string | number | null>;
 
@@ -80,6 +80,7 @@ export default function BookingDetailPage() {
       });
   }, [params.id]);
 
+  const isReserved = booking?.category === "預定單";
   const pureCustomerService = roles.includes("customer_service") && !roles.includes("vendor") && !roles.includes("admin");
   const isRefunded = booking?.status === "refunded";
   const isSold = booking?.status === "sold";
@@ -122,7 +123,7 @@ export default function BookingDetailPage() {
   };
 
   const handleUndoSold = async () => {
-    if (!confirm("確定要退回售出，將狀態改為未售出？")) return;
+    if (!confirm(isReserved ? "確定要退回未完成？" : "確定要退回售出，將狀態改為未售出？")) return;
     const res = await fetch(`/api/bookings/${params.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -143,7 +144,7 @@ export default function BookingDetailPage() {
         <div>
           <h1 className="erp-page-title">單據詳細資料</h1>
           <p className="erp-page-subtitle">
-            {statusLabel[String(booking.status)]} · {booking.bookingDate}
+            {isReserved && isSold ? "已完成" : statusLabel[String(booking.status)]} · {booking.bookingDate}
             {pendingRequest && <span className="badge badge-warning" style={{ marginLeft: 8 }}>需求處理中</span>}
           </p>
         </div>
@@ -155,7 +156,7 @@ export default function BookingDetailPage() {
             <button onClick={handleUndoRefund} className="btn btn-secondary">撤銷退訂</button>
           )}
           {isSold && !pureVendorStaff && (
-            <button onClick={handleUndoSold} className="btn btn-secondary">退回售出</button>
+            <button onClick={handleUndoSold} className="btn btn-secondary">{isReserved ? "退回未完成" : "退回售出"}</button>
           )}
           {canEdit && <Link href={editHref} className="btn btn-primary">編輯</Link>}
           {canDelete && <button onClick={handleDelete} className="btn btn-danger">刪除</button>}
@@ -187,59 +188,88 @@ export default function BookingDetailPage() {
         </div>
       )}
 
-      <div className="erp-card" style={{ marginBottom: 20 }}>
-        <div className="erp-card-header"><span className="erp-card-title">基本資訊</span></div>
-        <div className="erp-card-body erp-sysinfo">
-          <Row label="分店" value={booking.branch} />
-          <Row label="類別" value={booking.category} />
-          <Row label="日期" value={booking.bookingDate} />
-          <Row label="時段" value={booking.timeSlot} />
-          {booking.category === "預定單" && formatAltDates(booking.altDates) && <Row label="其他候選日期" value={formatAltDates(booking.altDates)} />}
-          <Row label="人數" value={booking.partySize} />
-          <Row label="訂位代號" value={booking.bookingCode} />
-          <Row label="退訂期限" value={booking.cancelDeadline} />
-          <Row label="付款期限" value={booking.paymentDeadline} />
-          <Row label="實際訂位人員" value={booking.actualBooker} />
-        </div>
-      </div>
+      {isReserved ? (
+        // 預定單跟需求看板一樣：只看客人跟候選（訂位代號、金流、收款這些預定單用不到）
+        <>
+          <div className="erp-card" style={{ marginBottom: 20 }}>
+            <div className="erp-card-header"><span className="erp-card-title">客人</span></div>
+            <div className="erp-card-body erp-sysinfo">
+              <Row label="客人姓名" value={booking.customerName} />
+              <Row label="客人電話" value={booking.customerPhone} />
+              <Row label="備註" value={booking.note} />
+              {isSold && <Row label="代訂費" value={formatCurrency(booking.agencyFee)} />}
+              {isSold && <Row label="完成日期" value={booking.soldDate} />}
+            </div>
+          </div>
+          <div className="erp-card" style={{ marginBottom: 20 }}>
+            <div className="erp-card-header"><span className="erp-card-title">候選日期</span></div>
+            <div className="erp-card-body erp-sysinfo">
+              {bookingToOptions(booking).filter((o) => o.date).map((o, i) => (
+                <Row
+                  key={i}
+                  label={`第${i + 1}順位`}
+                  value={[o.branch, o.date, o.timeSlot, o.partySize ? `${o.partySize}人` : null].filter(Boolean).join("　")}
+                />
+              ))}
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="erp-card" style={{ marginBottom: 20 }}>
+            <div className="erp-card-header"><span className="erp-card-title">基本資訊</span></div>
+            <div className="erp-card-body erp-sysinfo">
+              <Row label="分店" value={booking.branch} />
+              <Row label="類別" value={booking.category} />
+              <Row label="日期" value={booking.bookingDate} />
+              <Row label="時段" value={booking.timeSlot} />
+                  <Row label="人數" value={booking.partySize} />
+              <Row label="訂位代號" value={booking.bookingCode} />
+              <Row label="退訂期限" value={booking.cancelDeadline} />
+              <Row label="付款期限" value={booking.paymentDeadline} />
+              <Row label="實際訂位人員" value={booking.actualBooker} />
+            </div>
+          </div>
 
-      <div className="erp-card" style={{ marginBottom: 20 }}>
-        <div className="erp-card-header"><span className="erp-card-title">餐廳端金流</span></div>
-        <div className="erp-card-body erp-sysinfo">
-          <Row label="訂金" value={formatCurrency(booking.depositAmount)} />
-          <Row label="付款人員" value={booking.depositPayer} />
-        </div>
-      </div>
+          <div className="erp-card" style={{ marginBottom: 20 }}>
+            <div className="erp-card-header"><span className="erp-card-title">餐廳端金流</span></div>
+            <div className="erp-card-body erp-sysinfo">
+              <Row label="訂金" value={formatCurrency(booking.depositAmount)} />
+              <Row label="付款人員" value={booking.depositPayer} />
+            </div>
+          </div>
 
-      <div className="erp-card" style={{ marginBottom: 20 }}>
-        <div className="erp-card-header"><span className="erp-card-title">訂位資訊</span></div>
-        <div className="erp-card-body erp-sysinfo">
-          <Row label="姓名" value={booking.customerName} />
-          <Row label="電話" value={booking.customerPhone} />
-          <Row label="來源" value={booking.source} />
-          <Row label="訂位平台" value={[booking.isInline ? "Inline" : null, booking.isEztable ? "EZTABLE" : null].filter(Boolean).join("、") || null} />
-        </div>
-      </div>
+          <div className="erp-card" style={{ marginBottom: 20 }}>
+            <div className="erp-card-header"><span className="erp-card-title">訂位資訊</span></div>
+            <div className="erp-card-body erp-sysinfo">
+              <Row label="姓名" value={booking.customerName} />
+              <Row label="電話" value={booking.customerPhone} />
+              <Row label="來源" value={booking.source} />
+              <Row label="訂位平台" value={[booking.isInline ? "Inline" : null, booking.isEztable ? "EZTABLE" : null].filter(Boolean).join("、") || null} />
+            </div>
+          </div>
 
-      <div className="erp-card" style={{ marginBottom: 20 }}>
-        <div className="erp-card-header"><span className="erp-card-title">銷售/收款</span></div>
-        <div className="erp-card-body erp-sysinfo">
-          <Row label="買家" value={[booking.buyerName, booking.buyerPhone].filter(Boolean).join("　") || null} />
-          <Row label="銷售平台" value={salesChannelName(channels, booking.salesChannelId as string | null)} />
-          <Row label="售出日期" value={booking.soldDate} />
-          <Row label="收款金額" value={formatCurrency(booking.collectedAmount)} />
-          <Row label="帳戶" value={booking.account} />
-          <Row label="代訂費" value={formatCurrency(booking.agencyFee)} />
-        </div>
-      </div>
+          <div className="erp-card" style={{ marginBottom: 20 }}>
+            <div className="erp-card-header"><span className="erp-card-title">銷售/收款</span></div>
+            <div className="erp-card-body erp-sysinfo">
+              <Row label="買家" value={[booking.buyerName, booking.buyerPhone].filter(Boolean).join("　") || null} />
+              <Row label="銷售平台" value={salesChannelName(channels, booking.salesChannelId as string | null)} />
+              <Row label="售出日期" value={booking.soldDate} />
+              <Row label="收款金額" value={formatCurrency(booking.collectedAmount)} />
+              <Row label="帳戶" value={booking.account} />
+              <Row label="代訂費" value={formatCurrency(booking.agencyFee)} />
+            </div>
+          </div>
 
-      <div className="erp-card" style={{ marginBottom: 20 }}>
-        <div className="erp-card-header"><span className="erp-card-title">其他</span></div>
-        <div className="erp-card-body erp-sysinfo">
-          <Row label="資訊" value={booking.info} />
-          <Row label="備註" value={booking.note} />
-        </div>
-      </div>
+          <div className="erp-card" style={{ marginBottom: 20 }}>
+            <div className="erp-card-header"><span className="erp-card-title">其他</span></div>
+            <div className="erp-card-body erp-sysinfo">
+              <Row label="資訊" value={booking.info} />
+              <Row label="備註" value={booking.note} />
+            </div>
+          </div>
+        </>
+      )}
 
       {smsLogs.length > 0 && (
         <div className="erp-card">

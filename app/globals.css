@@ -728,3 +728,23 @@ html.sidebar-collapsed .erp-sidebar-expand { display: block; }
   .erp-form-grid { grid-template-columns: 1fr; }
   .erp-form-group.span-2, .erp-form-group.full { grid-column: span 1; }
 }
+
+/* 詳細資料的「標籤：值」列（單據詳情、需求、解析簡訊用） */
+.erp-sysinfo-row {
+  display: flex;
+  gap: 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--gray-100);
+  font-size: 14px;
+}
+.erp-sysinfo-row:last-child { border-bottom: none; }
+.erp-sysinfo-key {
+  flex: 0 0 110px;
+  color: var(--gray-500);
+}
+.erp-sysinfo-val {
+  flex: 1;
+  min-width: 0;
+  color: var(--gray-800);
+  word-break: break-word;
+}
