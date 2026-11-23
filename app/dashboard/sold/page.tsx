@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
 import { fetchMe } from "@/lib/use-me";
+import { Modal } from "@/components/Modal";
 
 type Booking = {
   id: string;
@@ -300,13 +301,8 @@ export default function SoldDashboardPage() {
       </div>
 
       {requestBooking && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }}
-          onClick={(e) => { if (e.target === e.currentTarget) setRequestBooking(null); }}>
-          <div style={{ background: "var(--surface)", borderRadius: 12, padding: "18px 20px", maxWidth: 420, width: "100%", boxShadow: "0 8px 32px rgba(0,0,0,0.2)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, fontSize: 15, fontWeight: 700 }}>
-              <span>轉需求</span>
-              <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--gray-400)" }} onClick={() => setRequestBooking(null)}>✕</button>
-            </div>
+        <Modal title="轉需求" onClose={() => setRequestBooking(null)} width={420}>
+          <div className="erp-card-body">
             <div style={{ fontSize: 12, color: "var(--gray-500)", marginBottom: 14 }}>
               {requestBooking.bookingCode ?? "—"} · {requestBooking.branch ?? "—"} · {requestBooking.bookingDate} · {requestBooking.customerName ?? "—"}
             </div>
@@ -327,7 +323,7 @@ export default function SoldDashboardPage() {
               <button onClick={() => setRequestBooking(null)} className="btn btn-secondary">取消</button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
