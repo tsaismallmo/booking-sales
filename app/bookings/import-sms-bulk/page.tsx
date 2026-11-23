@@ -456,7 +456,7 @@ export default function ImportSmsBulkPage() {
             placeholder={"把多則簡訊全文貼在這裡，可以直接連著貼，也可以每則之間留一行空白；付款通知前面可加「姓名/電話 inline」..."}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            style={{ fontFamily: "monospace", fontSize: 13 }}
+            style={{ fontFamily: "monospace", fontSize: 12 }}
           />
           <div style={{ marginTop: 12 }}>
             <button onClick={handleParse} disabled={parsing || !text.trim()} className="btn btn-primary">
@@ -476,7 +476,7 @@ export default function ImportSmsBulkPage() {
       {unknownRows.length > 0 && (
         <div className="erp-card" style={{ marginBottom: 16 }}>
           <div className="erp-card-header"><span className="erp-card-title">無法辨識（{unknownRows.length} 則，不會處理）</span></div>
-          <div className="erp-card-body" style={{ fontSize: 12, color: "var(--gray-400)" }}>
+          <div className="erp-card-body" style={{ fontSize: 11, color: "var(--gray-400)" }}>
             {unknownRows.map((r) => (
               <div key={r.key} style={{ padding: "4px 0", borderBottom: "1px solid var(--gray-100)" }}>{r.raw.slice(0, 60)}...</div>
             ))}
@@ -509,20 +509,20 @@ export default function ImportSmsBulkPage() {
                   }}>
                     <td>{i + 1}</td>
                     <td><BranchSelect compact branchId={null} branch={r.branch} onChange={(v) => setNoticeBranch(r.key, v.branch)} /></td>
-                    <td><input type="date" className="erp-input" style={{ fontSize: 13 }} value={r.bookingDate} onChange={(e) => updateNotice(r.key, { bookingDate: e.target.value })} /></td>
-                    <td><input className="erp-input" style={{ width: 70, fontSize: 13 }} value={r.timeSlot} onChange={(e) => updateNotice(r.key, { timeSlot: e.target.value })} /></td>
-                    <td><input type="number" className="erp-input" style={{ width: 60, fontSize: 13 }} value={r.partySize} onChange={(e) => updateNotice(r.key, { partySize: e.target.value })} /></td>
-                    <td><input className="erp-input" style={{ width: 90, fontSize: 13 }} value={r.bookingCode} onChange={(e) => updateNotice(r.key, { bookingCode: e.target.value })} /></td>
-                    <td><input type="number" className="erp-input" style={{ width: 80, fontSize: 13 }} value={r.depositAmount} onChange={(e) => updateNotice(r.key, { depositAmount: e.target.value })} /></td>
-                    <td><StaffOptionSelect style={{ width: 110, fontSize: 13 }} value={r.depositPayer} onChange={(v) => updateNotice(r.key, { depositPayer: v })} /></td>
-                    <td><StaffOptionSelect style={{ width: 110, fontSize: 13 }} value={r.actualBooker} onChange={(v) => updateNotice(r.key, { actualBooker: v })} /></td>
-                    <td><input className="erp-input" style={{ width: 90, fontSize: 13 }} value={r.customerName} onChange={(e) => updateNotice(r.key, { customerName: e.target.value })} onBlur={() => handleNameBlur(r.key)} /></td>
+                    <td><input type="date" className="erp-input" style={{ fontSize: 12 }} value={r.bookingDate} onChange={(e) => updateNotice(r.key, { bookingDate: e.target.value })} /></td>
+                    <td><input className="erp-input" style={{ width: 70, fontSize: 12 }} value={r.timeSlot} onChange={(e) => updateNotice(r.key, { timeSlot: e.target.value })} /></td>
+                    <td><input type="number" className="erp-input" style={{ width: 60, fontSize: 12 }} value={r.partySize} onChange={(e) => updateNotice(r.key, { partySize: e.target.value })} /></td>
+                    <td><input className="erp-input" style={{ width: 90, fontSize: 12 }} value={r.bookingCode} onChange={(e) => updateNotice(r.key, { bookingCode: e.target.value })} /></td>
+                    <td><input type="number" className="erp-input" style={{ width: 80, fontSize: 12 }} value={r.depositAmount} onChange={(e) => updateNotice(r.key, { depositAmount: e.target.value })} /></td>
+                    <td><StaffOptionSelect style={{ width: 110, fontSize: 12 }} value={r.depositPayer} onChange={(v) => updateNotice(r.key, { depositPayer: v })} /></td>
+                    <td><StaffOptionSelect style={{ width: 110, fontSize: 12 }} value={r.actualBooker} onChange={(v) => updateNotice(r.key, { actualBooker: v })} /></td>
+                    <td><input className="erp-input" style={{ width: 90, fontSize: 12 }} value={r.customerName} onChange={(e) => updateNotice(r.key, { customerName: e.target.value })} onBlur={() => handleNameBlur(r.key)} /></td>
                     <td>
-                      <input className="erp-input" style={{ width: 110, fontSize: 13 }} value={r.customerPhone} onChange={(e) => updateNotice(r.key, { customerPhone: e.target.value })} />
+                      <input className="erp-input" style={{ width: 110, fontSize: 12 }} value={r.customerPhone} onChange={(e) => updateNotice(r.key, { customerPhone: e.target.value })} />
                       {r.phoneCandidates.length > 1 && (
                         <select
                           className="erp-select"
-                          style={{ width: 110, fontSize: 12, marginTop: 4 }}
+                          style={{ width: 110, fontSize: 11, marginTop: 4 }}
                           value=""
                           onChange={(e) => {
                             // 同一支電話可能在不同名單各列一次，用索引分辨選的是哪份名單
@@ -537,7 +537,7 @@ export default function ImportSmsBulkPage() {
                         </select>
                       )}
                     </td>
-                    <td style={{ fontSize: 12, whiteSpace: "nowrap" }}>
+                    <td style={{ fontSize: 11, whiteSpace: "nowrap" }}>
                       <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
                         <input type="checkbox" checked={r.isInline} onChange={(e) => updateNotice(r.key, { isInline: e.target.checked })} />
                         Inline
@@ -547,7 +547,7 @@ export default function ImportSmsBulkPage() {
                         EZTABLE
                       </label>
                     </td>
-                    <td style={{ textAlign: "center", fontSize: 12 }}>
+                    <td style={{ textAlign: "center", fontSize: 11 }}>
                       {r.status === "ok" && <span style={{ color: "var(--color-success)", fontWeight: 600 }}>✓</span>}
                       {r.status === "error" && <span style={{ color: "var(--color-danger)" }}>✗ {r.message}</span>}
                       {r.status === "saving" && "存中..."}
@@ -587,10 +587,10 @@ export default function ImportSmsBulkPage() {
                     <td>{formatCurrency(r.amount)}</td>
                     <td>
                       {r.matched
-                        ? <StaffOptionSelect style={{ width: 110, fontSize: 13 }} value={r.payer} onChange={(v) => updateCompletion(r.key, { payer: v })} />
+                        ? <StaffOptionSelect style={{ width: 110, fontSize: 12 }} value={r.payer} onChange={(v) => updateCompletion(r.key, { payer: v })} />
                         : <span style={{ color: "var(--gray-400)" }}>—</span>}
                     </td>
-                    <td style={{ fontSize: 12 }}>
+                    <td style={{ fontSize: 11 }}>
                       {r.matchState === "checking" && "比對中..."}
                       {r.matchState === "matched" && r.matched && (
                         <span style={{ color: "var(--color-success)" }}>已比對：{r.matched.branch} {r.matched.bookingDate} {r.matched.timeSlot}</span>
@@ -600,7 +600,7 @@ export default function ImportSmsBulkPage() {
                       {" "}
                       <button onClick={() => handleRecheck(r.key)} className="btn btn-ghost" style={{ fontSize: 11, padding: "2px 6px" }}>重新比對</button>
                     </td>
-                    <td style={{ textAlign: "center", fontSize: 12 }}>
+                    <td style={{ textAlign: "center", fontSize: 11 }}>
                       {r.status === "ok" && <span style={{ color: "var(--color-success)", fontWeight: 600 }}>✓</span>}
                       {r.status === "error" && <span style={{ color: "var(--color-danger)" }}>✗ {r.message}</span>}
                       {r.status === "saving" && "存中..."}
@@ -626,12 +626,12 @@ export default function ImportSmsBulkPage() {
               >
                 {submitting ? "送出中..." : "確認送出全部"}
               </button>
-              {errorLines.length > 0 && <span style={{ fontSize: 13, color: "var(--color-danger)", fontWeight: 600 }}>還有 {errorLines.length} 筆錯誤，修正後才能送出</span>}
-              {errorLines.length === 0 && checkingCompletions && <span style={{ fontSize: 13, color: "var(--gray-500)" }}>付款完成比對中...</span>}
-              {summary && errorLines.length === 0 && <span style={{ fontSize: 13, color: "var(--gray-600)" }}>{summary}</span>}
+              {errorLines.length > 0 && <span style={{ fontSize: 12, color: "var(--color-danger)", fontWeight: 600 }}>還有 {errorLines.length} 筆錯誤，修正後才能送出</span>}
+              {errorLines.length === 0 && checkingCompletions && <span style={{ fontSize: 12, color: "var(--gray-500)" }}>付款完成比對中...</span>}
+              {summary && errorLines.length === 0 && <span style={{ fontSize: 12, color: "var(--gray-600)" }}>{summary}</span>}
             </div>
             {errorLines.length > 0 && (
-              <div style={{ marginTop: 12, padding: "10px 14px", border: "1px solid var(--color-danger)", borderRadius: 6, background: "rgba(239,68,68,.06)", fontSize: 13 }}>
+              <div style={{ marginTop: 12, padding: "10px 14px", border: "1px solid var(--color-danger)", borderRadius: 6, background: "rgba(239,68,68,.06)", fontSize: 12 }}>
                 {[
                   ...missingRows.map((e) => ({ ...e, rowId: `notice-row-${e.key}`, kind: "付款通知", problem: `缺${e.fields}` })),
                   ...ambiguousRows.map((e) => ({ ...e, rowId: `completion-row-${e.key}`, kind: "付款完成", problem: "對到不只一筆單據，請修正分店後重新比對" })),
@@ -640,7 +640,7 @@ export default function ImportSmsBulkPage() {
                     <button
                       type="button"
                       onClick={() => document.getElementById(e.rowId)?.scrollIntoView({ behavior: "smooth", block: "center" })}
-                      style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--color-danger)", textDecoration: "underline", fontSize: 13 }}
+                      style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--color-danger)", textDecoration: "underline", fontSize: 12 }}
                     >
                       {e.kind}第 {e.n} 筆
                     </button>

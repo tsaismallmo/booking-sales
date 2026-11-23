@@ -41,7 +41,7 @@ export default async function DevSwitchPage() {
                   <td>{a.name ?? "—"}</td>
                   <td>{a.roles.map((r) => roleLabel[r]).join("・")}</td>
                   <td style={{ whiteSpace: "nowrap" }}>
-                    <a href={`/api/dev/login?email=${encodeURIComponent(a.email)}`} className="btn btn-primary" style={{ padding: "4px 10px", fontSize: 13, whiteSpace: "nowrap" }}>
+                    <a href={`/api/dev/login?email=${encodeURIComponent(a.email)}`} className="btn btn-primary" style={{ padding: "4px 10px", fontSize: 12, whiteSpace: "nowrap" }}>
                       登入為此帳號
                     </a>
                   </td>

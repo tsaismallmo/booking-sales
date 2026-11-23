@@ -77,13 +77,13 @@ export default function AccountSettlementPage() {
               <span className="erp-card-title">{monthLabel}　總計 {report.totals.count} 筆</span>
             </div>
             <div style={{ padding: "10px 16px" }}>
-              <div style={{ fontSize: 12, color: "var(--gray-400)", marginBottom: 6 }}>淨額結算：每一對人互相抵銷後，只要轉這一筆就好</div>
+              <div style={{ fontSize: 11, color: "var(--gray-400)", marginBottom: 6 }}>淨額結算：每一對人互相抵銷後，只要轉這一筆就好</div>
               {report.netSettlements.length === 0 ? (
-                <span style={{ fontSize: 13, color: "var(--gray-400)" }}>沒有需要互轉的金額</span>
+                <span style={{ fontSize: 12, color: "var(--gray-400)" }}>沒有需要互轉的金額</span>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   {report.netSettlements.map((s) => (
-                    <span key={`${s.from}-${s.to}`} style={{ fontSize: 15 }}>
+                    <span key={`${s.from}-${s.to}`} style={{ fontSize: 14 }}>
                       <strong>{s.from}</strong> → <strong>{s.to}</strong>：{formatCurrency(s.amount)}
                     </span>
                   ))}
@@ -91,14 +91,14 @@ export default function AccountSettlementPage() {
               )}
             </div>
             <div style={{ padding: "0 16px 12px", borderTop: "1px solid var(--gray-200)", marginTop: 4, paddingTop: 10 }}>
-              <div style={{ fontSize: 12, color: "var(--gray-400)", marginBottom: 6 }}>本月每人應收總額（不分是誰轉的，同一個廠商全部加總，僅供對總數用）</div>
+              <div style={{ fontSize: 11, color: "var(--gray-400)", marginBottom: 6 }}>本月每人應收總額（不分是誰轉的，同一個廠商全部加總，僅供對總數用）</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {report.totals.vendorTotals.map((v) => (
-                  <span key={v.vendorName} style={{ fontSize: 13, color: "var(--gray-600)" }}>
+                  <span key={v.vendorName} style={{ fontSize: 12, color: "var(--gray-600)" }}>
                     {v.vendorName}：{formatCurrency(v.amount)}
                   </span>
                 ))}
-                <span style={{ fontSize: 13, color: "var(--gray-600)" }}>
+                <span style={{ fontSize: 12, color: "var(--gray-600)" }}>
                   雅婷（平台費）：{formatCurrency(report.totals.platformFeeTotal)}
                 </span>
               </div>
@@ -115,13 +115,13 @@ export default function AccountSettlementPage() {
                 <span className="erp-card-title">收款人：{group.holder}　{group.bookings.length} 筆</span>
               </div>
               <div style={{ padding: "10px 16px", borderBottom: "1px solid var(--gray-200)" }}>
-                <div style={{ fontSize: 12, color: "var(--gray-400)", marginBottom: 6 }}>轉帳指示</div>
+                <div style={{ fontSize: 11, color: "var(--gray-400)", marginBottom: 6 }}>轉帳指示</div>
                 {group.transfers.length === 0 ? (
-                  <span style={{ fontSize: 13, color: "var(--gray-400)" }}>不用轉帳（單據都是自己的）</span>
+                  <span style={{ fontSize: 12, color: "var(--gray-400)" }}>不用轉帳（單據都是自己的）</span>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     {group.transfers.map((t) => (
-                      <span key={t.to} style={{ fontSize: 13 }}>
+                      <span key={t.to} style={{ fontSize: 12 }}>
                         {group.holder} → <strong>{t.to}</strong>：{formatCurrency(t.amount)}
                       </span>
                     ))}

@@ -160,7 +160,7 @@ export default function PlatformSharePage() {
         <div className="erp-card">
           <div className="erp-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span className="erp-card-title">{monthLabel}　已售 {detail.bookings.length} 筆</span>
-            <span style={{ fontSize: 13, color: "var(--gray-500)" }}>
+            <span style={{ fontSize: 12, color: "var(--gray-500)" }}>
               本月係數 {detail.coefficient}　{detail.channelRates.map((c) => `${c.name} ${c.baseRate}% × ${detail.coefficient} = ${c.rate}%`).join("　")}
             </span>
           </div>

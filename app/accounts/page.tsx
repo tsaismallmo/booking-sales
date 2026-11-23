@@ -27,7 +27,7 @@ function RoleCheckboxes({ value, onChange }: { value: Role[]; onChange: (roles: 
   return (
     <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
       {ROLE_OPTIONS.map((opt) => (
-        <label key={opt.value} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13 }}>
+        <label key={opt.value} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}>
           <input type="checkbox" checked={value.includes(opt.value)} onChange={() => toggle(opt.value)} />
           {opt.label}
         </label>
@@ -220,11 +220,11 @@ export default function AccountsPage() {
                         onClick={() => handleSaveRoles(a.id)}
                         disabled={!dirty}
                         className="btn btn-primary"
-                        style={{ padding: "4px 10px", fontSize: 13 }}
+                        style={{ padding: "4px 10px", fontSize: 12 }}
                       >
                         儲存
                       </button>
-                      <button onClick={() => handleDelete(a)} className="btn btn-ghost" style={{ color: "var(--color-danger)", padding: "4px 10px", fontSize: 13 }}>移除</button>
+                      <button onClick={() => handleDelete(a)} className="btn btn-ghost" style={{ color: "var(--color-danger)", padding: "4px 10px", fontSize: 12 }}>移除</button>
                     </td>
                   </tr>
                 );

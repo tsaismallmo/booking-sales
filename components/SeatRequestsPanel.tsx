@@ -443,12 +443,12 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
   const renderCard = (r: SeatRequest, highlightDate?: string) => (
     <div key={r.id} className="erp-card">
       <div className="erp-card-body erp-sysinfo">
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", fontSize: 14 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", fontSize: 13 }}>
           <strong>{r.customerName || "（未填姓名）"}</strong>
           {r.customerPhone && <span style={{ color: "var(--gray-600)" }}>{r.customerPhone}</span>}
           {r.status !== "pending" && <span className={`badge ${r.status === "booked" ? "badge-green" : r.status === "completed" ? "badge-blue" : r.status === "failed" ? "badge-red" : "badge-gray"}`}>{STATUS_TABS.find((t) => t.key === r.status)?.label}</span>}
         </div>
-        {r.note && <div style={{ fontSize: 13, marginTop: 6 }}>備註：{r.note}</div>}
+        {r.note && <div style={{ fontSize: 12, marginTop: 6 }}>備註：{r.note}</div>}
 
         <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
           {r.options.map((o) => {
@@ -456,7 +456,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
             const done = o.status !== "pending";
             return (
               <div key={o.id} style={{ padding: "6px 10px", borderRadius: 6, background: hl ? "var(--brand-50)" : "var(--gray-50)", border: hl ? "1px solid var(--brand-300)" : "1px solid transparent" }}>
-                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", fontSize: 13, opacity: done && o.status !== "booked" ? 0.6 : 1 }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", fontSize: 12, opacity: done && o.status !== "booked" ? 0.6 : 1 }}>
                   <span className="badge badge-navy" style={{ fontSize: 11 }}>第{o.priority}順位</span>
                   <span>{o.branch ?? "—"}</span>
                   <strong>{shortDate(o.bookingDate)}</strong>
@@ -470,16 +470,16 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
                   <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
                     {r.status === "pending" && o.status === "pending" && canHandle && (
                       <>
-                        <button className="btn btn-primary" style={{ fontSize: 12, padding: "2px 10px" }} onClick={() => { setActing({ optionId: o.id, action: "booked" }); setActForm({ bookingCode: "", resultNote: "", handledByName: myName }); }}>已訂到</button>
+                        <button className="btn btn-primary" style={{ fontSize: 11, padding: "2px 10px" }} onClick={() => { setActing({ optionId: o.id, action: "booked" }); setActForm({ bookingCode: "", resultNote: "", handledByName: myName }); }}>已訂到</button>
                       </>
                     )}
                     {r.status !== "cancelled" && r.status !== "completed" && (o.status === "booked" || o.status === "failed") && (canHandle || canCancel) && (
-                      <button className="btn btn-ghost" style={{ fontSize: 12, padding: "2px 8px" }} onClick={() => { if (confirm("這個候選改回待訂？")) patchOption(o.id, { action: "reopen" }); }}>改回待訂</button>
+                      <button className="btn btn-ghost" style={{ fontSize: 11, padding: "2px 8px" }} onClick={() => { if (confirm("這個候選改回待訂？")) patchOption(o.id, { action: "reopen" }); }}>改回待訂</button>
                     )}
                   </span>
                 </div>
                 {o.stockMatches.length > 0 && (
-                  <div style={{ fontSize: 12, marginTop: 4, color: "var(--gray-500)" }}>
+                  <div style={{ fontSize: 11, marginTop: 4, color: "var(--gray-500)" }}>
                     符合的現貨單：{o.stockMatches.map((s) => <Link key={s.id} href={`/bookings/${s.id}`} style={{ color: "var(--brand-600)", marginRight: 8 }}>{stockLine(s)}</Link>)}
                   </div>
                 )}
@@ -507,7 +507,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
           })}
         </div>
 
-        <div style={{ fontSize: 12, marginTop: 8, color: "var(--gray-400)" }}>
+        <div style={{ fontSize: 11, marginTop: 8, color: "var(--gray-400)" }}>
           {r.createdByName ?? "—"} 登記於 {new Date(r.createdAt).toLocaleString("zh-TW")}
           {r.handledAt && r.status !== "pending" && <>　｜　{r.handledByName ?? "—"} {r.status === "cancelled" ? "取消" : r.status === "completed" ? "完成" : "結束"}於 {new Date(r.handledAt).toLocaleString("zh-TW")}</>}
           {r.resultNote && r.status !== "pending" && <>　｜　原因：{r.resultNote}</>}
@@ -544,7 +544,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
           <button className={`erp-tab${view === "calendar" ? " active" : ""}`} onClick={() => setView("calendar")}>月曆</button>
           <button className={`erp-tab${view === "list" ? " active" : ""}`} onClick={() => setView("list")}>依客人</button>
         </div>
-        {refreshing && !loading && <span style={{ fontSize: 12, color: "var(--gray-400)" }}>更新中…</span>}
+        {refreshing && !loading && <span style={{ fontSize: 11, color: "var(--gray-400)" }}>更新中…</span>}
         <button
           className="btn"
           style={{ marginLeft: "auto" }}
@@ -569,7 +569,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
         )}
       </div>
 
-      {error && <div style={{ color: "var(--color-danger)", fontSize: 13, marginBottom: 12 }}>{error}</div>}
+      {error && <div style={{ color: "var(--color-danger)", fontSize: 12, marginBottom: 12 }}>{error}</div>}
 
       {showForm && (
         <div className="erp-card" style={{ marginBottom: 16 }}>
@@ -590,7 +590,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
               </div>
             </div>
 
-            <div style={{ marginTop: 16, fontWeight: 600, fontSize: 14 }}>候選日期（依客人想要的順序，第 1 順位最想要）</div>
+            <div style={{ marginTop: 16, fontWeight: 600, fontSize: 13 }}>候選日期（依客人想要的順序，第 1 順位最想要）</div>
             <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 10 }}>
               {optionRows.map((row, i) => {
                 const stock = !row.locked && row.branchId && row.bookingDate ? formStock[i] ?? [] : [];
@@ -599,11 +599,11 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
                     <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
                       <span className="badge badge-navy" style={{ alignSelf: "center" }}>第{i + 1}順位</span>
                       {row.locked ? (
-                        <span style={{ flex: "4 1 400px", alignSelf: "center", fontSize: 13, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                        <span style={{ flex: "4 1 400px", alignSelf: "center", fontSize: 12, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                           {row.branch || "—"}　<strong>{shortDate(row.bookingDate)}</strong>　{slotLabel(row.timeSlot)}　{row.partySize ? `${row.partySize}人` : "人數未填"}
                           <span className={`badge ${optionBadge(row.locked, row.lockedNote).cls}`} style={{ fontSize: 11 }}>{optionBadge(row.locked, row.lockedNote).label}</span>
                           {row.bookingCode && <span>代號 {row.bookingCode}</span>}
-                          <span style={{ color: "var(--gray-400)", fontSize: 12 }}>已處理，只能調順位</span>
+                          <span style={{ color: "var(--gray-400)", fontSize: 11 }}>已處理，只能調順位</span>
                         </span>
                       ) : (
                       <>
@@ -637,7 +637,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
                       </div>
                     </div>
                     {stock.length > 0 && (
-                      <div style={{ marginTop: 8, fontSize: 13, color: "var(--color-warning)" }}>
+                      <div style={{ marginTop: 8, fontSize: 12, color: "var(--color-warning)" }}>
                         現貨單已經有 {stock.length} 筆符合、還沒售出：
                         {stock.map((s) => <Link key={s.id} href={`/bookings/${s.id}`} style={{ color: "var(--brand-600)", marginLeft: 8 }}>{stockLine(s)}</Link>)}
                       </div>
@@ -650,7 +650,7 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
               ＋ 再加一個候選日期
             </button>
             {formStockCount > 0 && (
-              <div style={{ marginTop: 8, color: "var(--gray-500)", fontSize: 13 }}>有候選日期現貨單已經有位子，可以直接到現貨單看板賣，不用登記訂位需求</div>
+              <div style={{ marginTop: 8, color: "var(--gray-500)", fontSize: 12 }}>有候選日期現貨單已經有位子，可以直接到現貨單看板賣，不用登記訂位需求</div>
             )}
             <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
               <button className="btn btn-primary" disabled={saving} onClick={handleCreate}>
@@ -671,8 +671,8 @@ export function SeatRequestsPanel({ canCreate, canHandle, canCancel, myName = ""
               <button className="btn btn-ghost" style={{ padding: "2px 10px" }} onClick={() => shiftMonth(-1)}>‹</button>
               <span className="erp-card-title">{month.y} 年 {month.m + 1} 月</span>
               <button className="btn btn-ghost" style={{ padding: "2px 10px" }} onClick={() => shiftMonth(1)}>›</button>
-              <button className="btn btn-ghost" style={{ fontSize: 12, padding: "2px 10px" }} onClick={() => { const t = new Date(); setMonth({ y: t.getFullYear(), m: t.getMonth() }); }}>本月</button>
-              <select className="erp-input" style={{ width: "auto", fontSize: 13, padding: "4px 8px" }} value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)}>
+              <button className="btn btn-ghost" style={{ fontSize: 11, padding: "2px 10px" }} onClick={() => { const t = new Date(); setMonth({ y: t.getFullYear(), m: t.getMonth() }); }}>本月</button>
+              <select className="erp-input" style={{ width: "auto", fontSize: 12, padding: "4px 8px" }} value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)}>
                 <option value="">全部餐廳／分店</option>
                 {filterGroups.map((g) => (
                   <optgroup key={g.restaurant} label={g.restaurant}>

@@ -182,7 +182,7 @@ export default function AdminBookingsPage() {
                   <td>{formatCurrency(b.depositAmount)}</td>
                   <td>{formatCurrency(b.collectedAmount)}</td>
                   <td>
-                    <Link href={`/bookings/${b.id}?from=admin`} className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: 13 }}>查看</Link>
+                    <Link href={`/bookings/${b.id}?from=admin`} className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: 12 }}>查看</Link>
                   </td>
                 </tr>
               ))}

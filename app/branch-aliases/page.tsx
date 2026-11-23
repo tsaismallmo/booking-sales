@@ -96,7 +96,7 @@ export default function BranchAliasesPage() {
           <button onClick={handleAdd} disabled={adding || !newRaw.trim() || !newTarget.branchId} className="btn btn-primary">
             {adding ? "新增中..." : "新增"}
           </button>
-          {addError && <span style={{ fontSize: 12, color: "var(--color-danger)" }}>{addError}</span>}
+          {addError && <span style={{ fontSize: 11, color: "var(--color-danger)" }}>{addError}</span>}
         </div>
       </div>
 
@@ -129,11 +129,11 @@ export default function BranchAliasesPage() {
                       onClick={() => handleSave(a.id)}
                       disabled={!editing[a.id]?.branchId || editing[a.id].branchId === a.branchId}
                       className="btn btn-primary"
-                      style={{ padding: "4px 10px", fontSize: 13 }}
+                      style={{ padding: "4px 10px", fontSize: 12 }}
                     >
                       儲存
                     </button>
-                    <button onClick={() => handleDelete(a.id)} className="btn btn-ghost" style={{ color: "var(--color-danger)", padding: "4px 10px", fontSize: 13 }}>
+                    <button onClick={() => handleDelete(a.id)} className="btn btn-ghost" style={{ color: "var(--color-danger)", padding: "4px 10px", fontSize: 12 }}>
                       刪除
                     </button>
                   </td>

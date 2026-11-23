@@ -11,9 +11,9 @@ function LoginContent() {
   return (
     <div className="login-page">
       <div className="login-card">
-        <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
-        <h1 style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>訂位銷售管理系統</h1>
-        <p style={{ fontSize: 13, color: "var(--gray-400)", marginBottom: 24 }}>
+        <div style={{ fontSize: 31, marginBottom: 8 }}>📋</div>
+        <h1 style={{ fontSize: 17, fontWeight: 600, marginBottom: 4 }}>訂位銷售管理系統</h1>
+        <p style={{ fontSize: 12, color: "var(--gray-400)", marginBottom: 24 }}>
           請使用授權的 Google 帳號登入
         </p>
 

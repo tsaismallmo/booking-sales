@@ -254,7 +254,7 @@ export default function ImportBookingsPage() {
       <div className="erp-card" style={{ marginBottom: 20 }}>
         <div className="erp-card-header"><span className="erp-card-title">貼上 Google Sheets 資料</span></div>
         <div className="erp-card-body">
-          <p style={{ fontSize: 13, color: "var(--gray-500)", marginBottom: 10, lineHeight: 1.8 }}>
+          <p style={{ fontSize: 12, color: "var(--gray-500)", marginBottom: 10, lineHeight: 1.8 }}>
             <strong>直接貼入含標題列的試算表</strong>（推薦），系統會自動偵測標題列，識別以下欄位（欄位順序不限）：
             銷售平台、訂單歸屬、狀態、分店、日期、時段、人數、訂位代號、姓名+電話（或分開的姓名／電話）、訂金、付款人、退訂期限、資料來源、售出日期、收款金額、帳戶、銷售、代訂費。<br />
             沒有標題列時，固定欄位順序：<strong>銷售平台</strong>、訂單歸屬、狀態、分店、日期、時段、人數、訂位代號、姓名+電話（同一格）、訂金、付款人員、退訂期限、資料來源、售出日期、收款金額、帳戶、銷售人員、代訂費（後面用不到的欄位可以不用貼，留空也沒關係）；只有「姓名／電話分開」這種格式沒有固定位置可以對應，要用才需要貼標題列。
@@ -315,7 +315,7 @@ export default function ImportBookingsPage() {
                     <tr key={i}>
                       <td>{i + 1}</td>
                       <td>
-                        <select className="erp-select" style={{ fontSize: 13, ...(r.salesChannelId === UNMATCHED ? { borderColor: "var(--color-danger)" } : {}) }}
+                        <select className="erp-select" style={{ fontSize: 12, ...(r.salesChannelId === UNMATCHED ? { borderColor: "var(--color-danger)" } : {}) }}
                           value={r.salesChannelId}
                           onChange={(e) => updateRow(i, { salesChannelId: e.target.value })}>
                           {r.salesChannelId === UNMATCHED && <option value={UNMATCHED}>？{r.salesChannelRaw || "（空白）"}</option>}
@@ -323,7 +323,7 @@ export default function ImportBookingsPage() {
                         </select>
                       </td>
                       <td>
-                        <select className="erp-select" style={{ fontSize: 13, ...(vendorOk(r) ? {} : { borderColor: "var(--color-danger)" }) }}
+                        <select className="erp-select" style={{ fontSize: 12, ...(vendorOk(r) ? {} : { borderColor: "var(--color-danger)" }) }}
                           value={vendorOk(r) ? r.vendorName.trim() : "__bad__"}
                           onChange={(e) => updateRow(i, { vendorName: e.target.value })}>
                           {!vendorOk(r) && <option value="__bad__">？{r.vendorName || "（空白）"}</option>}
@@ -331,7 +331,7 @@ export default function ImportBookingsPage() {
                         </select>
                       </td>
                       <td>
-                        <select className="erp-select" style={{ fontSize: 13 }}
+                        <select className="erp-select" style={{ fontSize: 12 }}
                           value={r.status}
                           onChange={(e) => updateRow(i, { status: e.target.value as StatusValue })}>
                           {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -348,7 +348,7 @@ export default function ImportBookingsPage() {
                       <td>{r.depositPayer || "—"}</td>
                       <td>{r.cancelDeadline || "—"}</td>
                       <td>
-                        <select className="erp-select" style={{ fontSize: 13 }}
+                        <select className="erp-select" style={{ fontSize: 12 }}
                           value={r.platform}
                           onChange={(e) => updateRow(i, { platform: e.target.value as PlatformValue })}>
                           {PLATFORM_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -378,7 +378,7 @@ export default function ImportBookingsPage() {
               </button>
               <button onClick={() => { setParsed(false); setRows([]); }} className="btn btn-secondary">重新貼上</button>
               {(unmatchedCount > 0 || badVendorCount > 0) && (
-                <span style={{ alignSelf: "center", fontSize: 13, color: "var(--color-danger)" }}>
+                <span style={{ alignSelf: "center", fontSize: 12, color: "var(--color-danger)" }}>
                   {[unmatchedCount > 0 && `${unmatchedCount} 筆銷售平台空白或不是設定的平台`, badVendorCount > 0 && `${badVendorCount} 筆訂單歸屬不是廠商名字`].filter(Boolean).join("、")}（紅框），請先在下拉選好再匯入
                 </span>
               )}

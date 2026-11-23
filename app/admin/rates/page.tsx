@@ -209,7 +209,7 @@ export default function AdminRatesPage() {
             <span style={{ color: "var(--gray-400)" }}>載入中...</span>
           ) : (
             <>
-              <label style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 4, maxWidth: 260 }}>
+              <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 4, maxWidth: 260 }}>
                 「{month}」的客服分潤比例（%）— 從各廠商的平台費裡再抽給銷售的客服
                 <input
                   type="number" min={0} max={100} className="erp-input"
@@ -218,7 +218,7 @@ export default function AdminRatesPage() {
                 />
               </label>
               <button className="btn btn-primary" onClick={handleSaveGlobal} disabled={savingGlobal}>{savingGlobal ? "儲存中..." : "儲存"}</button>
-              <span style={{ fontSize: 13, color: "var(--color-success)" }}>{globalSaveMsg}</span>
+              <span style={{ fontSize: 12, color: "var(--color-success)" }}>{globalSaveMsg}</span>
             </>
           )}
         </div>
@@ -274,20 +274,20 @@ export default function AdminRatesPage() {
       <div className="erp-card" style={{ marginBottom: 16 }}>
         <div className="erp-card-header">
           <span className="erp-card-title">銷售平台基本 %</span>
-          <span style={{ fontSize: 12, color: "var(--gray-500)" }}>每個銷售平台固定一個基本 %，實際抽成 ＝ 基本 % × 廠商當月係數</span>
+          <span style={{ fontSize: 11, color: "var(--gray-500)" }}>每個銷售平台固定一個基本 %，實際抽成 ＝ 基本 % × 廠商當月係數</span>
         </div>
         <div className="erp-card-body" style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "flex-end" }}>
           {channels.map((c) => {
             const draft = channelDraft[c.id] ?? String(c.baseRate);
             const dirty = channelDraft[c.id] !== undefined && Number(channelDraft[c.id]) !== c.baseRate;
             return (
-              <label key={c.id} style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 4 }}>
+              <label key={c.id} style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 4 }}>
                 {c.name}{c.isDefault ? "（預設）" : ""}
                 <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
                   <input type="number" min={0} max={100} step="0.1" className="erp-input" style={{ width: 90 }} value={draft}
                     onChange={(e) => setChannelDraft((d) => ({ ...d, [c.id]: e.target.value }))} />
                   %
-                  <button className="btn btn-primary" style={{ padding: "4px 10px", fontSize: 13 }} disabled={!dirty} onClick={() => saveChannel(c.id)}>儲存</button>
+                  <button className="btn btn-primary" style={{ padding: "4px 10px", fontSize: 12 }} disabled={!dirty} onClick={() => saveChannel(c.id)}>儲存</button>
                 </span>
               </label>
             );
@@ -295,7 +295,7 @@ export default function AdminRatesPage() {
           <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <input className="erp-input" style={{ width: 110 }} placeholder="新平台名稱" value={newChannel.name} onChange={(e) => setNewChannel((n) => ({ ...n, name: e.target.value }))} />
             <input type="number" min={0} max={100} className="erp-input" style={{ width: 80 }} placeholder="基本 %" value={newChannel.baseRate} onChange={(e) => setNewChannel((n) => ({ ...n, baseRate: e.target.value }))} />
-            <button className="btn btn-secondary" style={{ padding: "4px 10px", fontSize: 13 }} disabled={!newChannel.name.trim() || newChannel.baseRate === ""} onClick={addChannel}>＋ 新增平台</button>
+            <button className="btn btn-secondary" style={{ padding: "4px 10px", fontSize: 12 }} disabled={!newChannel.name.trim() || newChannel.baseRate === ""} onClick={addChannel}>＋ 新增平台</button>
           </span>
         </div>
       </div>
@@ -303,7 +303,7 @@ export default function AdminRatesPage() {
       <div className="erp-card">
         <div className="erp-card-header">
           <span className="erp-card-title">各廠商係數</span>
-          <span style={{ fontSize: 12, color: "var(--gray-500)" }}>設定「{month}」的係數（大於 1 多抽、小於 1 少抽），參考 {referenceMonth} 賣出的成果（依售出日期算，現貨單＋臨時單）</span>
+          <span style={{ fontSize: 11, color: "var(--gray-500)" }}>設定「{month}」的係數（大於 1 多抽、小於 1 少抽），參考 {referenceMonth} 賣出的成果（依售出日期算，現貨單＋臨時單）</span>
         </div>
         <div className="erp-table-wrap">
           <table className="erp-table">
@@ -331,14 +331,14 @@ export default function AdminRatesPage() {
                     <td>{v.name}</td>
                     <td style={{ fontWeight: 600 }}>
                       {v.bookingCount} 筆
-                      <div style={{ fontSize: 12, fontWeight: 400, color: "var(--gray-500)" }}>代訂費 {formatMoney(v.agencyFeeTotal)}</div>
+                      <div style={{ fontSize: 11, fontWeight: 400, color: "var(--gray-500)" }}>代訂費 {formatMoney(v.agencyFeeTotal)}</div>
                     </td>
                     {channels.map((c) => {
                       const x = v.byChannel.find((b) => b.channelId === c.id);
                       return (
-                        <td key={c.id} style={{ fontSize: 13 }}>
+                        <td key={c.id} style={{ fontSize: 12 }}>
                           {x?.count ?? 0} 筆
-                          <div style={{ fontSize: 12, color: "var(--gray-500)" }}>{formatMoney(x?.agencyFee ?? 0)}</div>
+                          <div style={{ fontSize: 11, color: "var(--gray-500)" }}>{formatMoney(x?.agencyFee ?? 0)}</div>
                         </td>
                       );
                     })}
@@ -349,7 +349,7 @@ export default function AdminRatesPage() {
                         onChange={(e) => setEditing((ed) => ({ ...ed, [key]: e.target.value }))}
                       />
                     </td>
-                    <td style={{ fontSize: 13, whiteSpace: "nowrap" }}>
+                    <td style={{ fontSize: 12, whiteSpace: "nowrap" }}>
                       {current.trim() !== "" && Number.isFinite(coef)
                         ? channels.map((c) => <div key={c.id}>{c.name} {Number((c.baseRate * coef).toFixed(4))}%</div>)
                         : "—"}
@@ -357,7 +357,7 @@ export default function AdminRatesPage() {
                     <td>
                       <button
                         className="btn btn-primary"
-                        style={{ padding: "4px 10px", fontSize: 13 }}
+                        style={{ padding: "4px 10px", fontSize: 12 }}
                         disabled={!dirty || savingVendor === v.vendorId}
                         onClick={() => handleSaveVendor(v.vendorId)}
                       >

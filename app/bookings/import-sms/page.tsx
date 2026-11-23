@@ -351,14 +351,14 @@ export default function ImportSmsPage() {
                           style={{
                             display: "flex", justifyContent: "space-between", alignItems: "center",
                             width: "100%", padding: "8px 12px", background: "none", border: "none",
-                            cursor: "pointer", textAlign: "left", fontSize: 13,
+                            cursor: "pointer", textAlign: "left", fontSize: 12,
                             borderBottom: i < customerResults.length - 1 ? "1px solid var(--gray-100)" : "none",
                           }}
                           onMouseEnter={(e) => (e.currentTarget.style.background = "var(--gray-50)")}
                           onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
                         >
                           <span style={{ fontWeight: 600, color: "var(--gray-800)" }}>{c.name}</span>
-                          <span style={{ color: "var(--gray-400)", fontSize: 12 }}>{c.phone}　{c.label}</span>
+                          <span style={{ color: "var(--gray-400)", fontSize: 11 }}>{c.phone}　{c.label}</span>
                         </button>
                       ))}
                     </div>
@@ -379,13 +379,13 @@ export default function ImportSmsPage() {
                 <input className="erp-input" value={form.customerPhone} onChange={set("customerPhone")} />
                 {phoneCandidates.length > 1 && (
                   <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    <span style={{ fontSize: 12, color: "var(--gray-400)", width: "100%" }}>同名有多支電話，點選帶入：</span>
+                    <span style={{ fontSize: 11, color: "var(--gray-400)", width: "100%" }}>同名有多支電話，點選帶入：</span>
                     {phoneCandidates.map((c) => (
                       <button
                         key={`${c.phone}-${c.label}`}
                         type="button"
                         className="btn btn-secondary"
-                        style={{ fontSize: 12, padding: "2px 8px" }}
+                        style={{ fontSize: 11, padding: "2px 8px" }}
                         onClick={() => pickPhone(c)}
                       >
                         {c.phone}（{c.label}）
@@ -397,11 +397,11 @@ export default function ImportSmsPage() {
               <div className="erp-form-group">
                 <label className="erp-label">訂位平台</label>
                 <div style={{ display: "flex", gap: 16, alignItems: "center", height: 38 }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer" }}>
                     <input type="checkbox" checked={form.isInline} onChange={(e) => setForm((f) => ({ ...f, isInline: e.target.checked }))} />
                     Inline
                   </label>
-                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer" }}>
                     <input type="checkbox" checked={form.isEztable} onChange={(e) => setForm((f) => ({ ...f, isEztable: e.target.checked }))} />
                     EZTABLE
                   </label>
@@ -441,7 +441,7 @@ export default function ImportSmsPage() {
                 重新比對
               </button>
             </div>
-            <p style={{ fontSize: 12, color: "var(--gray-400)", marginTop: 4 }}>
+            <p style={{ fontSize: 11, color: "var(--gray-400)", marginTop: 4 }}>
               如果分店名稱跟系統裡不一樣，改成正確的名稱再按重新比對；比對成功並儲存後，這個對應關係會被記住，下次同樣的簡訊寫法會自動代換。
             </p>
 
@@ -457,7 +457,7 @@ export default function ImportSmsPage() {
               <div style={{ marginBottom: 12, maxWidth: 320 }}>
                 <label className="erp-label">付款人員</label>
                 <StaffOptionSelect value={payer} onChange={setPayer} />
-                <span style={{ fontSize: 12, color: "var(--gray-400)" }}>留存時會一起寫進這筆單據</span>
+                <span style={{ fontSize: 11, color: "var(--gray-400)" }}>留存時會一起寫進這筆單據</span>
               </div>
             )}
             {!checkingMatch && matched === null && ambiguous && (

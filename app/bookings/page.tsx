@@ -42,16 +42,16 @@ function DepositInput({ booking, onSaved }: { booking: Booking; onSaved: (amount
         className="erp-input"
         inputMode="numeric"
         placeholder="訂金"
-        style={{ width: 90, padding: "4px 8px", fontSize: 13 }}
+        style={{ width: 90, padding: "4px 8px", fontSize: 12 }}
         value={value}
         disabled={saving}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Enter") void save(); }}
       />
-      <button className="btn btn-ghost" style={{ padding: "4px 8px", fontSize: 13 }} disabled={saving || !value.trim()} onClick={() => void save()}>
+      <button className="btn btn-ghost" style={{ padding: "4px 8px", fontSize: 12 }} disabled={saving || !value.trim()} onClick={() => void save()}>
         {saving ? "…" : "存"}
       </button>
-      {error && <span style={{ fontSize: 12, color: "var(--color-danger)" }}>{error}</span>}
+      {error && <span style={{ fontSize: 11, color: "var(--color-danger)" }}>{error}</span>}
     </div>
   );
 }
@@ -142,10 +142,10 @@ export default function BookingsPage() {
             <option value="refunded">退</option>
           </select>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 14, color: "var(--gray-500)", whiteSpace: "nowrap" }}>未繳費，繳費期限到</span>
+            <span style={{ fontSize: 13, color: "var(--gray-500)", whiteSpace: "nowrap" }}>未繳費，繳費期限到</span>
             <input type="date" className="erp-input" style={{ width: 160 }} value={deadlineBy} onChange={(e) => setDeadlineBy(e.target.value)} />
-            <span style={{ fontSize: 14, color: "var(--gray-500)", whiteSpace: "nowrap" }}>為止</span>
-            {deadlineBy && <button className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: 13 }} onClick={() => setDeadlineBy("")}>清除</button>}
+            <span style={{ fontSize: 13, color: "var(--gray-500)", whiteSpace: "nowrap" }}>為止</span>
+            {deadlineBy && <button className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: 12 }} onClick={() => setDeadlineBy("")}>清除</button>}
           </div>
         </div>
       </div>
@@ -193,7 +193,7 @@ export default function BookingsPage() {
                   </td>
                   <td>{formatCurrency(b.collectedAmount)}</td>
                   <td>
-                    <Link href={`/bookings/${b.id}`} className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: 13 }}>查看</Link>
+                    <Link href={`/bookings/${b.id}`} className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: 12 }}>查看</Link>
                   </td>
                 </tr>
               ))}

@@ -86,12 +86,12 @@ export default function RestaurantsPage() {
       <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
         <input
           className="erp-input"
-          style={{ width, fontSize: 13 }}
+          style={{ width, fontSize: 12 }}
           value={renaming[id] ?? name}
           onChange={(e) => setRenaming((r) => ({ ...r, [id]: e.target.value }))}
           onKeyDown={(e) => { if (e.key === "Enter") rename(kind, id); }}
         />
-        {editing && <button className="btn btn-primary" style={{ padding: "4px 10px", fontSize: 12 }} onClick={() => rename(kind, id)}>改名</button>}
+        {editing && <button className="btn btn-primary" style={{ padding: "4px 10px", fontSize: 11 }} onClick={() => rename(kind, id)}>改名</button>}
       </span>
     );
   };
@@ -105,7 +105,7 @@ export default function RestaurantsPage() {
         </div>
       </div>
 
-      {error && <div className="erp-card" style={{ marginBottom: 16 }}><div className="erp-card-body" style={{ color: "var(--color-danger)", fontSize: 13 }}>{error}</div></div>}
+      {error && <div className="erp-card" style={{ marginBottom: 16 }}><div className="erp-card-body" style={{ color: "var(--color-danger)", fontSize: 12 }}>{error}</div></div>}
 
       <div className="erp-card" style={{ marginBottom: 16 }}>
         <div className="erp-card-body" style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
@@ -120,16 +120,16 @@ export default function RestaurantsPage() {
       <div className="erp-card" style={{ marginBottom: 16 }}>
         <div className="erp-card-header">
           <span className="erp-card-title">餐廳集團</span>
-          <span style={{ fontSize: 12, color: "var(--gray-500)" }}>同一支電話在不同集團登記的名字可能不同；廠商名單成員可以標集團，查名字／電話時只看該餐廳所屬集團</span>
+          <span style={{ fontSize: 11, color: "var(--gray-500)" }}>同一支電話在不同集團登記的名字可能不同；廠商名單成員可以標集團，查名字／電話時只看該餐廳所屬集團</span>
         </div>
         <div className="erp-card-body" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           {groups.map((g) => (
-            <button key={g.id} className="btn btn-secondary" style={{ padding: "4px 12px", fontSize: 13 }} title="點一下改名" onClick={() => renameGroup(g)}>
+            <button key={g.id} className="btn btn-secondary" style={{ padding: "4px 12px", fontSize: 12 }} title="點一下改名" onClick={() => renameGroup(g)}>
               {g.name}（{restaurants.filter((r) => r.groupId === g.id).length} 間）
             </button>
           ))}
           <input className="erp-input" style={{ width: 140 }} placeholder="新增集團" value={newGroup} onChange={(e) => setNewGroup(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addGroup(); }} />
-          <button className="btn btn-primary" style={{ padding: "4px 12px", fontSize: 13 }} disabled={!newGroup.trim()} onClick={addGroup}>新增</button>
+          <button className="btn btn-primary" style={{ padding: "4px 12px", fontSize: 12 }} disabled={!newGroup.trim()} onClick={addGroup}>新增</button>
         </div>
       </div>
 
@@ -143,21 +143,21 @@ export default function RestaurantsPage() {
             <div className="erp-card-header" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
               {nameInput("restaurants", r.id, r.name, 160)}
               {!r.active && <span className="badge badge-gray">已停用</span>}
-              <span style={{ fontSize: 12, color: "var(--gray-500)" }}>{own.length} 間分店</span>
-              <span style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 13 }}>
+              <span style={{ fontSize: 11, color: "var(--gray-500)" }}>{own.length} 間分店</span>
+              <span style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 12 }}>
                 集團
-                <select className="erp-select" style={{ width: "auto", fontSize: 13, padding: "4px 8px" }} value={r.groupId ?? ""} onChange={(e) => call(`/api/restaurants/${r.id}`, "PATCH", { groupId: e.target.value || null })}>
+                <select className="erp-select" style={{ width: "auto", fontSize: 12, padding: "4px 8px" }} value={r.groupId ?? ""} onChange={(e) => call(`/api/restaurants/${r.id}`, "PATCH", { groupId: e.target.value || null })}>
                   <option value="">（未設定）</option>
                   {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
                 </select>
               </span>
-              <span style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 13 }}>
+              <span style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 12 }}>
                 退訂期限：訂位日前
                 <input
                   type="number"
                   min={0}
                   className="erp-input"
-                  style={{ width: 64, fontSize: 13 }}
+                  style={{ width: 64, fontSize: 12 }}
                   value={cancelDays[r.id] ?? String(r.cancelDaysBefore)}
                   onChange={(e) => setCancelDays((c) => ({ ...c, [r.id]: e.target.value }))}
                 />
@@ -165,7 +165,7 @@ export default function RestaurantsPage() {
                 {cancelDays[r.id] !== undefined && cancelDays[r.id] !== String(r.cancelDaysBefore) && (
                   <button
                     className="btn btn-primary"
-                    style={{ padding: "4px 10px", fontSize: 12 }}
+                    style={{ padding: "4px 10px", fontSize: 11 }}
                     onClick={async () => {
                       if (await call(`/api/restaurants/${r.id}`, "PATCH", { cancelDaysBefore: Number(cancelDays[r.id]) })) {
                         setCancelDays((c) => {
@@ -180,7 +180,7 @@ export default function RestaurantsPage() {
                   </button>
                 )}
               </span>
-              <button className="btn btn-ghost" style={{ marginLeft: "auto", padding: "4px 10px", fontSize: 12 }} onClick={() => call(`/api/restaurants/${r.id}`, "PATCH", { active: !r.active })}>
+              <button className="btn btn-ghost" style={{ marginLeft: "auto", padding: "4px 10px", fontSize: 11 }} onClick={() => call(`/api/restaurants/${r.id}`, "PATCH", { active: !r.active })}>
                 {r.active ? "停用餐廳" : "重新啟用"}
               </button>
             </div>
@@ -196,7 +196,7 @@ export default function RestaurantsPage() {
                         <td>{nameInput("branches", b.id, b.name, 140)}</td>
                         <td style={{ color: "var(--gray-500)" }}>{r.name}｜{b.name}</td>
                         <td>
-                          <select className="erp-select" style={{ fontSize: 13, width: 120 }} value={b.restaurantId} onChange={(e) => {
+                          <select className="erp-select" style={{ fontSize: 12, width: 120 }} value={b.restaurantId} onChange={(e) => {
                             const target = restaurants.find((x) => x.id === e.target.value);
                             if (target && confirm(`把「${b.name}」移到「${target.name}」？已建立的單據會一起改成「${target.name}｜${b.name}」`)) {
                               call(`/api/branches/${b.id}`, "PATCH", { restaurantId: target.id });
@@ -207,7 +207,7 @@ export default function RestaurantsPage() {
                         </td>
                         <td>{b.active ? <span className="badge badge-green">啟用中</span> : <span className="badge badge-gray">已停用</span>}</td>
                         <td>
-                          <button className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: 12 }} onClick={() => call(`/api/branches/${b.id}`, "PATCH", { active: !b.active })}>
+                          <button className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: 11 }} onClick={() => call(`/api/branches/${b.id}`, "PATCH", { active: !b.active })}>
                             {b.active ? "停用" : "重新啟用"}
                           </button>
                         </td>

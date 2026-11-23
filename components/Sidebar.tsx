@@ -206,7 +206,7 @@ export function Sidebar({ roles }: { roles: Role[] }) {
 
       </nav>
 
-      <div style={{ padding: "0 18px 8px", fontSize: 12, color: "rgba(255,255,255,.4)" }}>
+      <div style={{ padding: "0 18px 8px", fontSize: 11, color: "rgba(255,255,255,.4)" }}>
         {roles.map((r) => roleLabel[r]).join("・")}
       </div>
       <button onClick={() => signOut({ callbackUrl: "/login" })} className="erp-sidebar-logout">

@@ -165,12 +165,12 @@ export default function RequestsPage() {
               </div>
               <div className="erp-card-body erp-sysinfo">
                 {linkedEntries.map((e) => e.kind === "restricted" ? (
-                  <div key={e.id} style={{ fontSize: 13, color: "var(--gray-400)", marginBottom: 4 }}>
+                  <div key={e.id} style={{ fontSize: 12, color: "var(--gray-400)", marginBottom: 4 }}>
                     （同一組還有一筆其他廠商的單據，沒有查看權限）
                   </div>
                 ) : (
                   <div key={e.booking.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                    <span style={{ fontSize: 13 }}>
+                    <span style={{ fontSize: 12 }}>
                       {e.booking.vendorName && (
                         <span className="badge badge-navy" style={{ fontSize: 11, marginRight: 4 }}>
                           {e.booking.vendorName}
@@ -179,7 +179,7 @@ export default function RequestsPage() {
                       {e.booking.branch ?? "—"}　{e.booking.bookingDate}　{e.booking.timeSlot ?? "—"}　{e.booking.partySize ?? "—"}人
                       {(e.booking.customerName || e.booking.customerPhone) && <>　｜　{e.booking.customerName ?? "—"}　{e.booking.customerPhone ?? "—"}</>}
                     </span>
-                    <Link href={`/bookings/${e.booking.id}`} className="btn btn-ghost" style={{ fontSize: 12, padding: "2px 8px" }}>查看單據</Link>
+                    <Link href={`/bookings/${e.booking.id}`} className="btn btn-ghost" style={{ fontSize: 11, padding: "2px 8px" }}>查看單據</Link>
                   </div>
                 ))}
 

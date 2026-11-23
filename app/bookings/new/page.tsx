@@ -183,7 +183,7 @@ function NewBookingForm() {
               <div className="erp-form-group">
                 <label className="erp-label">退訂期限</label>
                 <input type="date" className="erp-input" value={form.cancelDeadline} onChange={set("cancelDeadline")} />
-                <span style={{ fontSize: 12, color: "var(--gray-400)" }}>留空會照餐廳設定自動算（例如島語訂位日前 3 天）</span>
+                <span style={{ fontSize: 11, color: "var(--gray-400)" }}>留空會照餐廳設定自動算（例如島語訂位日前 3 天）</span>
               </div>
               <div className="erp-form-group">
                 <label className="erp-label">付款期限</label>
@@ -246,11 +246,11 @@ function NewBookingForm() {
                 <div className="erp-form-group">
                   <label className="erp-label">訂位平台</label>
                   <div style={{ display: "flex", gap: 16, alignItems: "center", height: 38 }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer" }}>
                       <input type="checkbox" checked={form.isInline} onChange={setChecked("isInline")} />
                       Inline
                     </label>
-                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer" }}>
                       <input type="checkbox" checked={form.isEztable} onChange={setChecked("isEztable")} />
                       EZTABLE
                     </label>

@@ -92,7 +92,7 @@ export function ReservedOptionsEditor({ options, onChange }: { options: Reserved
       <button type="button" className="btn btn-secondary" style={{ marginTop: 10 }} onClick={() => onChange([...options, emptyOption(options.at(-1))])}>
         ＋ 再加一個候選日期
       </button>
-      <div style={{ marginTop: 6, fontSize: 12, color: "var(--gray-400)" }}>第 1 順位就是這張單目前的分店／日期／時段；訂到哪一個就把它移到第 1 順位</div>
+      <div style={{ marginTop: 6, fontSize: 11, color: "var(--gray-400)" }}>第 1 順位就是這張單目前的分店／日期／時段；訂到哪一個就把它移到第 1 順位</div>
     </div>
   );
 }

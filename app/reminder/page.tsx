@@ -130,7 +130,7 @@ export default function ReminderPage() {
                         onClick={() => handleRefund(b.id)}
                         disabled={refunding === b.id}
                         className="btn btn-danger"
-                        style={{ padding: "4px 10px", fontSize: 13 }}
+                        style={{ padding: "4px 10px", fontSize: 12 }}
                       >
                         {refunding === b.id ? "處理中..." : "退訂"}
                       </button>

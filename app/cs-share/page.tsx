@@ -141,9 +141,9 @@ export default function CsSharePage() {
         <div className="erp-card">
           <div className="erp-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span className="erp-card-title">{monthLabel}　已售 {detail.totals.count} 筆</span>
-            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--brand-700)" }}>分潤金額　{formatCurrency(detail.totals.csShare)}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--brand-700)" }}>分潤金額　{formatCurrency(detail.totals.csShare)}</span>
           </div>
-          <p style={{ padding: "0 16px", margin: "8px 0 0", fontSize: 12, color: "var(--gray-400)" }}>
+          <p style={{ padding: "0 16px", margin: "8px 0 0", fontSize: 11, color: "var(--gray-400)" }}>
             客服分潤不是一單一單分的：全部客服的獎金池 × 你賣出的單量佔全部客服賣出單量的比例，下面只列出算進「已售筆數」的單據
           </p>
           <div className="erp-table-wrap">

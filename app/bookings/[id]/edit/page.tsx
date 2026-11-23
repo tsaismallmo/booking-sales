@@ -208,7 +208,7 @@ export default function EditBookingPage() {
               <div className="erp-form-group">
                 <label className="erp-label">退訂期限</label>
                 <input type="date" className="erp-input" value={form.cancelDeadline} onChange={set("cancelDeadline")} />
-                <span style={{ fontSize: 12, color: "var(--gray-400)" }}>留空會照餐廳設定自動算（例如島語訂位日前 3 天）</span>
+                <span style={{ fontSize: 11, color: "var(--gray-400)" }}>留空會照餐廳設定自動算（例如島語訂位日前 3 天）</span>
               </div>
               <div className="erp-form-group">
                 <label className="erp-label">付款期限</label>
@@ -265,11 +265,11 @@ export default function EditBookingPage() {
               <div className="erp-form-group">
                 <label className="erp-label">訂位平台</label>
                 <div style={{ display: "flex", gap: 16, alignItems: "center", height: 38 }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer" }}>
                     <input type="checkbox" checked={isInline} onChange={(e) => setIsInline(e.target.checked)} />
                     Inline
                   </label>
-                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer" }}>
                     <input type="checkbox" checked={isEztable} onChange={(e) => setIsEztable(e.target.checked)} />
                     EZTABLE
                   </label>
@@ -343,7 +343,7 @@ export default function EditBookingPage() {
               <div className="erp-form-group">
                 <label className="erp-label">平台抽成基礎金額</label>
                 <input type="number" step="0.01" className="erp-input" placeholder="留空＝用代訂費全額算平台費" value={form.platformFeeBase} onChange={set("platformFeeBase")} />
-                <span style={{ fontSize: 12, color: "var(--gray-400)" }}>超過這個金額的部分不抽平台費，直接算給廠商</span>
+                <span style={{ fontSize: 11, color: "var(--gray-400)" }}>超過這個金額的部分不抽平台費，直接算給廠商</span>
               </div>
               <div className="erp-form-group">
                 <label className="erp-label">銷售人員</label>

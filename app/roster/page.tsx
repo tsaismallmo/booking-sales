@@ -230,7 +230,7 @@ export default function RosterPage() {
         <div className="erp-card" style={{ width: 300, flexShrink: 0 }}>
           <div className="erp-card-body" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
             {lists.length === 0 ? (
-              <div style={{ fontSize: 13, color: "var(--gray-400)" }}>
+              <div style={{ fontSize: 12, color: "var(--gray-400)" }}>
                 {canEdit ? "還沒有任何名單，點下面新增第一份。" : "廠商尚未建立任何名單。"}
               </div>
             ) : (
@@ -244,9 +244,9 @@ export default function RosterPage() {
                 </div>
                 {canEdit && (
                   <div style={{ display: "flex", gap: 6 }}>
-                    <button className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: 13 }} onClick={() => handleReorder("up")}>↑</button>
-                    <button className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: 13 }} onClick={() => handleReorder("down")}>↓</button>
-                    <span style={{ fontSize: 12, color: "var(--gray-400)", alignSelf: "center" }}>調整名單順序</span>
+                    <button className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: 12 }} onClick={() => handleReorder("up")}>↑</button>
+                    <button className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: 12 }} onClick={() => handleReorder("down")}>↓</button>
+                    <span style={{ fontSize: 11, color: "var(--gray-400)", alignSelf: "center" }}>調整名單順序</span>
                   </div>
                 )}
               </>
@@ -254,9 +254,9 @@ export default function RosterPage() {
 
             {canEdit && (
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                <button className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: 13 }} onClick={handleCreateList}>＋ 新名單</button>
-                {selectedList && <button className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: 13 }} onClick={handleRenameList}>重新命名</button>}
-                {selectedList && <button className="btn btn-ghost" style={{ padding: "5px 10px", fontSize: 13, color: "var(--color-danger)" }} onClick={handleDeleteList}>刪除名單</button>}
+                <button className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: 12 }} onClick={handleCreateList}>＋ 新名單</button>
+                {selectedList && <button className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: 12 }} onClick={handleRenameList}>重新命名</button>}
+                {selectedList && <button className="btn btn-ghost" style={{ padding: "5px 10px", fontSize: 12, color: "var(--color-danger)" }} onClick={handleDeleteList}>刪除名單</button>}
               </div>
             )}
 
@@ -276,10 +276,10 @@ export default function RosterPage() {
               <label className="erp-label">查詢電話是否存在於其他名單</label>
               <div style={{ display: "flex", gap: 6 }}>
                 <input className="erp-input" placeholder="09XXXXXXXX" value={lookupPhone} onChange={(e) => setLookupPhone(e.target.value)} />
-                <button className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: 13 }} onClick={handleLookup}>查詢</button>
+                <button className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: 12 }} onClick={handleLookup}>查詢</button>
               </div>
               {lookupResults && (
-                <div style={{ marginTop: 6, fontSize: 12, color: lookupResults.length > 0 ? "var(--color-warning)" : "var(--gray-400)" }}>
+                <div style={{ marginTop: 6, fontSize: 11, color: lookupResults.length > 0 ? "var(--color-warning)" : "var(--gray-400)" }}>
                   {lookupResults.length === 0
                     ? "沒有找到，可以新增"
                     : lookupResults.map((r) => `${r.name}（${r.listName}）`).join("、")}
@@ -319,10 +319,10 @@ export default function RosterPage() {
               <div className="erp-person-grid">
                 {phoneGroups.map(({ key, phone, items }) => (
                   <div key={key} className="erp-roster-card" style={{ flexDirection: "column", alignItems: "stretch" }}>
-                    <div style={{ fontSize: 12, color: "var(--gray-500)" }}>{phone ?? "—"}</div>
+                    <div style={{ fontSize: 11, color: "var(--gray-500)" }}>{phone ?? "—"}</div>
                     {items.map((e) => (
                       <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--gray-800)", flex: 1 }}>{e.name}</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--gray-800)", flex: 1 }}>{e.name}</span>
                         {canEdit ? (
                           <select
                             className="erp-select"
@@ -347,7 +347,7 @@ export default function RosterPage() {
                       <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
                         <input
                           className="erp-input"
-                          style={{ flex: 1, minWidth: 80, fontSize: 12, padding: "3px 6px" }}
+                          style={{ flex: 1, minWidth: 80, fontSize: 11, padding: "3px 6px" }}
                           placeholder="在這個集團的名字"
                           value={addingFor.name}
                           onChange={(ev) => setAddingFor({ ...addingFor, name: ev.target.value })}
@@ -356,13 +356,13 @@ export default function RosterPage() {
                         <select className="erp-select" style={{ fontSize: 11, padding: "1px 4px", width: "auto" }} value={addingFor.groupId} onChange={(ev) => setAddingFor({ ...addingFor, groupId: ev.target.value })}>
                           {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
                         </select>
-                        <button className="btn btn-primary" style={{ padding: "2px 8px", fontSize: 12 }} disabled={!addingFor.name.trim() || !addingFor.groupId} onClick={() => addGroupName(phone)}>新增</button>
-                        <button className="btn btn-ghost" style={{ padding: "2px 8px", fontSize: 12 }} onClick={() => setAddingFor(null)}>取消</button>
+                        <button className="btn btn-primary" style={{ padding: "2px 8px", fontSize: 11 }} disabled={!addingFor.name.trim() || !addingFor.groupId} onClick={() => addGroupName(phone)}>新增</button>
+                        <button className="btn btn-ghost" style={{ padding: "2px 8px", fontSize: 11 }} onClick={() => setAddingFor(null)}>取消</button>
                       </div>
                     ) : (
                       <button
                         className="btn btn-ghost"
-                        style={{ padding: "2px 6px", fontSize: 12, alignSelf: "flex-start" }}
+                        style={{ padding: "2px 6px", fontSize: 11, alignSelf: "flex-start" }}
                         onClick={() => setAddingFor({ key, name: "", groupId: groups.find((g) => !items.some((e) => e.groupId === g.id))?.id ?? groups[0]?.id ?? "" })}
                       >
                         ＋ 其他集團的名字

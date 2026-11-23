@@ -47,7 +47,7 @@ export function SaleModal({
   return (
     <Modal title="銷售／收款" onClose={onClose}>
       <div className="erp-card-body">
-        <div style={{ fontSize: 13, color: "var(--gray-600)", marginBottom: 14, lineHeight: 1.8 }}>
+        <div style={{ fontSize: 12, color: "var(--gray-600)", marginBottom: 14, lineHeight: 1.8 }}>
           <div>{booking.branch}　{booking.bookingDate}　{booking.timeSlot}　{booking.partySize} 人</div>
           <div>{booking.customerName}　{booking.customerPhone}</div>
           <div>訂位代號：{booking.bookingCode ?? "—"}　訂金：{formatCurrency(booking.depositAmount)}</div>

@@ -108,8 +108,8 @@ export function ReservedCalendar({
         <button className="btn btn-ghost" style={{ padding: "2px 10px" }} onClick={() => shiftMonth(-1)}>‹</button>
         <span className="erp-card-title">{month.y} 年 {month.m + 1} 月</span>
         <button className="btn btn-ghost" style={{ padding: "2px 10px" }} onClick={() => shiftMonth(1)}>›</button>
-        <button className="btn btn-ghost" style={{ fontSize: 12, padding: "2px 10px" }} onClick={() => setMonth({ y: t.getFullYear(), m: t.getMonth() })}>本月</button>
-        <select className="erp-input" style={{ width: "auto", fontSize: 13, padding: "4px 8px" }} value={branchFilter} onChange={(e) => onBranchFilter(e.target.value)}>
+        <button className="btn btn-ghost" style={{ fontSize: 11, padding: "2px 10px" }} onClick={() => setMonth({ y: t.getFullYear(), m: t.getMonth() })}>本月</button>
+        <select className="erp-input" style={{ width: "auto", fontSize: 12, padding: "4px 8px" }} value={branchFilter} onChange={(e) => onBranchFilter(e.target.value)}>
           <option value="">全部餐廳／分店</option>
           {filterGroups.map((g) => (
             <optgroup key={g.restaurant} label={g.restaurant}>

@@ -138,7 +138,7 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
       {nameFirst && selectedDate && (
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
           <strong>{selectedDate.replace(/-/g, "/")}（週{WEEKDAYS[parseDateOnly(selectedDate).getDay()]}）的客人（{visibleBookings.length} 組）</strong>
-          <button className="btn btn-ghost" style={{ fontSize: 12, padding: "2px 10px" }} onClick={() => setSelectedDate(null)}>顯示全部</button>
+          <button className="btn btn-ghost" style={{ fontSize: 11, padding: "2px 10px" }} onClick={() => setSelectedDate(null)}>顯示全部</button>
         </div>
       )}
 
@@ -171,13 +171,13 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
                   {nameFirst && (
                     <td>
                       <strong>{b.customerName || "（未填姓名）"}</strong>
-                      {b.customerPhone && <div style={{ fontSize: 12, color: "var(--gray-500)" }}>{b.customerPhone}</div>}
+                      {b.customerPhone && <div style={{ fontSize: 11, color: "var(--gray-500)" }}>{b.customerPhone}</div>}
                     </td>
                   )}
                   <td>
                     {b.bookingDate}
                     {formatAltDates(b.altDates) && (
-                      <div style={{ fontSize: 12, color: "var(--gray-500)" }}>候選：{formatAltDates(b.altDates)}</div>
+                      <div style={{ fontSize: 11, color: "var(--gray-500)" }}>候選：{formatAltDates(b.altDates)}</div>
                     )}
                   </td>
                   <td>週{WEEKDAYS[parseDateOnly(b.bookingDate).getDay()]}</td>
@@ -195,14 +195,14 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
                       nameFirst ? (
                         // 預定單代訂費建單時就先收了：訂到了＝完成；沒訂到＝退款
                         <div style={{ display: "flex", gap: 6 }}>
-                          <button onClick={() => { setDoneTarget(b); setDoneBooker(b.actualBooker ?? ""); }} className="btn btn-primary" style={{ padding: "4px 10px", fontSize: 13 }}>訂到了</button>
-                          <button onClick={() => handleReservedResult(b, "refunded")} className="btn btn-secondary" style={{ padding: "4px 10px", fontSize: 13, color: "var(--color-danger)" }}>沒訂到</button>
-                          <Link href={`/bookings/${b.id}/edit?from=${fromKey}`} className="btn btn-secondary" style={{ padding: "4px 10px", fontSize: 13 }}>編輯</Link>
+                          <button onClick={() => { setDoneTarget(b); setDoneBooker(b.actualBooker ?? ""); }} className="btn btn-primary" style={{ padding: "4px 10px", fontSize: 12 }}>訂到了</button>
+                          <button onClick={() => handleReservedResult(b, "refunded")} className="btn btn-secondary" style={{ padding: "4px 10px", fontSize: 12, color: "var(--color-danger)" }}>沒訂到</button>
+                          <Link href={`/bookings/${b.id}/edit?from=${fromKey}`} className="btn btn-secondary" style={{ padding: "4px 10px", fontSize: 12 }}>編輯</Link>
                         </div>
                       ) : b.bookingCode ? (
-                        <button onClick={() => handleOpenSale(b)} className="btn btn-primary" style={{ padding: "4px 10px", fontSize: 13 }}>銷售</button>
+                        <button onClick={() => handleOpenSale(b)} className="btn btn-primary" style={{ padding: "4px 10px", fontSize: 12 }}>銷售</button>
                       ) : (
-                        <Link href={`/bookings/${b.id}/edit?from=${fromKey}`} className="btn btn-secondary" style={{ padding: "4px 10px", fontSize: 13 }}>編輯</Link>
+                        <Link href={`/bookings/${b.id}/edit?from=${fromKey}`} className="btn btn-secondary" style={{ padding: "4px 10px", fontSize: 12 }}>編輯</Link>
                       )
                     )}
                   </td>
@@ -219,7 +219,7 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
       {doneTarget && (
         <Modal title={"預定單訂到了"} onClose={() => setDoneTarget(null)} width={400}>
           <div className="erp-card-body">
-            <div style={{ fontSize: 13, color: "var(--gray-600)", marginBottom: 14, lineHeight: 1.8 }}>
+            <div style={{ fontSize: 12, color: "var(--gray-600)", marginBottom: 14, lineHeight: 1.8 }}>
               <div><strong>{doneTarget.customerName || "（未填姓名）"}</strong>　{doneTarget.customerPhone}</div>
               <div>{doneTarget.branch}　{doneTarget.bookingDate}　{doneTarget.timeSlot}　{doneTarget.partySize ? `${doneTarget.partySize} 人` : ""}</div>
               <div>代訂費：{formatCurrency(doneTarget.agencyFee ?? null)}</div>

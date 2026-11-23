@@ -367,16 +367,16 @@ export default function BulkActionsPage() {
         <>
           <div className="erp-card" style={{ marginBottom: 16 }}>
             <div className="erp-card-header"><span className="erp-card-title">格式說明</span></div>
-            <div className="erp-card-body" style={{ fontSize: 13, color: "var(--gray-600)", lineHeight: 1.9 }}>
+            <div className="erp-card-body" style={{ fontSize: 12, color: "var(--gray-600)", lineHeight: 1.9 }}>
               <p><strong>直接貼入含標題列的試算表</strong>（推薦），系統會自動偵測標題列，識別以下欄位（欄位順序不限）：</p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", marginLeft: 12, marginBottom: 8 }}>
-                <div style={{ fontSize: 12 }}>
+                <div style={{ fontSize: 11 }}>
                   <span style={{ color: "var(--gray-400)" }}>比對用：</span>分店、訂位代號、日期、時段、人數、姓名、電話、訂單歸屬
                 </div>
-                <div style={{ fontSize: 12 }}>
+                <div style={{ fontSize: 11 }}>
                   <span style={{ color: "var(--gray-400)" }}>更新用：</span>狀態（售／退／空白）、資料來源（EZTABLE／INLINE）、訂單歸屬、售出日期、收款金額、帳戶、銷售人員、代訂費、餐廳訂金、退訂期限、備註
                 </div>
-                <div style={{ fontSize: 12 }}>
+                <div style={{ fontSize: 11 }}>
                   <span style={{ color: "var(--gray-400)" }}>略過：</span>星期 等其他欄位
                 </div>
               </div>
@@ -400,7 +400,7 @@ export default function BulkActionsPage() {
                 placeholder={"貼入 Excel 複製的資料（含或不含標題列皆可）"}
                 value={tsv}
                 onChange={(e) => setTsv(e.target.value)}
-                style={{ fontFamily: "monospace", fontSize: 13 }}
+                style={{ fontFamily: "monospace", fontSize: 12 }}
               />
               <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
                 <button onClick={handleParse} disabled={parsing || !tsv.trim()} className="btn btn-primary">
@@ -415,7 +415,7 @@ export default function BulkActionsPage() {
       {(phase === "preview" || phase === "done") && (
         <div className="erp-card">
           {detectedCols.length > 0 && (
-            <div style={{ padding: "8px 16px", borderBottom: "1px solid var(--gray-100)", fontSize: 12, color: "var(--gray-500)" }}>
+            <div style={{ padding: "8px 16px", borderBottom: "1px solid var(--gray-100)", fontSize: 11, color: "var(--gray-500)" }}>
               已偵測到標題列，共 {detectedCols.length} 欄
             </div>
           )}
@@ -451,18 +451,18 @@ export default function BulkActionsPage() {
 
                   return (
                     <tr key={r.lineNo} style={{ background: rowBg }}>
-                      <td style={{ color: "var(--gray-400)", fontSize: 12 }}>{r.lineNo}</td>
+                      <td style={{ color: "var(--gray-400)", fontSize: 11 }}>{r.lineNo}</td>
                       <td>
                         {noMatch && (
                           <div>
-                            <span style={{ color: "var(--color-danger)", fontSize: 12 }}>找不到</span>
+                            <span style={{ color: "var(--color-danger)", fontSize: 11 }}>找不到</span>
                             <div style={{ fontSize: 11, color: "var(--gray-400)", marginTop: 2 }}>
                               {r.bookingCode} · {r.branch} · {r.bookingDate} · {r.timeSlot}
                             </div>
                           </div>
                         )}
                         {!noMatch && lr && lr.matches.length > 1 && (
-                          <select className="erp-select" style={{ fontSize: 12, marginBottom: 2 }}
+                          <select className="erp-select" style={{ fontSize: 11, marginBottom: 2 }}
                             value={r.selectedBookingId}
                             onChange={(e) => updateRow(r.lineNo, { selectedBookingId: e.target.value })}>
                             <option value="">— 選擇正確筆 —</option>
@@ -475,7 +475,7 @@ export default function BulkActionsPage() {
                           </select>
                         )}
                         {selectedMatch && (
-                          <div style={{ fontSize: 12, color: "var(--gray-600)" }}>
+                          <div style={{ fontSize: 11, color: "var(--gray-600)" }}>
                             <span className="badge badge-navy" style={{ fontSize: 11, marginRight: 4 }}>{selectedMatch.category}</span>
                             <strong>{selectedMatch.bookingCode}</strong>
                             {" · "}{selectedMatch.branch} · {selectedMatch.bookingDate} · {selectedMatch.timeSlot}
@@ -487,7 +487,7 @@ export default function BulkActionsPage() {
                         )}
                       </td>
                       <td>
-                        <select className="erp-select" style={{ fontSize: 13 }}
+                        <select className="erp-select" style={{ fontSize: 12 }}
                           value={r.vendorId}
                           onChange={(e) => updateRow(r.lineNo, { vendorId: e.target.value })}>
                           <option value="">— 不更新 —</option>
@@ -500,33 +500,33 @@ export default function BulkActionsPage() {
                         )}
                       </td>
                       <td>
-                        <select className="erp-select" style={{ fontSize: 13 }}
+                        <select className="erp-select" style={{ fontSize: 12 }}
                           value={r.status}
                           onChange={(e) => updateRow(r.lineNo, { status: e.target.value as StatusValue })}>
                           {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
                       </td>
                       <td>
-                        <select className="erp-select" style={{ fontSize: 13 }}
+                        <select className="erp-select" style={{ fontSize: 12 }}
                           value={r.platform}
                           onChange={(e) => updateRow(r.lineNo, { platform: e.target.value as PlatformValue })}>
                           {PLATFORM_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
                       </td>
                       <td>
-                        <input type="date" className="erp-input" style={{ fontSize: 13 }}
+                        <input type="date" className="erp-input" style={{ fontSize: 12 }}
                           value={r.soldDate} onChange={(e) => updateRow(r.lineNo, { soldDate: e.target.value })} />
                       </td>
                       <td>
-                        <input type="number" className="erp-input" style={{ fontSize: 13 }} placeholder="0"
+                        <input type="number" className="erp-input" style={{ fontSize: 12 }} placeholder="0"
                           value={r.collectedAmount} onChange={(e) => updateRow(r.lineNo, { collectedAmount: e.target.value })} />
                       </td>
                       <td>
-                        <input className="erp-input" style={{ fontSize: 13 }} placeholder="帳戶"
+                        <input className="erp-input" style={{ fontSize: 12 }} placeholder="帳戶"
                           value={r.account} onChange={(e) => updateRow(r.lineNo, { account: e.target.value })} />
                       </td>
                       <td>
-                        <select className="erp-select" style={{ fontSize: 13 }}
+                        <select className="erp-select" style={{ fontSize: 12 }}
                           value={r.salespersonId}
                           onChange={(e) => updateRow(r.lineNo, { salespersonId: e.target.value })}>
                           <option value="">— 未指定 —</option>
@@ -539,30 +539,30 @@ export default function BulkActionsPage() {
                         )}
                       </td>
                       <td>
-                        <input type="number" className="erp-input" style={{ fontSize: 13 }} placeholder="0"
+                        <input type="number" className="erp-input" style={{ fontSize: 12 }} placeholder="0"
                           value={r.agencyFee} onChange={(e) => updateRow(r.lineNo, { agencyFee: e.target.value })} />
                       </td>
                       <td>
-                        <input type="number" className="erp-input" style={{ fontSize: 13 }} placeholder="0"
+                        <input type="number" className="erp-input" style={{ fontSize: 12 }} placeholder="0"
                           value={r.deposit} onChange={(e) => updateRow(r.lineNo, { deposit: e.target.value })} />
                       </td>
                       <td>
-                        <input type="date" className="erp-input" style={{ fontSize: 13 }}
+                        <input type="date" className="erp-input" style={{ fontSize: 12 }}
                           value={r.cancelDeadline} onChange={(e) => updateRow(r.lineNo, { cancelDeadline: e.target.value })} />
                       </td>
                       <td>
-                        <input className="erp-input" style={{ fontSize: 13 }} placeholder="退訂原因等（選填）"
+                        <input className="erp-input" style={{ fontSize: 12 }} placeholder="退訂原因等（選填）"
                           value={r.note} onChange={(e) => updateRow(r.lineNo, { note: e.target.value })} />
                       </td>
                       <td style={{ textAlign: "center" }}>
                         {r.updateState === "ok" && <span style={{ color: "var(--color-success)", fontWeight: 600 }}>✓</span>}
                         {r.updateState === "error" && (
                           <div>
-                            <span style={{ color: "var(--color-danger)", fontSize: 13, fontWeight: 600 }}>✗</span>
+                            <span style={{ color: "var(--color-danger)", fontSize: 12, fontWeight: 600 }}>✗</span>
                             <div style={{ fontSize: 11, color: "var(--color-danger)", marginTop: 2, maxWidth: 120, wordBreak: "break-word" }}>{r.updateMsg}</div>
                           </div>
                         )}
-                        {r.updateState === "idle" && noMatch && <span style={{ color: "var(--color-danger)", fontSize: 12 }}>✗</span>}
+                        {r.updateState === "idle" && noMatch && <span style={{ color: "var(--color-danger)", fontSize: 11 }}>✗</span>}
                       </td>
                     </tr>
                   );

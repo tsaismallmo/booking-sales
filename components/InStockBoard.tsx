@@ -295,7 +295,7 @@ ${QUOTE_CLOSING}${partyNote}`;
             <option value="6">星期六</option>
           </select>
           <input type="date" className="erp-input" style={{ maxWidth: 160 }} value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} />
-          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--gray-600)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--gray-600)" }}>
             人數≥
             <input type="number" min="0" className="erp-input" placeholder="不限" style={{ width: 80 }} value={partyMin} onChange={(e) => setPartyMin(e.target.value)} />
           </div>
@@ -350,7 +350,7 @@ ${QUOTE_CLOSING}${partyNote}`;
                         {(mergeMap.get(b.id) ?? []).map((siblingId) => {
                           const sibling = bookingsById.get(siblingId);
                           return (
-                            <Link key={siblingId} href={`/bookings/${siblingId}`} className="font-mono" style={{ fontSize: 12, color: "var(--brand-700)" }}>
+                            <Link key={siblingId} href={`/bookings/${siblingId}`} className="font-mono" style={{ fontSize: 11, color: "var(--brand-700)" }}>
                               🔗 {sibling?.bookingCode ?? siblingId.slice(0, 8)}
                               {sibling && ` · ${sibling.bookingDate}`}
                             </Link>
@@ -360,7 +360,7 @@ ${QUOTE_CLOSING}${partyNote}`;
                     )}
                   </td>
                   <td>{b.note ?? "—"}</td>
-                  <td><button onClick={() => handleOpenSale(b)} className="btn btn-primary" style={{ padding: "4px 10px", fontSize: 13 }}>銷售</button></td>
+                  <td><button onClick={() => handleOpenSale(b)} className="btn btn-primary" style={{ padding: "4px 10px", fontSize: 12 }}>銷售</button></td>
                 </tr>
               ))}
               {!loading && filtered.length === 0 && (
@@ -370,7 +370,7 @@ ${QUOTE_CLOSING}${partyNote}`;
           </table>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderTop: "1px solid var(--gray-100)" }}>
-          <span style={{ fontSize: 13, color: "var(--gray-500)" }}>已選 {selected.size} 筆</span>
+          <span style={{ fontSize: 12, color: "var(--gray-500)" }}>已選 {selected.size} 筆</span>
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
             <button onClick={handleOpenRequestModal} disabled={selected.size === 0} className="btn btn-secondary">轉需求</button>
             <button onClick={handleOpenTimeModal} disabled={selected.size === 0} className="btn btn-secondary">報時間</button>
@@ -382,12 +382,12 @@ ${QUOTE_CLOSING}${partyNote}`;
       {showRequestModal && (
         <Modal title={<>轉需求（已選 {selected.size} 筆合併成一組）</>} onClose={() => setShowRequestModal(false)} width={460}>
           <div className="erp-card-body">
-            <div style={{ fontSize: 13, color: "var(--gray-600)", marginBottom: 10 }}>
+            <div style={{ fontSize: 12, color: "var(--gray-600)", marginBottom: 10 }}>
               {selectedBookings.map((b) => (
                 <div key={b.id}>{b.branch}　{b.bookingDate}　{b.timeSlot}　{b.partySize}人</div>
               ))}
             </div>
-            <p style={{ fontSize: 12, color: "var(--gray-400)", marginBottom: 10 }}>
+            <p style={{ fontSize: 11, color: "var(--gray-400)", marginBottom: 10 }}>
               下面填的內容會一次套用到勾選的全部單據上（同一組要改成一樣的）。
             </p>
             <div className="erp-form-grid">
@@ -416,7 +416,7 @@ ${QUOTE_CLOSING}${partyNote}`;
             <textarea className="erp-textarea" readOnly rows={7} value={timeOutput} />
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
               <button onClick={handleCopyTime} className="btn btn-primary">複製</button>
-              <span style={{ fontSize: 13, color: "var(--color-success)" }}>{timeCopyMsg}</span>
+              <span style={{ fontSize: 12, color: "var(--color-success)" }}>{timeCopyMsg}</span>
             </div>
           </div>
         </Modal>
@@ -438,32 +438,32 @@ ${QUOTE_CLOSING}${partyNote}`;
         <Modal title="產生報價文字" onClose={() => setShowQuoteModal(false)} width={480}>
           <div className="erp-card-body">
             <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-              <label style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 4 }}>
+              <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 4 }}>
                 代訂費(平日)
                 <input type="number" min="0" className="erp-input" value={priceSettings.weekdayRate} onChange={(e) => updatePriceSetting("weekdayRate", e.target.value)} />
               </label>
-              <label style={{ fontSize: 13, display: "flex", flexDirection: "column", gap: 4 }}>
+              <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 4 }}>
                 代訂費(假日)
                 <input type="number" min="0" className="erp-input" value={priceSettings.weekendRate} onChange={(e) => updatePriceSetting("weekendRate", e.target.value)} />
               </label>
             </div>
-            <div style={{ fontSize: 13, color: "var(--gray-600)", marginBottom: 10 }}>
+            <div style={{ fontSize: 12, color: "var(--gray-600)", marginBottom: 10 }}>
               {selectedBookings.map((b) => (
                 <div key={b.id}>{b.customerName || "（無姓名）"}　{b.bookingDate}　{b.timeSlot}　{b.partySize}人　{b.branch}</div>
               ))}
             </div>
-            <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
               代訂費單位數
               <input type="number" min="0" className="erp-input" placeholder="請輸入" style={{ width: 100 }} value={quoteUnits} onChange={(e) => setQuoteUnits(e.target.value)} />
             </label>
-            <label style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
               <input type="checkbox" checked={showPartyNote} onChange={(e) => setShowPartyNote(e.target.checked)} />
               加註：原訂位人數變動說明
             </label>
             <textarea className="erp-textarea" readOnly rows={10} value={buildQuoteText()} />
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
               <button onClick={handleCopyQuote} className="btn btn-primary">複製報價文字</button>
-              <span style={{ fontSize: 13, color: "var(--color-success)" }}>{quoteCopyMsg}</span>
+              <span style={{ fontSize: 12, color: "var(--color-success)" }}>{quoteCopyMsg}</span>
             </div>
           </div>
         </Modal>

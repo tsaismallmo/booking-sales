@@ -30,7 +30,7 @@ export function ActingVendorSelect() {
           document.cookie = `act_as_vendor=${e.target.value}; path=/; max-age=31536000; samesite=lax`;
           window.location.reload();
         }}
-        style={{ width: "100%", fontSize: 13, padding: "4px 6px", borderRadius: 6, background: "rgba(255,255,255,.08)", color: "#fff", border: "1px solid rgba(255,255,255,.2)" }}
+        style={{ width: "100%", fontSize: 12, padding: "4px 6px", borderRadius: 6, background: "rgba(255,255,255,.08)", color: "#fff", border: "1px solid rgba(255,255,255,.2)" }}
       >
         {vendors.map((v) => (
           <option key={v.id} value={v.id} style={{ color: "#000" }}>{v.name ?? v.email}</option>

@@ -216,7 +216,7 @@ export default function SoldDashboardPage() {
                 <tr key={b.id}>
                   <td>{b.vendorId ? (vendorMap.get(b.vendorId) ?? "—") : "—"}</td>
                   <td>{b.soldDate ?? "—"}</td>
-                  <td>{b.buyerName || b.buyerPhone ? <>{b.buyerName ?? ""}{b.buyerPhone && <div style={{ fontSize: 12, color: "var(--gray-500)" }}>{b.buyerPhone}</div>}</> : "—"}</td>
+                  <td>{b.buyerName || b.buyerPhone ? <>{b.buyerName ?? ""}{b.buyerPhone && <div style={{ fontSize: 11, color: "var(--gray-500)" }}>{b.buyerPhone}</div>}</> : "—"}</td>
                   <td>{b.branch ?? "—"}</td>
                   <td>{b.bookingDate}</td>
                   <td>{b.timeSlot ?? "—"}</td>
@@ -239,7 +239,7 @@ export default function SoldDashboardPage() {
                               key={siblingId}
                               href={`/bookings/${siblingId}?from=sold`}
                               className="font-mono"
-                              style={{ fontSize: 12, color: "var(--brand-700)" }}
+                              style={{ fontSize: 11, color: "var(--brand-700)" }}
                             >
                               🔗 {sibling?.bookingCode ?? siblingId.slice(0, 8)}
                               {sibling && ` · ${sibling.bookingDate}`}
@@ -257,14 +257,14 @@ export default function SoldDashboardPage() {
                   <td>{formatCurrency(b.agencyFee)}</td>
                   <td>
                     <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <Link href={`/bookings/${b.id}?from=sold`} className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: 13 }}>查看</Link>
+                      <Link href={`/bookings/${b.id}?from=sold`} className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: 12 }}>查看</Link>
                       {canCreateRequest && (
                         pendingIds.has(b.id) ? (
                           <span className="badge badge-warning" style={{ fontSize: 11 }}>需求處理中</span>
                         ) : (
                           <button
                             className="btn btn-secondary"
-                            style={{ padding: "4px 10px", fontSize: 13 }}
+                            style={{ padding: "4px 10px", fontSize: 12 }}
                             onClick={() => { setRequestBooking(b); setRequestForm({ note: "", proposedPartySize: "" }); }}
                           >
                             轉需求
@@ -286,7 +286,7 @@ export default function SoldDashboardPage() {
       {requestBooking && (
         <Modal title="轉需求" onClose={() => setRequestBooking(null)} width={420}>
           <div className="erp-card-body">
-            <div style={{ fontSize: 12, color: "var(--gray-500)", marginBottom: 14 }}>
+            <div style={{ fontSize: 11, color: "var(--gray-500)", marginBottom: 14 }}>
               {requestBooking.bookingCode ?? "—"} · {requestBooking.branch ?? "—"} · {requestBooking.bookingDate} · {requestBooking.customerName ?? "—"}
             </div>
             <div className="erp-form-grid">

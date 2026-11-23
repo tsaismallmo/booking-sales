@@ -85,7 +85,7 @@ export default function DepositBoardPage() {
       <div className="erp-card">
         <div className="erp-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span className="erp-card-title">共 {filteredBookings.length} 筆</span>
-          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--brand-700)" }}>訂金總額　{formatCurrency(total)}</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--brand-700)" }}>訂金總額　{formatCurrency(total)}</span>
         </div>
         <div className="erp-table-wrap">
           <table className="erp-table">

@@ -80,7 +80,7 @@ export function BranchSelect({
         {branchesOfRestaurant.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
       </select>
       {!current && branch && (
-        <span style={{ fontSize: 12, color: "var(--color-warning)", alignSelf: "center", whiteSpace: "nowrap" }}>原本：{branch}</span>
+        <span style={{ fontSize: 11, color: "var(--color-warning)", alignSelf: "center", whiteSpace: "nowrap" }}>原本：{branch}</span>
       )}
     </div>
   );

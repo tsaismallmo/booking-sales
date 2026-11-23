@@ -65,7 +65,7 @@ export default function BookedByMePage() {
 
       {!loading && !bookerName && (
         <div className="erp-card" style={{ marginBottom: 16 }}>
-          <div className="erp-card-body" style={{ padding: "12px 16px", color: "var(--color-danger)", fontSize: 13 }}>
+          <div className="erp-card-body" style={{ padding: "12px 16px", color: "var(--color-danger)", fontSize: 12 }}>
             你的帳號還沒有設定姓名，系統是用帳號姓名比對單據上的「實際訂位人員」，請管理員到帳號管理幫你填上姓名。
           </div>
         </div>
@@ -127,7 +127,7 @@ export default function BookedByMePage() {
                   <td>{formatCurrency(b.depositAmount)}</td>
                   <td>{formatCurrency(b.collectedAmount)}</td>
                   <td>
-                    <Link href={`/bookings/${b.id}`} className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: 13 }}>查看</Link>
+                    <Link href={`/bookings/${b.id}`} className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: 12 }}>查看</Link>
                   </td>
                 </tr>
               ))}

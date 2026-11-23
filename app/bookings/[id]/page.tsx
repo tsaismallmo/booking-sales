@@ -281,9 +281,9 @@ export default function BookingDetailPage() {
               <div key={log.id} style={{ border: "1px solid var(--gray-200)", borderRadius: "var(--radius-md)", padding: 12 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                   <span className="badge badge-navy">{smsTypeLabel[log.type]}</span>
-                  <span style={{ fontSize: 12, color: "var(--gray-400)" }}>{new Date(log.createdAt).toLocaleString("zh-TW")}</span>
+                  <span style={{ fontSize: 11, color: "var(--gray-400)" }}>{new Date(log.createdAt).toLocaleString("zh-TW")}</span>
                 </div>
-                <div style={{ fontSize: 13, color: "var(--gray-700)", whiteSpace: "pre-wrap" }}>{log.rawText}</div>
+                <div style={{ fontSize: 12, color: "var(--gray-700)", whiteSpace: "pre-wrap" }}>{log.rawText}</div>
               </div>
             ))}
           </div>

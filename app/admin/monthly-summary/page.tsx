@@ -78,7 +78,7 @@ export default function MonthlySummaryPage() {
               </tbody>
             </table>
           </div>
-          <div style={{ padding: "10px 16px", fontSize: 12, color: "var(--gray-500)", borderTop: "1px solid var(--gray-100)" }}>
+          <div style={{ padding: "10px 16px", fontSize: 11, color: "var(--gray-500)", borderTop: "1px solid var(--gray-100)" }}>
             代訂費總額 = 廠商分潤 + 平台費（含客服分潤）；平台費（含客服分潤） = 平台淨收 + 客服分潤
           </div>
         </div>

@@ -196,7 +196,7 @@ function InlineTab() {
             <option value="">全部分店</option>
             {branches.map((b) => <option key={b} value={b}>{b}</option>)}
           </select>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
             上限
             <input type="number" min={1} className="erp-input" style={{ width: 60, padding: "4px 6px" }}
               value={limit} onChange={(e) => setLimit(Math.max(1, Number(e.target.value) || 1))} />
@@ -209,9 +209,9 @@ function InlineTab() {
       <div className="erp-card">
         <div className="erp-card-body" style={{ padding: "10px 16px" }}>
           <CollapseSection title={`名單（${rosterLists.filter((l) => !excludedListIds.has(l.id)).length}/${rosterLists.length} 個名單）`}>
-            {rosterLists.length === 0 && <div style={{ fontSize: 12, color: "var(--gray-400)" }}>廠商名單目前是空的</div>}
+            {rosterLists.length === 0 && <div style={{ fontSize: 11, color: "var(--gray-400)" }}>廠商名單目前是空的</div>}
             {rosterLists.map((l) => (
-              <label key={l.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, padding: "3px 0" }}>
+              <label key={l.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, padding: "3px 0" }}>
                 <input type="checkbox" checked={!excludedListIds.has(l.id)} onChange={() => toggleListIncluded(l.id)} />
                 {l.name}（{l.entryCount} 位）
               </label>
@@ -223,17 +223,17 @@ function InlineTab() {
       {/* Available / excluded */}
       <div className="erp-card">
         <div className="erp-card-body" style={{ padding: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--gray-500)", marginBottom: 8 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--gray-500)", marginBottom: 8 }}>
             可訂位（{available.length} 位）
           </div>
           {available.length === 0
-            ? <div style={{ fontSize: 13, color: "var(--gray-400)", marginBottom: 16 }}>名單中所有客人皆已達上限</div>
+            ? <div style={{ fontSize: 12, color: "var(--gray-400)", marginBottom: 16 }}>名單中所有客人皆已達上限</div>
             : (
               <div className="erp-person-grid" style={{ marginBottom: 16 }}>
                 {available.map((p) => (
                   <div key={p.id} className="erp-person-card avail">
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--gray-800)" }}>{p.name || "（無姓名）"}</div>
-                    <div style={{ fontSize: 12, color: "var(--gray-500)" }}>{p.phone ?? "—"}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--gray-800)" }}>{p.name || "（無姓名）"}</div>
+                    <div style={{ fontSize: 11, color: "var(--gray-500)" }}>{p.phone ?? "—"}</div>
                     {p.futureCount > 0 && (
                       <div style={{ fontSize: 11, color: "var(--accent-500)", marginTop: 3 }}>
                         共 {p.futureCount} 筆　當月 {p.monthCount} 筆
@@ -245,7 +245,7 @@ function InlineTab() {
             )
           }
           <CollapseSection title={`不可訂位（${excluded.length} 位）— 點選展開`}>
-            {excluded.length === 0 && <div style={{ fontSize: 12, color: "var(--gray-400)" }}>目前沒有達到上限的名單成員</div>}
+            {excluded.length === 0 && <div style={{ fontSize: 11, color: "var(--gray-400)" }}>目前沒有達到上限的名單成員</div>}
             {excluded.map((p) => {
               const dates = p.futureBookings
                 .sort((a, b) => a.bookingDate.localeCompare(b.bookingDate))
@@ -406,9 +406,9 @@ function EztableTab() {
       <div className="erp-card">
         <div className="erp-card-body" style={{ padding: "10px 16px" }}>
           <CollapseSection title={`名單（${rosterLists.filter((l) => !excludedListIds.has(l.id)).length}/${rosterLists.length} 個名單）`}>
-            {rosterLists.length === 0 && <div style={{ fontSize: 12, color: "var(--gray-400)" }}>廠商名單目前是空的</div>}
+            {rosterLists.length === 0 && <div style={{ fontSize: 11, color: "var(--gray-400)" }}>廠商名單目前是空的</div>}
             {rosterLists.map((l) => (
-              <label key={l.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, padding: "3px 0" }}>
+              <label key={l.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, padding: "3px 0" }}>
                 <input type="checkbox" checked={!excludedListIds.has(l.id)} onChange={() => toggleListIncluded(l.id)} />
                 {l.name}（{l.entryCount} 位）
               </label>
@@ -419,17 +419,17 @@ function EztableTab() {
 
       <div className="erp-card">
         <div className="erp-card-body" style={{ padding: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--gray-500)", marginBottom: 8 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--gray-500)", marginBottom: 8 }}>
             可訂位（{available.length} 位）
           </div>
           {available.length === 0
-            ? <div style={{ fontSize: 13, color: "var(--gray-400)", marginBottom: 16 }}>名單中所有客人本月都已訂過</div>
+            ? <div style={{ fontSize: 12, color: "var(--gray-400)", marginBottom: 16 }}>名單中所有客人本月都已訂過</div>
             : (
               <div className="erp-person-grid" style={{ marginBottom: 16 }}>
                 {available.map((p) => (
                   <div key={p.id} className="erp-person-card avail">
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--gray-800)" }}>{p.name || "（無姓名）"}</div>
-                    <div style={{ fontSize: 12, color: "var(--gray-500)" }}>{p.phone ?? "—"}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--gray-800)" }}>{p.name || "（無姓名）"}</div>
+                    <div style={{ fontSize: 11, color: "var(--gray-500)" }}>{p.phone ?? "—"}</div>
                     {p.months.map((m) => (
                       <div key={m.label} style={{ fontSize: 11, color: "var(--gray-600)", marginTop: 2 }}>
                         {m.label}可訂：{
@@ -448,7 +448,7 @@ function EztableTab() {
             )
           }
           <CollapseSection title={`不可訂位（${excluded.length} 位）— 點選展開`}>
-            {excluded.length === 0 && <div style={{ fontSize: 12, color: "var(--gray-400)" }}>本月沒有已訂滿的名單成員</div>}
+            {excluded.length === 0 && <div style={{ fontSize: 11, color: "var(--gray-400)" }}>本月沒有已訂滿的名單成員</div>}
             {excluded.map((p) => (
               <div key={p.id} className="erp-excl-item">
                 <div>
@@ -619,18 +619,18 @@ function CalendarTab() {
       <div className="erp-card" style={{ width: 340, flexShrink: 0 }}>
         <div className="erp-card-body" style={{ padding: 14 }}>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
-            <select className="erp-select" style={{ maxWidth: 130, fontSize: 12 }} value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)}>
+            <select className="erp-select" style={{ maxWidth: 130, fontSize: 11 }} value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)}>
               <option value="">全部分店</option>
               {branches.map((b) => <option key={b} value={b}>{b}</option>)}
             </select>
-            <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--gray-500)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--gray-500)" }}>
               排除前後
               <input type="number" min={0} max={60} className="erp-input" style={{ width: 50, padding: "4px 6px" }} value={exclDays} onChange={(e) => setExclDays(Math.max(0, Number(e.target.value) || 0))} />
               天
             </div>
             <div style={{ display: "flex", gap: 3 }}>
               {[3, 7].map((n) => (
-                <button key={n} className="btn btn-ghost" style={{ padding: "3px 8px", fontSize: 12, ...(exclDays === n ? { background: "var(--brand-700)", color: "#fff" } : {}) }} onClick={() => setExclDays(n)}>
+                <button key={n} className="btn btn-ghost" style={{ padding: "3px 8px", fontSize: 11, ...(exclDays === n ? { background: "var(--brand-700)", color: "#fff" } : {}) }} onClick={() => setExclDays(n)}>
                   ±{n}天
                 </button>
               ))}
@@ -639,11 +639,11 @@ function CalendarTab() {
 
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
             <button className="btn btn-secondary" style={{ padding: "3px 9px" }} onClick={goPrevMonth}>‹</button>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--gray-700)", minWidth: 80, textAlign: "center" }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--gray-700)", minWidth: 80, textAlign: "center" }}>
               {viewYear} 年 {viewMonth} 月
             </span>
             <button className="btn btn-secondary" style={{ padding: "3px 9px" }} onClick={goNextMonth}>›</button>
-            <button className="btn btn-ghost" style={{ padding: "3px 9px", fontSize: 12 }} onClick={goToday}>今天</button>
+            <button className="btn btn-ghost" style={{ padding: "3px 9px", fontSize: 11 }} onClick={goToday}>今天</button>
             {loadingMonth && <span style={{ fontSize: 11, color: "var(--gray-400)" }}>載入中...</span>}
           </div>
 
@@ -684,9 +684,9 @@ function CalendarTab() {
         <div className="erp-card">
           <div className="erp-card-body" style={{ padding: "10px 16px" }}>
             <CollapseSection title={`月曆顯示名單（${rosterLists.filter((l) => !excludedListIds.has(l.id)).length}/${rosterLists.length} 個名單）`}>
-              {rosterLists.length === 0 && <div style={{ fontSize: 12, color: "var(--gray-400)" }}>廠商名單目前是空的</div>}
+              {rosterLists.length === 0 && <div style={{ fontSize: 11, color: "var(--gray-400)" }}>廠商名單目前是空的</div>}
               {rosterLists.map((l) => (
-                <label key={l.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, padding: "3px 0" }}>
+                <label key={l.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, padding: "3px 0" }}>
                   <input type="checkbox" checked={!excludedListIds.has(l.id)} onChange={() => toggleListIncluded(l.id)} />
                   {l.name}（{l.entryCount} 位）
                 </label>
@@ -694,21 +694,21 @@ function CalendarTab() {
             </CollapseSection>
 
             <CollapseSection title={`當天需求（${selectedDate ? dayDemands.length : 0} 筆）`}>
-              {!selectedDate && <div style={{ fontSize: 12, color: "var(--gray-400)" }}>請先選日期</div>}
-              {selectedDate && dayDemands.length === 0 && <div style={{ fontSize: 12, color: "var(--gray-400)" }}>這天沒有待處理的需求</div>}
+              {!selectedDate && <div style={{ fontSize: 11, color: "var(--gray-400)" }}>請先選日期</div>}
+              {selectedDate && dayDemands.length === 0 && <div style={{ fontSize: 11, color: "var(--gray-400)" }}>這天沒有待處理的需求</div>}
               {dayDemands.map((b) => (
-                <div key={b.id} style={{ fontSize: 12, padding: "3px 0" }}>
+                <div key={b.id} style={{ fontSize: 11, padding: "3px 0" }}>
                   {b.timeSlot ?? "—"}　{b.customerName ?? "（無姓名）"}　{b.partySize ?? "—"}人　{b.branch ?? "—"}
                 </div>
               ))}
             </CollapseSection>
 
             <CollapseSection title={`當天訂位明細（不限名單）（${selectedDate ? dayBookings.length : 0} 筆）`}>
-              {!selectedDate && <div style={{ fontSize: 12, color: "var(--gray-400)" }}>請先選日期</div>}
-              {selectedDate && dayBookings.length === 0 && <div style={{ fontSize: 12, color: "var(--gray-400)" }}>這天沒有我的訂位</div>}
+              {!selectedDate && <div style={{ fontSize: 11, color: "var(--gray-400)" }}>請先選日期</div>}
+              {selectedDate && dayBookings.length === 0 && <div style={{ fontSize: 11, color: "var(--gray-400)" }}>這天沒有我的訂位</div>}
               {dayBookings.length > 0 && (
                 <div className="erp-table-wrap">
-                  <table className="erp-table" style={{ fontSize: 12 }}>
+                  <table className="erp-table" style={{ fontSize: 11 }}>
                     <thead>
                       <tr>
                         <th>時段</th><th>人數</th><th>訂位代號</th><th>姓名</th><th>電話</th><th>訂金</th><th>分店</th><th>備註</th>
@@ -743,10 +743,10 @@ function CalendarTab() {
             {selectedDate && (
               <>
                 <div style={{ borderBottom: "1px solid var(--gray-100)", paddingBottom: 10, marginBottom: 14 }}>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: "var(--gray-800)", marginBottom: 4 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "var(--gray-800)", marginBottom: 4 }}>
                     {dateLabel(selectedDate)} 可訂位名單
                   </div>
-                  <div style={{ fontSize: 12, color: "var(--gray-500)" }}>
+                  <div style={{ fontSize: 11, color: "var(--gray-500)" }}>
                     排除規則：前後 {exclDays} 天{branchFilter ? `　分店：${branchFilter}` : ""}
                     　可訂位 <strong style={{ color: "var(--accent-500)" }}>{available.length}</strong> 位
                     ／受限 <strong style={{ color: "var(--color-danger)" }}>{excluded.length}</strong> 位
@@ -754,11 +754,11 @@ function CalendarTab() {
                   </div>
                 </div>
 
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--gray-500)", marginBottom: 8 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--gray-500)", marginBottom: 8 }}>
                   可訂位（{available.length} 位）
                 </div>
                 {available.length === 0 ? (
-                  <div style={{ fontSize: 13, color: "var(--gray-400)", marginBottom: 16 }}>名單中所有客人在此期間均受限</div>
+                  <div style={{ fontSize: 12, color: "var(--gray-400)", marginBottom: 16 }}>名單中所有客人在此期間均受限</div>
                 ) : (
                   <div className="erp-person-grid" style={{ marginBottom: 16 }}>
                     {available.map((p) => {
@@ -770,8 +770,8 @@ function CalendarTab() {
                           style={{ cursor: p.totalCount > 0 ? "pointer" : "default" }}
                           onClick={() => p.totalCount > 0 && setExpandedPersonId(isExpanded ? null : p.id)}
                         >
-                          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--gray-800)" }}>{p.name || "（無姓名）"}</div>
-                          <div style={{ fontSize: 12, color: "var(--gray-500)" }}>{p.phone ?? "—"}</div>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--gray-800)" }}>{p.name || "（無姓名）"}</div>
+                          <div style={{ fontSize: 11, color: "var(--gray-500)" }}>{p.phone ?? "—"}</div>
                           {p.totalCount > 0 && (
                             <div style={{ fontSize: 11, color: "#4a7fa5", marginTop: 3 }}>
                               共 {p.totalCount} 筆　當月 {p.monthCount} 筆
@@ -793,7 +793,7 @@ function CalendarTab() {
                 )}
 
                 <CollapseSection title={`受限名單（${excluded.length} 位）`}>
-                  {excluded.length === 0 && <div style={{ fontSize: 12, color: "var(--gray-400)" }}>沒有受限的名單成員</div>}
+                  {excluded.length === 0 && <div style={{ fontSize: 11, color: "var(--gray-400)" }}>沒有受限的名單成員</div>}
                   {excluded.map((p) => (
                     <div key={p.id} className="erp-excl-item">
                       <div>

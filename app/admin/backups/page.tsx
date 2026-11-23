@@ -132,7 +132,7 @@ export default function AdminBackupsPage() {
                       onClick={() => handleRestore(b)}
                       disabled={restoringId === b.id}
                       className="btn btn-secondary"
-                      style={{ padding: "5px 10px", fontSize: 13 }}
+                      style={{ padding: "5px 10px", fontSize: 12 }}
                     >
                       {restoringId === b.id ? "還原中..." : "還原"}
                     </button>
@@ -140,7 +140,7 @@ export default function AdminBackupsPage() {
                       onClick={() => handleDelete(b)}
                       disabled={deletingId === b.id}
                       className="btn btn-ghost"
-                      style={{ padding: "5px 10px", fontSize: 13, color: "var(--color-danger)" }}
+                      style={{ padding: "5px 10px", fontSize: 12, color: "var(--color-danger)" }}
                     >
                       刪除
                     </button>

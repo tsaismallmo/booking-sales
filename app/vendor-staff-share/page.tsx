@@ -157,7 +157,7 @@ export default function VendorStaffSharePage() {
         <div className="erp-card">
           <div className="erp-card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span className="erp-card-title">{monthLabel}　已售 {report.bookings.length} 筆</span>
-            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--brand-700)" }}>廠商利潤總額　{formatCurrency(report.totals.vendorProfit)}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--brand-700)" }}>廠商利潤總額　{formatCurrency(report.totals.vendorProfit)}</span>
           </div>
           <div className="erp-table-wrap">
             <table className="erp-table">
@@ -241,7 +241,7 @@ export default function VendorStaffSharePage() {
       {!loading && report && personShares.length > 0 && (
         <div className="erp-card" style={{ marginTop: 16 }}>
           <div className="erp-card-header"><span className="erp-card-title">{monthLabel}　分潤總表（依人員）</span></div>
-          <p style={{ padding: "0 16px", margin: "8px 0 0", fontSize: 12, color: "var(--gray-400)" }}>
+          <p style={{ padding: "0 16px", margin: "8px 0 0", fontSize: 11, color: "var(--gray-400)" }}>
             電話歸屬跟實際訂位人員如果剛好是同一個名字，會自動合併成這個人的總分潤
           </p>
           <div className="erp-table-wrap">

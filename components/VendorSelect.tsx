@@ -46,7 +46,7 @@ export function VendorSelect({ value, onChange, required = true }: { value: stri
         ))}
       </select>
       {vendors.length === 0 && (
-        <p style={{ fontSize: 12, color: "var(--color-danger)", marginTop: 4 }}>
+        <p style={{ fontSize: 11, color: "var(--color-danger)", marginTop: 4 }}>
           目前還沒有廠商帳號，請先到「帳號管理」新增一個有廠商角色的帳號。
         </p>
       )}
