@@ -163,19 +163,24 @@ function NewBookingForm() {
                 </div>
               </>
             )}
-            <div className="erp-form-group">
-              <label className="erp-label">訂位代號</label>
-              <input className="erp-input" value={form.bookingCode} onChange={set("bookingCode")} />
-            </div>
-            <div className="erp-form-group">
-              <label className="erp-label">退訂期限</label>
-              <input type="date" className="erp-input" value={form.cancelDeadline} onChange={set("cancelDeadline")} />
-              <span style={{ fontSize: 12, color: "var(--gray-400)" }}>留空會照餐廳設定自動算（例如島語訂位日前 3 天）</span>
-            </div>
-            <div className="erp-form-group">
-              <label className="erp-label">付款期限</label>
-              <input type="date" className="erp-input" value={form.paymentDeadline} onChange={set("paymentDeadline")} />
-            </div>
+            {/* 預定單是客服剛跟客人談好、還沒訂到，訂位代號/退訂期限/付款期限要等訂到才有，新增時不用填 */}
+            {!isReserved && (
+              <>
+              <div className="erp-form-group">
+                <label className="erp-label">訂位代號</label>
+                <input className="erp-input" value={form.bookingCode} onChange={set("bookingCode")} />
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">退訂期限</label>
+                <input type="date" className="erp-input" value={form.cancelDeadline} onChange={set("cancelDeadline")} />
+                <span style={{ fontSize: 12, color: "var(--gray-400)" }}>留空會照餐廳設定自動算（例如島語訂位日前 3 天）</span>
+              </div>
+              <div className="erp-form-group">
+                <label className="erp-label">付款期限</label>
+                <input type="date" className="erp-input" value={form.paymentDeadline} onChange={set("paymentDeadline")} />
+              </div>
+              </>
+            )}
             <div className="erp-form-group">
               <label className="erp-label">實際訂位人員</label>
               <StaffOptionSelect value={form.actualBooker ?? ""} onChange={(v) => setForm((f) => ({ ...f, actualBooker: v }))} />
