@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { currentMonthStr as defaultMonth, monthRange } from "@/lib/dates";
 
 type SalesChannel = { id: string; name: string; baseRate: number; isDefault: boolean };
 
@@ -20,23 +21,6 @@ type CsStaffShare = { salespersonId: string; name: string; bookingCount: number 
 type CsSummaryReport = { mode: "summary"; staff: CsStaffShare[]; totals: { count: number } };
 type CsDetailReport = { mode: "detail" };
 type CsReport = CsSummaryReport | CsDetailReport;
-
-function pad2(n: number) {
-  return String(n).padStart(2, "0");
-}
-
-function defaultMonth() {
-  const now = new Date();
-  return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`;
-}
-
-function monthRange(monthStr: string) {
-  const [y, m] = monthStr.split("-").map(Number);
-  const from = `${y}-${pad2(m)}-01`;
-  const lastDay = new Date(y, m, 0).getDate();
-  const to = `${y}-${pad2(m)}-${pad2(lastDay)}`;
-  return { from, to };
-}
 
 // 漲幅：上月是 0 的話顯示「新增」而不是無限大的百分比
 function growthLabel(prev: number, curr: number): { text: string; color: string } {

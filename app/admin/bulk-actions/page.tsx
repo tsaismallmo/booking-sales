@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { normalizeDate } from "@/lib/dates";
 
 type Account = { id: string; name: string | null; email: string; roles: string[] };
 
@@ -595,22 +596,8 @@ export default function BulkActionsPage() {
   );
 }
 
-function normaliseDate(s: string): string {
-  if (!s) return "";
-  // 去掉星期後綴：「4/5 週日」→「4/5」、「4月5日 星期一」→「4月5日」
-  s = s.replace(/\s*[週周星期].?\s*$/, "").trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-  // YYYY/M/D or YYYY/MM/DD
-  const ymd = s.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
-  if (ymd) return `${ymd[1]}-${ymd[2].padStart(2, "0")}-${ymd[3].padStart(2, "0")}`;
-  // M/D
-  const md = s.match(/^(\d{1,2})\/(\d{1,2})$/);
-  if (md) return `2026-${md[1].padStart(2, "0")}-${md[2].padStart(2, "0")}`;
-  // X月Y日
-  const chi = s.match(/(\d{1,2})月(\d{1,2})日/);
-  if (chi) return `2026-${chi[1].padStart(2, "0")}-${chi[2].padStart(2, "0")}`;
-  return s;
-}
+// 看不懂的日期保留原文，讓使用者在表格裡看到、自己改
+const normaliseDate = (s: string) => normalizeDate(s) || s;
 
 // 去掉千分位逗號，讓 "6,200" → "6200"（PostgreSQL numeric 不接受逗號）
 function stripCommas(s: string): string {

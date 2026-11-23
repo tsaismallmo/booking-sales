@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { getMealPeriod } from "@/lib/quote";
+import { todayStr, ymd } from "@/lib/dates";
 
 // 預定單月曆：跟需求看板的月曆一樣，每一天列出 餐廳分店 → 餐期 → 幾組、各幾人。
 // 一張預定單的每個候選（第 1 順位＝單據本身，加上 altDates）都會算在各自的日期上。
@@ -19,8 +20,6 @@ export type CalendarOption = { date: string; branch: string | null; timeSlot: st
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 const MEAL_ORDER = ["午餐", "下午茶", "晚餐", "時段不限"];
-const pad = (n: number) => String(n).padStart(2, "0");
-const ymd = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
 
 export function optionsOf(b: CalendarBooking): CalendarOption[] {
   const main = { date: b.bookingDate, branch: b.branch, timeSlot: b.timeSlot, partySize: b.partySize };
@@ -96,7 +95,7 @@ export function ReservedCalendar({
   }, [byDate]);
 
   const t = new Date();
-  const today = ymd(t.getFullYear(), t.getMonth(), t.getDate());
+  const today = todayStr();
   const firstWeekday = new Date(Date.UTC(month.y, month.m, 1)).getUTCDay();
   const daysInMonth = new Date(Date.UTC(month.y, month.m + 1, 0)).getUTCDate();
   const cells: (string | null)[] = [

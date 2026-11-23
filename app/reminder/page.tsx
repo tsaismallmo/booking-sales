@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { todayStr as today, toYmd } from "@/lib/dates";
 
 type Booking = {
   id: string;
@@ -30,11 +31,6 @@ const statusBadge: Record<Booking["status"], string> = {
   sold: "badge badge-green",
   refunded: "badge badge-red",
 };
-
-function today() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 export default function ReminderPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -114,7 +110,7 @@ export default function ReminderPage() {
                 const isSoon = deadline && deadline > todayStr && deadline <= (() => {
                   const d = new Date();
                   d.setDate(d.getDate() + 3);
-                  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+                  return toYmd(d);
                 })();
 
                 return (

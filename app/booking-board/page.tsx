@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { WEEKDAYS, parseDateOnly, dateLabel } from "@/lib/quote";
 import { fetchCached } from "@/lib/offline-cache";
+import { pad2, todayStr } from "@/lib/dates";
 
 // 斷網時如果有用到上次的快取資料，用這個提示；savedAt 是那份快取資料抓下來的時間
 function OfflineBanner({ savedAt }: { savedAt: number | null }) {
@@ -67,15 +68,6 @@ type DemandBooking = {
   partySize: number | null;
   customerName: string | null;
 };
-
-function pad2(n: number) {
-  return String(n).padStart(2, "0");
-}
-
-function todayStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-}
 
 // b 的日期減 target 的日期，正數代表 b 在 target 之後
 function daysBetween(bDate: string, targetDate: string) {

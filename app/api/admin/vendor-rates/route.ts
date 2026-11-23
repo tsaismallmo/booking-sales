@@ -4,25 +4,9 @@ import { db } from '@/lib/db'
 import { users, vendorPlatformRates, bookings } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
 import { channelOf, DEFAULT_COEFFICIENT, listSalesChannels } from '@/lib/platform-settings'
-
-function pad2(n: number) {
-  return String(n).padStart(2, '0')
-}
+import { pad2, currentMonthStr as defaultMonth, monthRange } from '@/lib/dates'
 
 // 預設抓「這個月」（要設定費率的月份），已售筆數的參考月份會再往前推一個月
-function defaultMonth() {
-  const now = new Date()
-  return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`
-}
-
-function monthRange(monthStr: string) {
-  const [y, m] = monthStr.split('-').map(Number)
-  const from = `${y}-${pad2(m)}-01`
-  const lastDay = new Date(y, m, 0).getDate()
-  const to = `${y}-${pad2(m)}-${pad2(lastDay)}`
-  return { from, to }
-}
-
 // 選定月份的前一個月：設定某個月的費率時，參考的是「前一個月」已經確定的銷售量，
 // 不是選定月份自己的（選定月份可能都還沒過完）
 function prevMonth(monthStr: string) {

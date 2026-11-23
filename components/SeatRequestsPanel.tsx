@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BranchSelect } from "@/components/BranchSelect";
 import { getMealPeriod } from "@/lib/quote";
+import { todayStr, ymd } from "@/lib/dates";
 
 type StockMatch = { id: string; branch: string | null; bookingDate: string; timeSlot: string | null; partySize: number | null; bookingCode: string | null };
 
@@ -65,12 +66,6 @@ let rowKey = 0;
 const newRow = (from?: OptionRow): OptionRow => ({ key: ++rowKey, branchId: from?.branchId ?? "", branch: from?.branch ?? "", bookingDate: "", timeSlot: from?.timeSlot ?? "", partySize: from?.partySize ?? "" });
 const emptyCustomer = { customerName: "", customerPhone: "", note: "" };
 
-const pad = (n: number) => String(n).padStart(2, "0");
-const ymd = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
-function todayStr() {
-  const t = new Date();
-  return ymd(t.getFullYear(), t.getMonth(), t.getDate());
-}
 function weekdayOf(date: string) {
   const [y, m, d] = date.split("-").map(Number);
   return WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];

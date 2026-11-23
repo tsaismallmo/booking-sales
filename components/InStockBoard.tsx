@@ -15,6 +15,7 @@ import {
   savePriceSettings,
   type PriceSettings,
 } from "@/lib/quote";
+import { todayStr } from "@/lib/dates";
 
 type Booking = {
   id: string;
@@ -276,10 +277,8 @@ ${QUOTE_CLOSING}${partyNote}`;
 
   const handleOpenSale = (b: Booking) => {
     setSaleTarget(b);
-    const today = new Date();
-    const pad = (n: number) => String(n).padStart(2, "0");
     setSaleForm({
-      soldDate: `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`,
+      soldDate: todayStr(),
       collectedAmount: "",
       account: "",
       agencyFee: "",

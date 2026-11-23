@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { formatCurrency } from "@/lib/utils";
 import { WEEKDAYS, parseDateOnly } from "@/lib/quote";
+import { currentMonthStr, monthRange } from "@/lib/dates";
 
 type Staff = { id: string; name: string | null; email: string; roles: string[] };
 
@@ -28,23 +29,6 @@ type SummaryReport = {
   staff: { salespersonId: string; name: string; bookingCount: number; csShare: number }[];
   totals: { csShare: number; count: number };
 };
-
-function pad2(n: number) {
-  return String(n).padStart(2, "0");
-}
-
-function monthRange(monthStr: string) {
-  const [y, m] = monthStr.split("-").map(Number);
-  const from = `${y}-${pad2(m)}-01`;
-  const lastDay = new Date(y, m, 0).getDate();
-  const to = `${y}-${pad2(m)}-${pad2(lastDay)}`;
-  return { from, to };
-}
-
-function currentMonthStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
-}
 
 export default function CsSharePage() {
   const [isAdmin, setIsAdmin] = useState(false);

@@ -5,18 +5,7 @@ import { bookings } from '@/lib/db/schema'
 import { requireRole } from '@/lib/auth-guard'
 import { computeShare } from '@/lib/platform-share'
 import { getCsShareRate, loadShareRateContext, platformRateFor } from '@/lib/platform-settings'
-
-function pad2(n: number) {
-  return String(n).padStart(2, '0')
-}
-
-function monthRange(monthStr: string) {
-  const [y, m] = monthStr.split('-').map(Number)
-  const from = `${y}-${pad2(m)}-01`
-  const lastDay = new Date(y, m, 0).getDate()
-  const to = `${y}-${pad2(m)}-${pad2(lastDay)}`
-  return { from, to }
-}
+import { pad2, monthRange } from '@/lib/dates'
 
 // 往前推 n 個月（0 = 當月）
 function monthBack(n: number) {

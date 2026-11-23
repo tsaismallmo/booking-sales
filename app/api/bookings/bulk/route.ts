@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { bookings, salesChannels, users } from '@/lib/db/schema'
 import { auth } from '@/auth'
 import { defaultCancelDeadline, listBranchOptions, resolveBranch } from '@/lib/branches'
+import { normalizeDate } from '@/lib/dates'
 
 type ImportRow = {
   vendorName: string
@@ -25,22 +26,6 @@ type ImportRow = {
   salespersonName: string
   agencyFee: string
   salesChannelId?: string | null // 銷售平台 id（前端已經照名稱對好），一定要是設定裡有的平台
-}
-
-function normalizeDate(raw: string): string {
-  if (!raw) return ''
-  // 去掉星期標注（週一～週日）及多餘空白
-  const s = raw.trim().replace(/週[一二三四五六日]/g, '').trim()
-  // YYYY/M/D 或 YYYY-M-D
-  const full = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/)
-  if (full) return `${full[1]}-${full[2].padStart(2, '0')}-${full[3].padStart(2, '0')}`
-  // M/D（無年份，補 2026）
-  const short = s.match(/^(\d{1,2})[\/\-](\d{1,2})$/)
-  if (short) return `2026-${short[1].padStart(2, '0')}-${short[2].padStart(2, '0')}`
-  // 4月23日（中文格式，補 2026）
-  const chinese = s.match(/^(\d{1,2})月(\d{1,2})日$/)
-  if (chinese) return `2026-${chinese[1].padStart(2, '0')}-${chinese[2].padStart(2, '0')}`
-  return ''
 }
 
 // 只接受純數字（含小數），其餘視為無效

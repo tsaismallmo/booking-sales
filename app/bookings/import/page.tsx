@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSalesChannels, type SalesChannel } from "@/components/SalesChannelSelect";
+import { normalizeDate as normalizeDateStr } from "@/lib/dates";
 
 type StatusValue = "unsold" | "sold" | "refunded";
 type PlatformValue = "" | "eztable" | "inline";
@@ -127,18 +128,8 @@ function normalisePlatform(colIdx: number, cell: string): PlatformValue {
   return "";
 }
 
-// 日期正規化，支援：2026/4/5、4/5、4/5 週三、4月5日 → 2026-04-05
-function normalizeDate(raw: string): string {
-  if (!raw) return "";
-  const s = raw.trim().replace(/週[一二三四五六日]/g, "").trim();
-  const full = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
-  if (full) return `${full[1]}-${full[2].padStart(2, "0")}-${full[3].padStart(2, "0")}`;
-  const short = s.match(/^(\d{1,2})[\/\-](\d{1,2})$/);
-  if (short) return `2026-${short[1].padStart(2, "0")}-${short[2].padStart(2, "0")}`;
-  const chinese = s.match(/^(\d{1,2})月(\d{1,2})日$/);
-  if (chinese) return `2026-${chinese[1].padStart(2, "0")}-${chinese[2].padStart(2, "0")}`;
-  return raw.trim();
-}
+// 日期正規化（2026/4/5、4/5、4/5 週三、4月5日 → 2026-04-05），看不懂就保留原文
+const normalizeDate = (raw: string) => normalizeDateStr(raw) || raw.trim();
 
 // 拆分「姓名+電話」合併格，例如：
 //   "林澤晉 0987369898"  → name=林澤晉, phone=0987369898

@@ -8,6 +8,7 @@ import { SalesChannelSelect } from "@/components/SalesChannelSelect";
 import { formatAltDates } from "@/components/AltDatesEditor";
 import { StaffOptionSelect } from "@/components/StaffOptionSelect";
 import { ReservedCalendar, optionsOf, matchBranch } from "@/components/ReservedCalendar";
+import { todayStr } from "@/lib/dates";
 
 type Booking = {
   id: string;
@@ -87,10 +88,8 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
 
   const handleOpenSale = (b: Booking) => {
     setSaleTarget(b);
-    const today = new Date();
-    const pad = (n: number) => String(n).padStart(2, "0");
     setSaleForm({
-      soldDate: `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`,
+      soldDate: todayStr(),
       collectedAmount: "",
       account: "",
       agencyFee: "",
@@ -131,13 +130,11 @@ export function CategoryBoard({ category, title }: { category: "臨時單" | "�
       const fee = b.agencyFee ? `代訂費 ${formatCurrency(b.agencyFee)}` : "代訂費";
       if (!confirm(`${who} 的預定單沒訂到，${fee} 要退給客人。確定標記為沒訂到（退款）？`)) return;
     }
-    const today = new Date();
-    const pad = (n: number) => String(n).padStart(2, "0");
     const res = await fetch(`/api/bookings/${b.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(result === "sold"
-        ? { status: "sold", soldDate: `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`, actualBooker: booker ?? "" }
+        ? { status: "sold", soldDate: todayStr(), actualBooker: booker ?? "" }
         : { status: "refunded" }),
     });
     if (!res.ok) {
