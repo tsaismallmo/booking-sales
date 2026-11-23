@@ -518,7 +518,7 @@ ${QUOTE_CLOSING}${partyNote}`;
                   <input className="erp-input" value={saleForm.account} onChange={(e) => setSaleForm((f) => ({ ...f, account: e.target.value }))} />
                 </div>
                 <div className="erp-form-group">
-                  <label className="erp-label">代訂費（全座）</label>
+                  <label className="erp-label">代訂費（總共）</label>
                   <input type="number" step="0.01" className="erp-input" placeholder="0" value={saleForm.agencyFee} onChange={(e) => setSaleForm((f) => ({ ...f, agencyFee: e.target.value }))} />
                 </div>
                 <div className="erp-form-group">

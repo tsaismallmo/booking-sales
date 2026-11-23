@@ -448,7 +448,7 @@ export default function BulkActionsPage() {
                   <th style={{ minWidth: 100 }}>收款金額</th>
                   <th style={{ minWidth: 120 }}>帳戶</th>
                   <th style={{ minWidth: 120 }}>銷售人員</th>
-                  <th style={{ minWidth: 90 }}>代訂費（全座）</th>
+                  <th style={{ minWidth: 90 }}>代訂費（總共）</th>
                   <th style={{ minWidth: 80 }}>實賣人數</th>
                   <th style={{ minWidth: 100 }}>餐廳訂金</th>
                   <th style={{ minWidth: 120 }}>退訂期限</th>

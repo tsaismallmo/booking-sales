@@ -104,7 +104,7 @@ export const bookings = pgTable('bookings', {
   collectedAmount: numeric('collected_amount'), // 收款金額
   account: text('account'), // 帳戶
   salespersonId: uuid('salesperson_id').references(() => users.id), // 銷售（客服）
-  agencyFee: numeric('agency_fee'), // 代訂費（全座正常費用）
+  agencyFee: numeric('agency_fee'), // 代訂費（整筆總共，不是每人）
   soldCount: integer('sold_count'), // 實賣人數（若只賣出部分人數時填入，用於計算廠商利潤）
   platformFeeBase: numeric('platform_fee_base'), // 平台抽成的計費基礎金額（留空就用代訂費全額算平台費；
   // 填了的話，超過這個金額的部分不抽平台費、直接算給廠商，例如代訂費1200只想拿900去算平台費，剩下300全給廠商）
