@@ -10,6 +10,11 @@ export default auth((req) => {
     return response
   }
 
+  // 監控程式抓參數檔：不用登入，route 自己用 MONITOR_TOKEN 驗證
+  if (pathname === '/api/monitor-file') {
+    return response
+  }
+
   // 開發用帳號切換後門：只有 dev 環境有效，API 路由自己也會再檢查一次 NODE_ENV
   if (process.env.NODE_ENV === 'development' && (pathname.startsWith('/dev') || pathname.startsWith('/api/dev'))) {
     return response

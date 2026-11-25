@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BranchSelect } from "@/components/BranchSelect";
 import { getMealPeriod } from "@/lib/quote";
+import { buildFeastFile, buildMonitorFile } from "@/lib/monitor-files";
 import { todayStr, ymd } from "@/lib/dates";
 
 type StockMatch = { id: string; branch: string | null; bookingDate: string; timeSlot: string | null; partySize: number | null; bookingCode: string | null };
@@ -100,76 +101,6 @@ function fetchSeatRequests(): Promise<SeatRequest[] | null> {
 // 需求看板頁面一打開就呼叫，還在「修改需求」分頁時就先把訂位需求讀好
 export function prefetchSeatRequests() {
   void fetchSeatRequests();
-}
-
-// ── 監控程式的參數檔：每行「客人 分店 日期 時段」，只放島語還在等的候選 ──
-const MONITOR_RESTAURANT = "島語";
-const MONITOR_CITIES = ["台北", "台中", "桃園", "高雄"];
-function monitorCity(branch: string | null) {
-  const [restaurant, name = ""] = (branch ?? "").split("｜");
-  if (restaurant !== MONITOR_RESTAURANT) return null;
-  return MONITOR_CITIES.find((c) => name.startsWith(c)) ?? null;
-}
-function buildMonitorFile(requests: SeatRequest[]) {
-  // 每個候選一行，不合併；完全一樣的行只留一行
-  const lines = new Map<string, string>();
-  for (const r of requests) {
-    if (r.status !== "pending") continue;
-    const name = (r.customerName || r.customerPhone || "客人").replace(/\s+/g, "");
-    for (const o of r.options) {
-      const city = o.status === "pending" ? monitorCity(o.branch) : null;
-      if (!city) continue;
-      const slot = getMealPeriod(o.timeSlot) ?? "都可";
-      const text = `${name} ${city} ${Number(o.bookingDate.slice(5, 7))}/${Number(o.bookingDate.slice(8, 10))} ${slot}`;
-      lines.set(text, `${o.bookingDate} ${MEAL_ORDER.indexOf(slot)}`);
-    }
-  }
-  const body = [...lines.entries()]
-    .sort((a, b) => a[1].localeCompare(b[1]))
-    .map(([text]) => text);
-  return [
-    "# 客人需求：每行「客人 分店 日期 時段」",
-    "# 分店：台北 / 台中 / 桃園 / 高雄（多間用 、 隔開，例如 台北、桃園）",
-    "# 時段：午餐 / 下午茶 / 晚餐 / 都可，或具體時間如 17:30",
-    "# 日期過了會自動不比對；訂到的客人直接刪掉那一行",
-    ...body,
-    "",
-  ].join("\n");
-}
-
-// ── 饗賓監控程式的參數檔：每行「客人 分店 日期 餐期 人數」，只放監控程式認得的饗賓分店 ──
-// 系統分店（餐廳｜分店）→ 監控程式 STORES 的正式名稱＝把「｜」拿掉（旭集｜中茂店 → 旭集中茂店）。
-// 饗賓的餐廳都放，新開的分店不用再改這裡，只要監控程式 STORES 有加那間店
-const FEAST_RESTAURANTS = ["旭集", "饗饗", "饗AJOY"];
-const feastBranch = (branch: string) => {
-  const [restaurant, store] = branch.split("｜");
-  return FEAST_RESTAURANTS.includes(restaurant) && store ? `${restaurant}${store}` : undefined;
-};
-function buildFeastFile(requests: SeatRequest[]) {
-  const lines = new Map<string, { text: string; sort: string }>();
-  for (const r of requests) {
-    if (r.status !== "pending") continue;
-    const name = (r.customerName || r.customerPhone || "客人").replace(/\s+/g, "");
-    for (const o of r.options) {
-      const branch = o.status === "pending" && o.branch ? feastBranch(o.branch) : undefined;
-      if (!branch) continue;
-      const meal = getMealPeriod(o.timeSlot) ?? "都可";
-      const date = `${Number(o.bookingDate.slice(5, 7))}/${Number(o.bookingDate.slice(8, 10))}`;
-      // 2 位的需求寫成 2-3（饗賓 2、3 人的位子都可以給 2 位客人）
-      const size = o.partySize === 2 ? "2-3" : o.partySize ? String(o.partySize) : "";
-      const text = [name, branch, date, meal, size].filter(Boolean).join(" ");
-      lines.set(text, { text, sort: `${o.bookingDate} ${MEAL_ORDER.indexOf(meal)}` });
-    }
-  }
-  return [
-    "# 饗賓客人需求：每行「客人 分店 日期 餐期 人數」",
-    "# 分店：旭集台中 / 旭集信義 / 旭集微風 / 旭集天母 / 旭集中茂 / 旭集竹北 / 旭集台南 / 旭集義享 / 饗AJOY / 饗饗（全名也可以）",
-    "# 餐期：午餐 / 下午茶 / 晚餐 / 都可",
-    "# 人數：可省略（旭集台中＝人數不限；其他分店會用 2 人去查）",
-    "# 日期過了自動不比對；訂到的客人直接刪掉那一行",
-    ...[...lines.values()].sort((a, b) => a.sort.localeCompare(b.sort)).map((l) => l.text),
-    "",
-  ].join("\n");
 }
 
 function downloadText(fileName: string, text: string) {
