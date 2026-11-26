@@ -23,10 +23,12 @@ const shortDate = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 1
 
 // ── 島語：每行「客人 分店 日期 時段」 ──
 const MONITOR_RESTAURANT = "島語";
-const MONITOR_CITIES = ["台北", "台中", "桃園", "高雄", "大巨蛋"];
+const MONITOR_CITIES = ["台北", "台中", "桃園", "高雄"];
 function monitorCity(branch: string | null) {
   const [restaurant, name = ""] = (branch ?? "").split("｜");
   if (restaurant !== MONITOR_RESTAURANT) return null;
+  // 大巨蛋的分店名稱是「台北大巨蛋」，開頭也是台北，要先判斷，不然會被當成台北店
+  if (name.includes("大巨蛋")) return "大巨蛋";
   return MONITOR_CITIES.find((c) => name.startsWith(c)) ?? null;
 }
 export function buildMonitorFile(requests: MonitorRequest[]) {
